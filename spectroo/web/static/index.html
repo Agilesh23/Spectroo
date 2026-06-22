@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectroo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            height: calc(100vh - 28px);
+        }
+        .plot-area {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .control-panel {
+            width: 200px;
+            min-width: 200px;
+            max-width: 200px;
+            background-color: #ffffff;
+            border-left: 1px solid #dcdcdc;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 12px 10px;
+        }
+        .section-header {
+            font-size: 10px;
+            font-weight: bold;
+            color: #666666;
+            margin-top: 10px;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        .section-header.first {
+            margin-top: 0;
+        }
+        .separator {
+            border-top: 1px solid #eeeeee;
+            margin: 10px 0;
+        }
+        .btn-group {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        button {
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 5px 8px;
+            background-color: #fafafa;
+            color: #333333;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            transition: background-color 0.1s, border-color 0.1s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #f0f0f0;
+            border-color: #b0b0b0;
+        }
+        button:active:not(:disabled) {
+            background-color: #e5e5e5;
+        }
+        button.active {
+            background-color: #0066cc;
+            color: #ffffff;
+            border-color: #0055bb;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #fafafa;
+            border-color: #cccccc;
+            color: #999999;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #555555;
+            margin-top: 6px;
+            margin-bottom: 8px;
+        }
+        input[type="number"] {
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 4px;
+            background-color: #ffffff;
+            color: #333333;
+            font-size: 11px;
+            width: 80px;
+            outline: none;
+        }
+        input[type="number"]:focus {
+            border-color: #0066cc;
+        }
+        .status-bar {
+            height: 28px;
+            min-height: 28px;
+            background-color: #ffffff;
+            border-top: 1px solid #dcdcdc;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 25px;
+            font-size: 11px;
+            color: #555555;
+        }
+        .status-field {
+            white-space: nowrap;
+        }
+        .status-stretch {
+            flex-grow: 1;
+        }
+
+        /* History Styles */
+        .history-toggle {
+            text-align: left;
+            background-color: #fafafa;
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 5px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-container {
+            border: 1px solid #dcdcdc;
+            border-radius: 3px;
+            margin-top: 4px;
+            background-color: #ffffff;
+            max-height: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+        .history-container.hidden {
+            display: none;
+        }
+        .history-count {
+            padding: 4px 8px;
+            font-size: 10px;
+            color: #777777;
+            border-bottom: 1px solid #eee;
+            background-color: #fafafa;
+        }
+        .history-list {
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+        }
+        .history-item {
+            padding: 6px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-item:hover {
+            background-color: #f5f5f5;
+        }
+        .history-item.selected {
+            background-color: #e6e6e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="plot-area" id="plot-area">
+            <canvas id="spectrum-canvas"></canvas>
+        </div>
+        <div class="control-panel">
+            <div class="section-header first">MODE</div>
+            <div class="btn-group">
+                <button id="mode-single-btn" class="active">Single</button>
+                <button id="mode-live-btn">Live</button>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="section-header">ACQUISITION</div>
+            <button id="capture-btn" style="margin-bottom: 6px;">Capture</button>
+            <button id="stop-btn" disabled style="margin-bottom: 6px;">Stop</button>
+            <div class="input-row">
+                <span>Exposure (µs):</span>
+                <input type="number" id="exposure-input" value="200000" min="110" max="3066979">
+            </div>
+            
+            <div class="separator"></div>
+            
+            <div class="section-header">DISPLAY</div>
+            <button id="plot-mode-btn" class="active" style="margin-bottom: 6px;">Colour Spectrum</button>
+            <button id="baseline-btn" class="active">Baseline Corr</button>
+            
+            <div class="separator"></div>
+            
+            <div class="section-header">DATA</div>
+            <button id="save-btn" style="margin-bottom: 6px;">Save</button>
+            <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
+            <button id="export-csv-btn" disabled>Export CSV</button>
+            
+            <div class="separator"></div>
+            
+            <div class="section-header">HISTORY</div>
+            <button id="history-toggle-btn" class="history-toggle">
+                <span>▶ History</span>
+            </button>
+            <div id="history-container" class="history-container hidden">
+                <div id="history-count" class="history-count">0 entries</div>
+                <ul id="history-list" class="history-list"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        <span id="fps-status" class="status-field">FPS: 0.0</span>
+        <span id="calib-status" class="status-field">Calibration: Uncalibrated</span>
+        <span id="dark-status" class="status-field">Dark Frame: Not Loaded</span>
+        <span id="peaks-status" class="status-field">Peaks: None</span>
+        <span class="status-stretch"></span>
+    </div>
+
+    <script>
+        // State Variables
+        let currentWavelengths = null;
+        let currentIntensities = null;
+        let currentPeaks = [];
+        let fillMode = 'color'; // 'color' | 'plain'
+        let showPeaks = true;
+        let lastRecordId = null;
+        let liveMode = false;
+        
+        let ws = null;
+        let frameCount = 0;
+        let lastFpsTime = null;
+        
+        // Zoom and Pan state
+        let zoomXMin = null;
+        let zoomXMax = null;
+        let inspectX = null;
+        let inspectIdx = null;
+        let isPanning = false;
+        let panStartX = null;
+        let panStartXMin = null;
+        let panStartXMax = null;
+
+        // Colors (must match desktop theme)
+        const colors = {
+            bg: '#ffffff',
+            grid: '#eeeeee',
+            axis: '#555555',
+            text: '#333333',
+            curve: '#444444',
+            peakMarker: '#ff4444',
+            inspectLine: '#666666'
+        };
+
+        // DOM elements
+        const canvas = document.getElementById('spectrum-canvas');
+        const plotArea = document.getElementById('plot-area');
+        
+        // Resize Canvas
+        function resizeCanvas() {
+            canvas.width = plotArea.clientWidth;
+            canvas.height = plotArea.clientHeight;
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        // Initial defer resize to ensure layout is computed
+        setTimeout(resizeCanvas, 0);
+
+        // Bruton Wavelength to RGB conversion
+        function wavelengthToRgb(wavelength) {
+            const w = parseFloat(wavelength);
+            let r = 0.0, g = 0.0, b = 0.0;
+            
+            if (w >= 380.0 && w < 440.0) {
+                r = -(w - 440.0) / (440.0 - 380.0);
+                g = 0.0;
+                b = 1.0;
+            } else if (w >= 440.0 && w < 490.0) {
+                r = 0.0;
+                g = (w - 440.0) / (490.0 - 440.0);
+                b = 1.0;
+            } else if (w >= 490.0 && w < 510.0) {
+                r = 0.0;
+                g = 1.0;
+                b = -(w - 510.0) / (510.0 - 490.0);
+            } else if (w >= 510.0 && w < 580.0) {
+                r = (w - 510.0) / (580.0 - 510.0);
+                g = 1.0;
+                b = 0.0;
+            } else if (w >= 580.0 && w < 645.0) {
+                r = 1.0;
+                g = -(w - 645.0) / (645.0 - 580.0);
+                b = 0.0;
+            } else if (w >= 645.0 && w <= 780.0) {
+                r = 1.0;
+                g = 0.0;
+                b = 0.0;
+            } else {
+                r = 0.0;
+                g = 0.0;
+                b = 0.0;
+            }
+            
+            let factor = 0.0;
+            if (w >= 380.0 && w < 420.0) {
+                factor = 0.3 + 0.7 * (w - 380.0) / (420.0 - 380.0);
+            } else if (w >= 420.0 && w < 700.0) {
+                factor = 1.0;
+            } else if (w >= 700.0 && w <= 780.0) {
+                factor = 0.3 + 0.7 * (780.0 - w) / (780.0 - 700.0);
+            } else {
+                factor = 0.0;
+            }
+            
+            const gamma = 0.8;
+            const r_adj = r > 0.0 ? Math.pow(r * factor, gamma) : 0.0;
+            const g_adj = g > 0.0 ? Math.pow(g * factor, gamma) : 0.0;
+            const b_adj = b > 0.0 ? Math.pow(b * factor, gamma) : 0.0;
+            
+            return [
+                Math.floor(r_adj * 255),
+                Math.floor(g_adj * 255),
+                Math.floor(b_adj * 255)
+            ];
+        }
+
+        // Draw Spectrum
+        function drawSpectrum(wavelengths, intensities, peaks) {
+            currentWavelengths = wavelengths;
+            currentIntensities = intensities;
+            currentPeaks = peaks;
+
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = colors.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const plotW = canvas.width - margin.left - margin.right;
+            const plotH = canvas.height - margin.top - margin.bottom;
+
+            if (plotW <= 0 || plotH <= 0) return;
+
+            // Y axis label rotated -90 degrees
+            ctx.save();
+            ctx.translate(margin.left - 48, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = colors.text;
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Intensity (Counts)', 0, 0);
+            ctx.restore();
+
+            const hasData = wavelengths && intensities && wavelengths.length > 0 && intensities.length > 0;
+
+            // X axis label
+            let xLabel = 'Wavelength (nm)';
+            if (hasData) {
+                if ((wavelengths[wavelengths.length - 1] - wavelengths[0]) < 200) {
+                    xLabel = 'Pixel';
+                }
+            }
+            ctx.fillStyle = colors.text;
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(xLabel, margin.left + plotW / 2, canvas.height - margin.bottom + 28);
+
+            if (!hasData) {
+                ctx.strokeStyle = colors.axis;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+                ctx.fillStyle = colors.text;
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Awaiting Frame Data...', margin.left + plotW / 2, margin.top + plotH / 2);
+                return;
+            }
+
+            // Ranges
+            const fullMin = wavelengths[0];
+            const fullMax = wavelengths[wavelengths.length - 1];
+            const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+            const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+
+            const yMin = 0.0;
+            const yMax = Math.max(1.0, Math.max(...intensities));
+            const yLimit = yMax * 1.15;
+
+            // Horizontal Grid & Y labels
+            const yTicks = [0, 1, 2, 3, 4].map(i => i * (yLimit / 4.0));
+            ctx.font = '8px Arial';
+            ctx.fillStyle = colors.text;
+
+            yTicks.forEach(yVal => {
+                const py = canvas.height - margin.bottom - (yVal / yLimit) * plotH;
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, py);
+                ctx.lineTo(canvas.width - margin.right, py);
+                ctx.stroke();
+
+                ctx.strokeStyle = colors.axis;
+                ctx.beginPath();
+                ctx.moveTo(margin.left - 5, py);
+                ctx.lineTo(margin.left, py);
+                ctx.stroke();
+
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(Math.round(yVal).toString(), margin.left - 7, py);
+            });
+
+            // Adaptive X Ticks
+            const rangeX = xMax - xMin;
+            let step = 1.0;
+            if (rangeX > 0) {
+                const rawStep = rangeX / 6.0;
+                const exponent = Math.floor(Math.log10(rawStep));
+                const fraction = rawStep / Math.pow(10, exponent);
+                let niceFraction = 1.0;
+                if (fraction < 1.5) niceFraction = 1.0;
+                else if (fraction < 3.0) niceFraction = 2.0;
+                else if (fraction < 7.0) niceFraction = 5.0;
+                else niceFraction = 10.0;
+                step = niceFraction * Math.pow(10, exponent);
+            }
+
+            const xTicks = [];
+            let startTick = Math.ceil(xMin / step) * step;
+            while (startTick <= xMax) {
+                xTicks.push(startTick);
+                startTick += step;
+            }
+
+            xTicks.forEach(xVal => {
+                if (xMax === xMin) return;
+                const px = margin.left + (xVal - xMin) / (xMax - xMin) * plotW;
+                if (px < margin.left || px > canvas.width - margin.right) return;
+
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px, margin.top);
+                ctx.lineTo(px, canvas.height - margin.bottom);
+                ctx.stroke();
+
+                ctx.strokeStyle = colors.axis;
+                ctx.beginPath();
+                ctx.moveTo(px, canvas.height - margin.bottom);
+                ctx.lineTo(px, canvas.height - margin.bottom + 5);
+                ctx.stroke();
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(Math.round(xVal).toString(), px, canvas.height - margin.bottom + 8);
+            });
+
+            // Axis Border Box
+            ctx.strokeStyle = colors.axis;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+
+            // Filter points for canvas drawing
+            let sliceStart = wavelengths.findIndex(w => w >= xMin);
+            if (sliceStart > 0) sliceStart--;
+            if (sliceStart < 0) sliceStart = 0;
+
+            let sliceEnd = wavelengths.length - 1;
+            for (let i = wavelengths.length - 1; i >= 0; i--) {
+                if (wavelengths[i] <= xMax) {
+                    sliceEnd = i;
+                    break;
+                }
+            }
+            if (sliceEnd < wavelengths.length - 1) sliceEnd++;
+
+            const sliceWl = wavelengths.slice(sliceStart, sliceEnd + 1);
+            const sliceInt = intensities.slice(sliceStart, sliceEnd + 1);
+
+            const pxArr = [];
+            const pyArr = [];
+            for (let i = 0; i < sliceWl.length; i++) {
+                const px = xMax !== xMin ? margin.left + (sliceWl[i] - xMin) / (xMax - xMin) * plotW : margin.left;
+                const py = canvas.height - margin.bottom - (sliceInt[i] / yLimit) * plotH;
+                pxArr.push(px);
+                pyArr.push(py);
+            }
+
+            // Clip drawing to grid box
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(margin.left, margin.top, plotW, plotH);
+            ctx.clip();
+
+            // Gradient / Plain Fill
+            if (pxArr.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(pxArr[0], canvas.height - margin.bottom);
+                for (let i = 0; i < pxArr.length; i++) {
+                    ctx.lineTo(pxArr[i], pyArr[i]);
+                }
+                ctx.lineTo(pxArr[pxArr.length - 1], canvas.height - margin.bottom);
+                ctx.closePath();
+
+                if (fillMode === 'color') {
+                    const grad = ctx.createLinearGradient(margin.left, 0, canvas.width - margin.right, 0);
+                    const numStops = 60;
+                    const isCalibrated = (fullMax - fullMin) > 200;
+
+                    for (let stopI = 0; stopI <= numStops; stopI++) {
+                        const t = stopI / numStops;
+                        const stopVal = xMin + t * (xMax - xMin);
+                        let wl = stopVal;
+                        if (!isCalibrated) {
+                            if (fullMax > 0) {
+                                wl = 380.0 + (stopVal / fullMax) * (780.0 - 380.0);
+                            } else {
+                                wl = 380.0;
+                            }
+                        }
+                        const rgb = wavelengthToRgb(wl);
+                        grad.addColorStop(t, `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`);
+                    }
+                    ctx.fillStyle = grad;
+                } else {
+                    ctx.fillStyle = '#f0f0f0';
+                }
+                ctx.fill();
+            }
+
+            // Curve line
+            if (pxArr.length > 0) {
+                ctx.strokeStyle = colors.curve;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(pxArr[0], pyArr[0]);
+                for (let i = 1; i < pxArr.length; i++) {
+                    ctx.lineTo(pxArr[i], pyArr[i]);
+                }
+                ctx.stroke();
+            }
+
+            // Peak dashed lines and labels
+            const isCalibrated = (fullMax - fullMin) > 200;
+            if (showPeaks) {
+                peaks.forEach(idx => {
+                    if (idx < 0 || idx >= wavelengths.length) return;
+                    const pkX = wavelengths[idx];
+                    if (pkX < xMin || pkX > xMax) return;
+                    const pkY = intensities[idx];
+
+                    const px = xMax !== xMin ? margin.left + (pkX - xMin) / (xMax - xMin) * plotW : margin.left;
+                    const py = canvas.height - margin.bottom - (pkY / yLimit) * plotH;
+
+                    // Dashed line
+                    ctx.strokeStyle = colors.peakMarker;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, canvas.height - margin.bottom);
+                    ctx.lineTo(px, py);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Text
+                    ctx.fillStyle = colors.text;
+                    ctx.font = '8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    const label = isCalibrated ? Math.round(pkX) + ' nm' : 'Px ' + pkX;
+                    ctx.fillText(label, px, py - 5);
+                });
+            }
+
+            // Inspect overlay
+            if (inspectX !== null && inspectIdx !== null) {
+                const idx = inspectIdx;
+                if (idx >= 0 && idx < wavelengths.length) {
+                    const inspectW = inspectX;
+                    if (inspectW >= xMin && inspectW <= xMax) {
+                        const inspectY = intensities[idx];
+                        const px = xMax !== xMin ? margin.left + (inspectW - xMin) / (xMax - xMin) * plotW : margin.left;
+                        const py = canvas.height - margin.bottom - (inspectY / yLimit) * plotH;
+
+                        // Vertical dashed line
+                        ctx.strokeStyle = colors.inspectLine;
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(px, margin.top);
+                        ctx.lineTo(px, canvas.height - margin.bottom);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Tooltip card
+                        const cardW = 105;
+                        const cardH = 52;
+                        let cardX = px + 10;
+                        let cardY = py - 60;
+
+                        const xEnd = canvas.width - margin.right;
+                        if (cardX + cardW > xEnd) {
+                            cardX = px - 115;
+                        }
+                        if (cardY < margin.top) {
+                            cardY = py + 10;
+                        }
+
+                        // Background
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#cccccc';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.roundRect ? ctx.roundRect(cardX, cardY, cardW, cardH, 4) : ctx.rect(cardX, cardY, cardW, cardH);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        // Content
+                        ctx.fillStyle = colors.text;
+                        ctx.font = '8px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const tooltipStr = isCalibrated
+                            ? `${inspectW.toFixed(1)} nm\n${inspectY.toFixed(1)} cts\nPx ${idx}`
+                            : `Px ${idx}\n${inspectY.toFixed(1)} cts`;
+
+                        const lines = tooltipStr.split('\n');
+                        lines.forEach((line, i) => {
+                            ctx.fillText(line, cardX + cardW / 2, cardY + cardH / 2 + (i - (lines.length - 1) / 2) * 12);
+                        });
+                    }
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // Canvas interaction
+        canvas.addEventListener('mousedown', (e) => {
+            if (!currentWavelengths || currentWavelengths.length === 0) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const plotW = canvas.width - margin.left - margin.right;
+
+            if (e.button === 2) { // Right click reset
+                e.preventDefault();
+                zoomXMin = null;
+                zoomXMax = null;
+                inspectX = null;
+                inspectIdx = null;
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                return;
+            }
+
+            const isPanClick = e.button === 1 || (e.button === 0 && e.ctrlKey);
+            if (isPanClick) {
+                isPanning = true;
+                panStartX = mouseX;
+                const fullMin = currentWavelengths[0];
+                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                panStartXMin = zoomXMin !== null ? zoomXMin : fullMin;
+                panStartXMax = zoomXMax !== null ? zoomXMax : fullMax;
+                return;
+            }
+
+            if (e.button === 0) { // Left click inspect
+                const xStart = margin.left;
+                if (plotW <= 0) return;
+
+                let clickX = mouseX;
+                if (clickX < xStart) clickX = xStart;
+                else if (clickX > xStart + plotW) clickX = xStart + plotW;
+
+                const fullMin = currentWavelengths[0];
+                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+                const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+
+                const frac = (clickX - xStart) / plotW;
+                const target = xMin + frac * (xMax - xMin);
+
+                let minDiff = Infinity;
+                let bestIdx = 0;
+                for (let i = 0; i < currentWavelengths.length; i++) {
+                    const diff = Math.abs(currentWavelengths[i] - target);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestIdx = i;
+                    }
+                }
+
+                inspectIdx = bestIdx;
+                inspectX = currentWavelengths[bestIdx];
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+            }
+        });
+
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!currentWavelengths || currentWavelengths.length === 0) return;
+            if (isPanning) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const dx = mouseX - panStartX;
+
+                const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+                const plotW = canvas.width - margin.left - margin.right;
+                if (plotW <= 0) return;
+
+                const dataPerPx = (panStartXMax - panStartXMin) / plotW;
+                const shift = -dx * dataPerPx;
+
+                const fullMin = currentWavelengths[0];
+                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                const rng = panStartXMax - panStartXMin;
+
+                let newMin = Math.max(fullMin, panStartXMin + shift);
+                let newMax = newMin + rng;
+                if (newMax > fullMax) {
+                    newMax = fullMax;
+                    newMin = newMax - rng;
+                }
+
+                zoomXMin = newMin;
+                zoomXMax = newMax;
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isPanning = false;
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            if (!currentWavelengths || currentWavelengths.length === 0) return;
+            e.preventDefault();
+
+            const factor = e.deltaY < 0 ? 0.8 : 1.25;
+            const fullMin = currentWavelengths[0];
+            const fullMax = currentWavelengths[currentWavelengths.length - 1];
+
+            const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+            const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - 65; // margin left
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const plotW = canvas.width - margin.left - margin.right;
+            if (plotW <= 0) return;
+
+            const t = Math.max(0.0, Math.min(1.0, mouseX / plotW));
+            const center = xMin + t * (xMax - xMin);
+            const newHalf = (xMax - xMin) * factor / 2;
+
+            let newMin = Math.max(fullMin, center - newHalf);
+            let newMax = Math.min(fullMax, center + newHalf);
+
+            if (newMax - newMin < 5) return;
+
+            if (newMin <= fullMin && newMax >= fullMax) {
+                zoomXMin = null;
+                zoomXMax = null;
+            } else {
+                zoomXMin = newMin;
+                zoomXMax = newMax;
+            }
+
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        }, { passive: false });
+
+        canvas.addEventListener('dblclick', () => {
+            zoomXMin = null;
+            zoomXMax = null;
+            inspectX = null;
+            inspectIdx = null;
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+
+        // Status Updater
+        function updateStatusBar(status) {
+            if (status.calibrated !== undefined) {
+                document.getElementById('calib-status').innerText = `Calibration: ${status.calibrated ? 'Calibrated' : 'Uncalibrated'}`;
+            }
+            if (status.dark_loaded !== undefined) {
+                document.getElementById('dark-status').innerText = `Dark Frame: ${status.dark_loaded ? 'Loaded' : 'Not Loaded'}`;
+            }
+        }
+
+        function updatePeaksStatus(peaks, calibrated) {
+            const label = document.getElementById('peaks-status');
+            if (peaks && peaks.length > 0) {
+                const peakstrs = [];
+                for (let i = 0; i < Math.min(3, peaks.length); i++) {
+                    const idx = peaks[i];
+                    if (currentWavelengths && idx < currentWavelengths.length) {
+                        const val = currentWavelengths[idx];
+                        if (calibrated) {
+                            peakstrs.push(`${val.toFixed(1)} nm`);
+                        } else {
+                            peakstrs.push(`${Math.round(val)} px`);
+                        }
+                    }
+                }
+                label.innerText = `Peaks: ${peakstrs.join(', ')}`;
+            } else {
+                label.innerText = 'Peaks: None';
+            }
+        }
+
+        // Fetch Status
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                updateStatusBar(data);
+                if (data.live_active) {
+                    setLiveUI(true);
+                    connectWebSocket();
+                } else {
+                    setLiveUI(false);
+                }
+            } catch (err) {
+                console.error("Error fetching status:", err);
+            }
+        }
+        fetchStatus();
+
+        // Control Panel wiring
+        const modeSingleBtn = document.getElementById('mode-single-btn');
+        const modeLiveBtn = document.getElementById('mode-live-btn');
+        const captureBtn = document.getElementById('capture-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const exposureInput = document.getElementById('exposure-input');
+        const plotModeBtn = document.getElementById('plot-mode-btn');
+        const baselineBtn = document.getElementById('baseline-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const exportJsonBtn = document.getElementById('export-json-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const historyToggleBtn = document.getElementById('history-toggle-btn');
+        const historyContainer = document.getElementById('history-container');
+        const historyList = document.getElementById('history-list');
+
+        function setLiveUI(active) {
+            liveMode = active;
+            if (active) {
+                modeSingleBtn.classList.remove('active');
+                modeLiveBtn.classList.add('active');
+                captureBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                modeSingleBtn.classList.add('active');
+                modeLiveBtn.classList.remove('active');
+                captureBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        modeSingleBtn.addEventListener('click', async () => {
+            if (liveMode) {
+                await stopLive();
+            }
+            setLiveUI(false);
+        });
+
+        modeLiveBtn.addEventListener('click', async () => {
+            if (!liveMode) {
+                setLiveUI(true);
+                await startLive();
+            }
+        });
+
+        async function startLive() {
+            try {
+                const res = await fetch('/api/live/start', { method: 'POST' });
+                connectWebSocket();
+            } catch (err) {
+                console.error("Error starting live mode:", err);
+            }
+        }
+
+        async function stopLive() {
+            try {
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+                await fetch('/api/live/stop', { method: 'POST' });
+                document.getElementById('fps-status').innerText = 'FPS: 0.0';
+                setLiveUI(false);
+            } catch (err) {
+                console.error("Error stopping live mode:", err);
+            }
+        }
+
+        function connectWebSocket() {
+            if (ws) return;
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/live`;
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                frameCount = 0;
+                lastFpsTime = performance.now();
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.error) {
+                    if (data.error === "device busy") {
+                        alert("Device busy — another client is connected.");
+                    } else {
+                        alert("WebSocket error: " + data.error);
+                    }
+                    stopLive();
+                    return;
+                }
+                
+                // Track FPS
+                frameCount++;
+                const now = performance.now();
+                if (!lastFpsTime) lastFpsTime = now;
+                const elapsed = now - lastFpsTime;
+                if (elapsed >= 1000) {
+                    const fps = (frameCount * 1000) / elapsed;
+                    document.getElementById('fps-status').innerText = `FPS: ${fps.toFixed(1)}`;
+                    frameCount = 0;
+                    lastFpsTime = now;
+                }
+                
+                // Draw frame
+                drawSpectrum(data.wavelengths, data.intensities, data.peaks);
+                
+                // Check calibration status and update peaks label
+                const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
+                updatePeaksStatus(data.peaks, isCalibrated);
+            };
+            
+            ws.onclose = () => {
+                ws = null;
+                setLiveUI(false);
+            };
+            
+            ws.onerror = (err) => {
+                console.error("WebSocket error:", err);
+                stopLive();
+            };
+        }
+
+        // Single capture
+        captureBtn.addEventListener('click', async () => {
+            captureBtn.disabled = true;
+            captureBtn.innerText = 'Capturing...';
+            try {
+                const exposure_us = parseInt(exposureInput.value);
+                const res = await fetch('/api/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exposure_us })
+                });
+                if (res.status === 503) {
+                    alert("Camera not available");
+                    return;
+                }
+                if (res.status === 409) {
+                    alert("Live mode active — stop live before single capture");
+                    return;
+                }
+                
+                const data = await res.json();
+                drawSpectrum(data.wavelengths, data.intensities, data.peaks);
+                
+                const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
+                updatePeaksStatus(data.peaks, isCalibrated);
+                
+                // Fetch status to refresh dark/calib status
+                fetchStatus();
+            } catch (err) {
+                console.error("Error during capture:", err);
+            } finally {
+                captureBtn.disabled = false;
+                captureBtn.innerText = 'Capture';
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            await stopLive();
+        });
+
+        // Exposure Change
+        async function updateExposure() {
+            const val = parseInt(exposureInput.value);
+            if (isNaN(val) || val < 110) {
+                exposureInput.value = 110;
+            } else if (val > 3066979) {
+                exposureInput.value = 3066979;
+            }
+            const clamped = parseInt(exposureInput.value);
+            
+            try {
+                const res = await fetch('/api/exposure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exposure_us: clamped })
+                });
+                const data = await res.json();
+                exposureInput.value = data.exposure_us;
+            } catch (err) {
+                console.error("Error updating exposure:", err);
+            }
+        }
+        exposureInput.addEventListener('blur', updateExposure);
+        exposureInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                updateExposure();
+            }
+        });
+
+        // Display Toggles
+        plotModeBtn.addEventListener('click', () => {
+            if (fillMode === 'color') {
+                fillMode = 'plain';
+                plotModeBtn.classList.remove('active');
+                plotModeBtn.innerText = 'Plain Spectrum';
+            } else {
+                fillMode = 'color';
+                plotModeBtn.classList.add('active');
+                plotModeBtn.innerText = 'Colour Spectrum';
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+
+        baselineBtn.addEventListener('click', () => {
+            baselineBtn.classList.toggle('active');
+            // Baseline Corr toggle is state only in front-end for visual feedback
+        });
+
+        // Save and Export
+        saveBtn.addEventListener('click', async () => {
+            if (!currentWavelengths) {
+                alert("No frame data available to save");
+                return;
+            }
+            const label = prompt("Enter a label for this spectrum capture:", "");
+            if (label === null) return; // User cancelled
+            
+            try {
+                const res = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label })
+                });
+                if (res.status === 400) {
+                    alert("No frame data available to save");
+                    return;
+                }
+                const data = await res.json();
+                if (data.saved) {
+                    lastRecordId = data.record_id;
+                    exportJsonBtn.disabled = false;
+                    exportCsvBtn.disabled = false;
+                    
+                    // Refresh History list if open
+                    if (!historyContainer.classList.contains('hidden')) {
+                        loadHistory();
+                    }
+                }
+            } catch (err) {
+                console.error("Error saving spectrum:", err);
+            }
+        });
+
+        exportJsonBtn.addEventListener('click', () => {
+            if (lastRecordId) {
+                window.location.href = `/api/export/${lastRecordId}?format=json`;
+            }
+        });
+
+        exportCsvBtn.addEventListener('click', () => {
+            if (lastRecordId) {
+                window.location.href = `/api/export/${lastRecordId}?format=csv`;
+            }
+        });
+
+        // History collapsible
+        historyToggleBtn.addEventListener('click', () => {
+            const isHidden = historyContainer.classList.contains('hidden');
+            const arrow = historyToggleBtn.querySelector('span');
+            
+            if (isHidden) {
+                historyContainer.classList.remove('hidden');
+                arrow.innerText = '▼ History';
+                loadHistory();
+            } else {
+                historyContainer.classList.add('hidden');
+                arrow.innerText = '▶ History';
+            }
+        });
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const list = await res.json();
+                
+                document.getElementById('history-count').innerText = `${list.length} entries`;
+                historyList.innerHTML = '';
+                
+                list.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'history-item';
+                    if (item.id === lastRecordId) {
+                        li.classList.add('selected');
+                    }
+                    
+                    const ts = item.timestamp.substring(0, 16).replace('T', '  ');
+                    const validPeaks = item.peaks.filter(w => w !== null);
+                    let peaksStr = '';
+                    if (validPeaks.length > 0) {
+                        peaksStr = '  |  ' + validPeaks.slice(0, 3).map(w => Math.round(w) + ' nm').join(',  ');
+                    }
+                    
+                    li.innerText = `${ts}${peaksStr}`;
+                    
+                    li.addEventListener('click', async () => {
+                        // De-select other items
+                        document.querySelectorAll('.history-item').forEach(el => el.classList.remove('selected'));
+                        li.classList.add('selected');
+                        
+                        // Load and draw record
+                        try {
+                            const recRes = await fetch(`/api/history/${item.id}`);
+                            if (recRes.status === 404) {
+                                alert("Record not found");
+                                return;
+                            }
+                            const record = await recRes.json();
+                            
+                            // Save export targets
+                            lastRecordId = record.id;
+                            exportJsonBtn.disabled = false;
+                            exportCsvBtn.disabled = false;
+                            
+                            // Draw spectrum
+                            // Peaks returned from history are peak wavelengths; we need to convert them back to indices to draw dashed lines!
+                            // Find nearest index for each peak wavelength
+                            const peakIndices = [];
+                            if (record.peaks && record.peaks.length > 0) {
+                                record.peaks.forEach(wl => {
+                                    if (wl === null) return;
+                                    let minDiff = Infinity;
+                                    let bestIdx = 0;
+                                    for (let i = 0; i < record.wavelengths.length; i++) {
+                                        const diff = Math.abs(record.wavelengths[i] - wl);
+                                        if (diff < minDiff) {
+                                            minDiff = diff;
+                                            bestIdx = i;
+                                        }
+                                    }
+                                    peakIndices.push(bestIdx);
+                                });
+                            }
+                            
+                            // Reset zoom on loading historical entry
+                            zoomXMin = null;
+                            zoomXMax = null;
+                            inspectX = null;
+                            inspectIdx = null;
+                            
+                            drawSpectrum(record.wavelengths, record.intensities, peakIndices);
+                            
+                            const isCalibrated = (record.wavelengths[record.wavelengths.length - 1] - record.wavelengths[0]) > 200;
+                            updatePeaksStatus(peakIndices, isCalibrated);
+                        } catch (err) {
+                            console.error("Error loading history record:", err);
+                        }
+                    });
+                    
+                    historyList.appendChild(li);
+                });
+            } catch (err) {
+                console.error("Error loading history list:", err);
+            }
+        }
+    </script>
+</body>
+</html>

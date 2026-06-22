@@ -1,0 +1,80 @@
+[app]
+name = "Spectroo v3"
+version = "3.0.0"
+
+[hardware]
+pi_model = "Raspberry Pi 4B"
+camera = "ArduCAM B0035 (OV5647 + IR filter)"
+lens_focal_length_mm = 12.0
+lens_aperture = "f/1.2"            # ASSUMPTION — verify
+pixel_size_mm = 0.00140            # ASSUMPTION — verify
+wavelength_range_nm = [400, 650]   # NOTE: confirm vs 700nm during T3
+
+[camera]
+resolution = [2592, 200]
+exposure_us = 200000
+exposure_min_us = 110
+exposure_max_us = 3066979
+frame_stack = 4                    # pending T7
+
+[optics]                            # one-time, locked via startup calibration
+tilt_angle_deg = 0.0                 # TBD — T1
+flip_spectrum = false                # TBD — T1
+center_y = 100                       # TBD — T1 (placeholder)
+
+[dsp]
+band_half_height = 25               # pending T4
+savgol_window = 7                   # pending T5
+savgol_polyorder = 3
+baseline_method = "minimum_filter1d_sg"   # pending T6: or "sg_only"
+baseline_window = 51
+baseline_polyorder = 2
+baseline_modifies_stored_data = true       # ASSUMPTION — confirm
+dark_refresh_interval_s = 60               # staleness prompt only, NOT a silent re-capture — see §7/§18.8
+
+[grating]
+lines_per_mm = 600                  # TBD — T3 (placeholder)
+diffraction_order = 1
+centre_pixel = 1296                 # TBD — startup calibration (placeholder, half of 2592)
+n_pixels = 2592
+
+[calibration]
+min_points = 2
+# degree used at exactly 3 points; below that, points-1 is used to avoid underdetermined fits.
+degree_low = 2
+degree_high = 3
+degree_threshold_points = 4
+
+[peaks]
+prominence_pct = 0.10
+prominence_min = 0.01
+min_distance_px = 20
+ui_display_cap = 3
+png_annotation_cap = 5
+png_label_decimals = 1
+
+[boot]
+mode = "auto"
+warmup_seconds = 30
+
+[hotspot]
+ssid = "Spectroo"
+password = "changeme"
+channel = 6
+gateway_ip = "192.168.4.1"
+dhcp_range_start = "192.168.4.10"
+dhcp_range_end = "192.168.4.50"
+mdns_hostname = "spectroo.local"
+
+[web]
+internal_port = 8000
+public_port = 80
+dev_password = "changeme"
+
+[history]
+db_path = "data/spectroo.db"
+max_entries = 500
+thumbnail_storage = "file_path"     # ASSUMPTION — vs "blob"
+
+[gpio]
+shutdown_pin = 3                    # TBD — confirm during build

@@ -1,0 +1,18 @@
+[Unit]
+Description=Spectroo v3 Spectrometer Application
+After=network.target
+
+[Service]
+Type=simple
+User=spectroo
+WorkingDirectory=/home/spectroo/spectroo_v3
+ExecStartPre=/bin/sleep 30
+ExecStart=/home/spectroo/spectroo_v3/scripts/boot_detect.sh
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

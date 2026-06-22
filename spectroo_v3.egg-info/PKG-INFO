@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: spectroo_v3
+Version: 3.0.0
+Summary: Spectroo v3 spectrometer application
+Requires-Python: >=3.11
+Requires-Dist: picamera2>=0.1.0; sys_platform == "linux"
+Requires-Dist: PyQt5>=5.15.0
+Requires-Dist: fastapi>=0.100.0
+Requires-Dist: uvicorn>=0.22.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: pytest>=7.0.0
+Requires-Dist: pytest-asyncio>=0.21.0

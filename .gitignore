@@ -1,0 +1,13 @@
+# Python artifacts
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+
+# Runtime data & logs
+logs/
+data/
+*.db
+*.npy
+*.log
