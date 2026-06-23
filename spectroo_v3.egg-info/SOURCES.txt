@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 spectroo/__init__.py
 spectroo/camera/__init__.py
@@ -26,7 +27,9 @@ spectroo/ui/control_panel.py
 spectroo/ui/history_panel.py
 spectroo/ui/main_window.py
 spectroo/ui/plot_widget.py
+spectroo/ui/status_bar.py
 spectroo/ui/theme.py
+spectroo/ui/workers.py
 spectroo/ui/dev/__init__.py
 spectroo/ui/dev/calibration_window.py
 spectroo/ui/dev/camera_preview_window.py
@@ -42,5 +45,14 @@ spectroo_v3.egg-info/dependency_links.txt
 spectroo_v3.egg-info/requires.txt
 spectroo_v3.egg-info/top_level.txt
 tests/test_calibration.py
+tests/test_camera.py
+tests/test_dev_calibration.py
 tests/test_dsp.py
+tests/test_history_panel.py
+tests/test_main_window.py
+tests/test_plot_widget.py
+tests/test_startup_calibration.py
 tests/test_storage.py
+tests/test_system.py
+tests/test_ui_widgets.py
+tests/test_web.py

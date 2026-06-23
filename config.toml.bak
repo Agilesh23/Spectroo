@@ -18,13 +18,13 @@ exposure_max_us = 3066979
 frame_stack = 4                    # pending T7
 
 [optics]                            # one-time, locked via startup calibration
-tilt_angle_deg = 0.471
-flip_spectrum = true
-center_y = 205
+tilt_angle_deg = 0.471             
+flip_spectrum = false              
+center_y = 205                     
 
 [dsp]
-band_half_height = 27
-savgol_window = 7
+band_half_height = 25               # pending T4
+savgol_window = 7                   # pending T5
 savgol_polyorder = 3
 baseline_method = "minimum_filter1d_sg"   # pending T6: or "sg_only"
 baseline_window = 51
@@ -33,9 +33,9 @@ baseline_modifies_stored_data = true       # ASSUMPTION — confirm
 dark_refresh_interval_s = 60               # staleness prompt only, NOT a silent re-capture — see §7/§18.8
 
 [grating]
-lines_per_mm = 789.93
+lines_per_mm = 600                  # TBD — T3 (placeholder)
 diffraction_order = 1
-centre_pixel = -2801.21               # TBD — startup calibration (placeholder, half of 2592)
+centre_pixel = 1296                 # TBD — startup calibration (placeholder, half of 2592)
 n_pixels = 2592
 
 
