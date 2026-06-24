@@ -74,6 +74,6 @@ thumbnail_storage = "file_path"     # ASSUMPTION — vs "blob"
 shutdown_pin = 3                    # TBD — confirm during build
 
 [calibration]
-coefficients = [396.23747211356584, 0.1199805160322903, -1.31915423401267e-05, 4.908312176350018e-09]
+coefficients = [4.908312176350018e-09, -1.31915423401267e-05, 0.1199805160322903, 396.23747211356584]
 degree = 3
 n_points = 4
