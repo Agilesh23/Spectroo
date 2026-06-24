@@ -590,7 +590,7 @@ class CalibrationWindow(QDialog):
             return
 
         # Reversed coefficients from high-to-low to low-to-high order
-        coefs_low_to_high = list(reversed(self._fit_result.coefficients))
+        coefs_low_to_high = list(self._fit_result.coefficients)
         degree = int(self._fit_result.degree)
         n_points = len(self._points)
 

@@ -1,6 +1,9 @@
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QFileDialog
 from PyQt5.QtCore import Qt
+import logging
+
+logger = logging.getLogger("spectroo")
 
 from spectroo.ui.plot_widget import SpectrumPlotWidget
 from spectroo.ui.control_panel import ControlPanel
@@ -26,20 +29,19 @@ class SpectrooMainWindow(QMainWindow):
         self.baseline_enabled = True
         self.current_spectrum = None
 
-        self._frame_source = None
-        if self._dev_mode:
-            res = tuple(self.config.get("camera", {}).get("resolution", [2592, 200]))
-            try:
-                from spectroo.camera.source import PiCameraFrameSource
-                self._frame_source = PiCameraFrameSource(resolution=res)
-            except Exception:
-                from spectroo.camera.source import MockFrameSource
-                self._frame_source = MockFrameSource(resolution=res)
+        self._dev_mode = True
+        res = tuple(self.config.get("camera", {}).get("resolution", [2592, 200]))
+        try:
+            from spectroo.camera.source import PiCameraFrameSource
+            self._frame_source = PiCameraFrameSource(resolution=res)
+        except Exception:
+            from spectroo.camera.source import MockFrameSource
+            self._frame_source = MockFrameSource(resolution=res)
 
-            from PyQt5.QtWidgets import QShortcut
-            from PyQt5.QtGui import QKeySequence
-            self.dev_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
-            self.dev_shortcut.activated.connect(self._open_dev_window)
+        from PyQt5.QtWidgets import QShortcut
+        from PyQt5.QtGui import QKeySequence
+        self.dev_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
+        self.dev_shortcut.activated.connect(self._open_dev_window)
 
         self.setWindowTitle("Spectroo")
         self.setMinimumSize(1000, 600)
@@ -84,7 +86,7 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.export_requested.connect(self._on_export)
         self.control_panel.save_chart_requested.connect(self._on_save_chart)
         self.control_panel.shutdown_requested.connect(self._on_shutdown)
-        self.control_panel.history_toggled.connect(self.history_panel._on_toggle)
+        self.control_panel.history_toggled.connect(self._on_history_toggled)
         self.history_panel.record_selected.connect(self._on_history_record_selected)
         self.control_panel.save_clicked.connect(self._on_save_clicked)
 
@@ -94,6 +96,7 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.set_mode(mode)
 
     def _on_start(self) -> None:
+        logger.info("Button clicked: Start | Mode: %s | Exposure: %s", self.current_mode, self.config.get("camera", {}).get("exposure_us"))
         self._on_stop()
         if self.current_mode == "single":
             self.control_panel.start_btn.setEnabled(False)
@@ -117,6 +120,7 @@ class SpectrooMainWindow(QMainWindow):
             self._live_worker.start()
 
     def _on_stop(self) -> None:
+        logger.info("Button clicked: Stop | Mode: %s", self.current_mode)
         if hasattr(self, "_live_worker") and self._live_worker:
             self._live_worker.stop()
             self._live_worker = None
@@ -135,10 +139,12 @@ class SpectrooMainWindow(QMainWindow):
         self.config["camera"]["exposure_us"] = exposure_us
 
     def _on_baseline_toggled(self, enabled: bool) -> None:
+        logger.info("Button clicked: Baseline Corr | Enabled: %s", enabled)
         self.baseline_enabled = enabled
         self.config["dsp"]["baseline_enabled"] = enabled
 
     def _on_calibrate(self) -> None:
+        logger.info("Button clicked: Calibrate... | Dev Mode: %s", self._dev_mode)
         if self._dev_mode:
             self._open_dev_window()
 
@@ -171,9 +177,14 @@ class SpectrooMainWindow(QMainWindow):
         self.status_bar.update_status({"calibrated": has_calib})
 
     def _on_shutdown(self) -> None:
+        logger.info("Button clicked: Shutdown")
         import subprocess
         self._on_stop()
         subprocess.run(["sudo", "shutdown", "-h", "now"])
+
+    def _on_history_toggled(self) -> None:
+        logger.info("Button clicked: History")
+        self.history_panel._on_toggle()
 
     def closeEvent(self, event) -> None:
         self._on_stop()
@@ -241,6 +252,7 @@ class SpectrooMainWindow(QMainWindow):
         QMessageBox.critical(self, "Acquisition Error", message)
 
     def _on_dark_frame(self) -> None:
+        logger.info("Button clicked: Capture Dark Frame | Exposure: %s", self.config.get("camera", {}).get("exposure_us"))
         QMessageBox.information(
             self,
             "Capture Dark Frame",
@@ -257,6 +269,7 @@ class SpectrooMainWindow(QMainWindow):
         self._dark_worker.deleteLater()
 
     def _on_export(self) -> None:
+        logger.info("Button clicked: Export JSON")
         wavelengths = self.plot_widget.wavelengths
         intensities = self.plot_widget.intensities
         if wavelengths is None or intensities is None:
@@ -294,6 +307,7 @@ class SpectrooMainWindow(QMainWindow):
             QMessageBox.critical(self, "Export Failed", str(e))
 
     def _on_save_chart(self) -> None:
+        logger.info("Button clicked: Save Chart")
         path, _ = QFileDialog.getSaveFileName(self, "Save Chart", "", "PNG (*.png)")
         if path:
             if not path.lower().endswith(".png"):
@@ -333,6 +347,7 @@ class SpectrooMainWindow(QMainWindow):
             QMessageBox.critical(self, "Save Failed", str(e))
 
     def _on_save_clicked(self) -> None:
+        logger.info("Button clicked: Save Spectrum")
         if self.current_spectrum is None:
             import logging
             logging.getLogger("spectroo.ui").warning("No spectrum to save.")

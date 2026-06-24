@@ -111,3 +111,103 @@ def test_save_clicked_signal_exists():
 def test_save_btn_label():
     panel = ControlPanel()
     assert panel.save_btn.text() == "Save Spectrum"
+
+
+def test_control_panel_buttons_logging(caplog):
+    import logging
+    from unittest.mock import patch
+    from spectroo.ui.main_window import SpectrooMainWindow
+
+    caplog.set_level(logging.INFO)
+
+    cfg = {
+        "camera": {"exposure_us": 50000, "n_frames": 4},
+        "dsp": {"baseline_enabled": True},
+        "storage": {"dark_frame_path": "dark_frame.npy"},
+        "calibration": {},
+        "history": {"db_path": "data/spectroo.db", "max_entries": 500},
+    }
+
+    # Patch blocking and background-running dependencies
+    with patch("PyQt5.QtWidgets.QMessageBox.information"), \
+         patch("PyQt5.QtWidgets.QMessageBox.warning"), \
+         patch("PyQt5.QtWidgets.QMessageBox.critical"), \
+         patch("PyQt5.QtWidgets.QFileDialog.getSaveFileName", return_value=("", "")), \
+         patch("subprocess.run"), \
+         patch("spectroo.ui.main_window.SingleAcquisitionWorker"), \
+         patch("spectroo.ui.main_window.LivePipelineWorker"), \
+         patch("spectroo.ui.main_window.DarkFrameWorker"):
+
+        window = SpectrooMainWindow(cfg, dev=True)
+        panel = window.control_panel
+
+        caplog.clear()
+
+        # 1. Mode Single Toggle
+        panel.single_btn.click()
+        assert any("Button clicked: Mode Single" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 2. Mode Live Toggle
+        panel.live_btn.click()
+        assert any("Button clicked: Mode Live" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 3. Start Button
+        panel.start_btn.click()
+        assert any("Button clicked: Start" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 4. Stop Button
+        # Force enable stop button to click it
+        panel.stop_btn.setEnabled(True)
+        panel.stop_btn.click()
+        assert any("Button clicked: Stop" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 5. Colour Spectrum Toggle
+        panel.plot_mode_btn.click()
+        assert any("Button clicked: Colour Spectrum toggle" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 6. Baseline Corr Toggle
+        panel.baseline_btn.click()
+        assert any("Button clicked: Baseline Corr" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 7. Calibrate...
+        # Patch the modal dialog box from opening
+        with patch.object(window, "_open_dev_window") as mock_open:
+            panel.calibrate_btn.click()
+            assert any("Button clicked: Calibrate..." in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 8. Capture Dark Frame
+        panel.dark_btn.click()
+        assert any("Button clicked: Capture Dark Frame" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 9. Export JSON
+        panel.export_btn.click()
+        assert any("Button clicked: Export JSON" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 10. Save Chart
+        panel.save_chart_btn.click()
+        assert any("Button clicked: Save Chart" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 11. Save Spectrum
+        panel.save_btn.click()
+        assert any("Button clicked: Save Spectrum" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 12. History
+        panel.history_btn.click()
+        assert any("Button clicked: History" in r.message for r in caplog.records)
+        caplog.clear()
+
+        # 13. Shutdown
+        panel.shutdown_btn.click()
+        assert any("Button clicked: Shutdown" in r.message for r in caplog.records)
+        caplog.clear()

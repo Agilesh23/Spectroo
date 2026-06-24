@@ -1,7 +1,10 @@
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFrame
 from PyQt5.QtGui import QFont
+import logging
 from spectroo.ui.theme import CONTROL_PANEL_WIDTH
+
+logger = logging.getLogger("spectroo")
 
 
 class ControlPanel(QWidget):
@@ -150,7 +153,7 @@ class ControlPanel(QWidget):
         # 6. SYSTEM
         self._add_header("SYSTEM")
         self.history_btn = QPushButton("History")
-        self.history_btn.clicked.connect(self.history_toggled.emit)
+        self.history_btn.clicked.connect(self._on_history_clicked)
         self.layout.addWidget(self.history_btn)
         self.shutdown_btn = QPushButton("Shutdown")
         self.shutdown_btn.clicked.connect(self.shutdown_requested.emit)
@@ -176,10 +179,12 @@ class ControlPanel(QWidget):
         self.layout.addWidget(label)
 
     def _on_single_clicked(self) -> None:
+        logger.info("Button clicked: Mode Single | Mode: single | Exposure: %s", self.exposure_input.text())
         self.set_mode("single")
         self.mode_changed.emit("single")
 
     def _on_live_clicked(self) -> None:
+        logger.info("Button clicked: Mode Live | Mode: live | Exposure: %s", self.exposure_input.text())
         self.set_mode("live")
         self.mode_changed.emit("live")
 
@@ -192,12 +197,18 @@ class ControlPanel(QWidget):
             pass
 
     def _on_plot_mode_clicked(self) -> None:
-        if self.plot_mode_btn.isChecked():
+        checked = self.plot_mode_btn.isChecked()
+        logger.info("Button clicked: Colour Spectrum toggle | Checked: %s", checked)
+        if checked:
             self.plot_mode_btn.setText("Colour Spectrum")
             self.plot_mode_changed.emit("color")
         else:
             self.plot_mode_btn.setText("Plain Spectrum")
             self.plot_mode_changed.emit("plain")
+
+    def _on_history_clicked(self) -> None:
+        logger.info("Button clicked: History")
+        self.history_toggled.emit()
 
     def set_mode(self, mode: str) -> None:
         if mode == "single":
