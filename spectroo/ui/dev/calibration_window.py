@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt, QPointF, QRectF, pyqtSignal, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QDialog, QTableWidget, QTableWidgetItem, QPushButton,
     QVBoxLayout, QHBoxLayout, QMessageBox, QInputDialog, QHeaderView, QLabel,
-    QSpinBox
+    QSpinBox, QLineEdit
 )
 from PyQt5.QtGui import QColor, QPainter, QPen, QBrush, QPolygonF, QFont
 
@@ -399,7 +399,7 @@ class CalibrationWindow(QDialog):
         self._current_intensities = None
 
         self.setWindowTitle("Spectroo — Developer Calibration")
-        self.setFixedSize(1000, 500)
+        self.setMinimumSize(900, 450)
         self.setStyleSheet("background-color: #ffffff;")
 
         # Primary horizontal split layout
@@ -416,24 +416,40 @@ class CalibrationWindow(QDialog):
 
         exposure_layout = QHBoxLayout()
         exposure_label = QLabel("Exposure (µs):", self)
-        self._exposure_spinbox = QSpinBox(self)
-        self._exposure_spinbox.setRange(110, 3066979)
-        self._exposure_spinbox.setSingleStep(10000)
-        self._exposure_spinbox.setValue(self._config.get("camera", {}).get("exposure_us", 200000))
-        self._exposure_spinbox.valueChanged.connect(self._on_exposure_changed)
+        self._exposure_input = QLineEdit(self)
+        self._exposure_input.setFixedWidth(100)
+        self._exposure_input.setText(str(self._config.get("camera", {}).get("exposure_us", 200000)))
+        
+        apply_exposure_btn = QPushButton("Apply", self)
+        apply_exposure_btn.setFixedWidth(80)
+        apply_exposure_btn.setFixedHeight(34)
+        apply_exposure_btn.setStyleSheet(
+            "QPushButton { background-color: #374151; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #1f2937; }"
+        )
+        apply_exposure_btn.clicked.connect(self._on_apply_exposure)
+        
         exposure_layout.addWidget(exposure_label)
-        exposure_layout.addWidget(self._exposure_spinbox)
+        exposure_layout.addWidget(self._exposure_input)
+        exposure_layout.addWidget(apply_exposure_btn)
+        exposure_layout.addStretch()
         left_layout.addLayout(exposure_layout)
 
+        reset_zoom_layout = QHBoxLayout()
         reset_zoom_btn = QPushButton("Reset Zoom", self)
-        reset_zoom_btn.setFixedHeight(35)
+        reset_zoom_btn.setFixedHeight(34)
+        reset_zoom_btn.setFixedWidth(120)
         reset_zoom_btn.setStyleSheet(
             "QPushButton { background-color: #374151; color: white; border: none; "
             "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
             "QPushButton:hover { background-color: #1f2937; }"
         )
         reset_zoom_btn.clicked.connect(self.canvas.reset_zoom)
-        left_layout.addWidget(reset_zoom_btn)
+        reset_zoom_layout.addWidget(reset_zoom_btn)
+        reset_zoom_layout.addStretch()
+        left_layout.addLayout(reset_zoom_layout)
+        
         main_layout.addLayout(left_layout, stretch=2)
 
         # Right Panel (Points Table + Fit/Undo/Apply)
@@ -450,7 +466,7 @@ class CalibrationWindow(QDialog):
         btn_layout.setSpacing(8)
 
         run_fit_btn = QPushButton("Run Fit", self)
-        run_fit_btn.setFixedHeight(35)
+        run_fit_btn.setFixedHeight(34)
         run_fit_btn.setStyleSheet(
             "QPushButton { background-color: #2563eb; color: white; border: none; "
             "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
@@ -459,18 +475,8 @@ class CalibrationWindow(QDialog):
         run_fit_btn.clicked.connect(self._on_run_fit)
         btn_layout.addWidget(run_fit_btn)
 
-        undo_btn = QPushButton("Undo Last", self)
-        undo_btn.setFixedHeight(35)
-        undo_btn.setStyleSheet(
-            "QPushButton { background-color: #6b7280; color: white; border: none; "
-            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
-            "QPushButton:hover { background-color: #4b5563; }"
-        )
-        undo_btn.clicked.connect(self._on_undo)
-        btn_layout.addWidget(undo_btn)
-
         apply_btn = QPushButton("Apply & Close", self)
-        apply_btn.setFixedHeight(35)
+        apply_btn.setFixedHeight(34)
         apply_btn.setStyleSheet(
             "QPushButton { background-color: #16a34a; color: white; border: none; "
             "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
@@ -488,10 +494,15 @@ class CalibrationWindow(QDialog):
         self.timer.timeout.connect(self._update_spectrum)
         self.timer.start()
 
-    def _on_exposure_changed(self, value: int) -> None:
-        if "camera" not in self._config:
-            self._config["camera"] = {}
-        self._config["camera"]["exposure_us"] = value
+    def _on_apply_exposure(self) -> None:
+        try:
+            value = int(self._exposure_input.text())
+            if "camera" not in self._config:
+                self._config["camera"] = {}
+            self._config["camera"]["exposure_us"] = value
+            self._frame_source.set_exposure_us(value)
+        except Exception:
+            pass
 
     def _update_spectrum(self) -> None:
         try:
