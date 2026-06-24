@@ -128,7 +128,8 @@ class SingleAcquisitionWorker(QThread):
 
     def run(self) -> None:
         try:
-            n_frames = self.config.get("camera", {}).get("n_frames", 4)
+            self._frame_source.set_exposure_us(self.config.get("camera", {}).get("exposure_us", 200000))
+            n_frames = self.config.get("camera", {}).get("frame_stack", 4)
             frames = []
             for _ in range(n_frames):
                 frame = self._frame_source.get_frame() if hasattr(self._frame_source, "get_frame") else self._frame_source.capture_frame()

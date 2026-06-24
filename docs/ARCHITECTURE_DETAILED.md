@@ -98,7 +98,7 @@ graph TD
 - **Action:** Stacks multiple consecutive captures to improve signal-to-noise ratio.
 - **Underlying Call:** `np.mean(frames_list, axis=0)`.
 - **Data Shape & DType:** Input: `N` arrays of `(H, W, 3)`. Output: `(H, W, 3)`, Type: `float32`.
-- **Config Key:** `[camera.n_frames]` (e.g., `4`).
+- **Config Key:** `[camera.frame_stack]` (e.g., `4`).
 
 ### 3. Greyscale Conversion
 - **Location:** `spectroo/dsp/pipeline.py` -> `to_greyscale()`
@@ -345,7 +345,7 @@ All runtime options are configured via key-value parameters in `config.toml`.
 |---|---|---|---|---|
 | **`[camera]`** | `resolution` | Array of 2 ints | Locked | Dimensions `[W, H]` (e.g. `[2592, 200]`). Loaded by `FrameSource`. |
 | | `exposure_us` | Integer | Measured | Sensor exposure (e.g. `200000` µs). Read by `FrameSource` and UI. |
-| | `n_frames` | Integer | Assumed | Count of stacked frames (e.g. `4`). Read by `LivePipelineWorker`. |
+| | `frame_stack` | Integer | Assumed | Count of stacked frames (e.g. `4`). Read by `LivePipelineWorker` and `SingleAcquisitionWorker`. |
 | **`[optics]`** | `tilt_angle_deg`| Float | Measured | Sensor skew rotation (e.g. `0.0`). Read by `apply_tilt_correction`. |
 | | `flip_spectrum` | Boolean | Assumed | Flip spectrum horizontally (e.g. `false`). Read by `apply_flip`. |
 | | `center_y` | Integer | Measured | Row index for spectrum center (e.g. `100`). Read by `extract_band`. |
@@ -445,7 +445,7 @@ In `main.py`, CLI parsing decides the runtime flow:
 ### 7. Thread Worker Camera Source Collision Bug
 - **Status:** **Fixed**.
 - **Description:** Previously, `LivePipelineWorker`, `SingleAcquisitionWorker`, and `DarkFrameWorker` each instantiated a local `PiCameraFrameSource` internally within their `run()` methods. This conflicted with the shared camera instance managed by `SpectrooMainWindow`, causing initialization and camera acquisition blockages.
-- **Fix:** Refactored the workers to accept the shared `frame_source` instance via their constructor and use it directly.
+- **Fix:** Refactored the workers to accept the shared `frame_source` instance via their constructor and use it directly, ensuring exposure settings are set via this shared interface. Also corrected the single acquisition worker to query `frame_stack` configuration instead of the deprecated `n_frames` key.
 
 ### 8. Baseline Subtraction Implementation Discrepancy
 - **Status:** **Fixed**.
