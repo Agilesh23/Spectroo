@@ -98,7 +98,7 @@ graph TD
 - **Action:** Stacks multiple consecutive captures to improve signal-to-noise ratio.
 - **Underlying Call:** `np.mean(frames_list, axis=0)`.
 - **Data Shape & DType:** Input: `N` arrays of `(H, W, 3)`. Output: `(H, W, 3)`, Type: `float32`.
-- **Config Key:** `[camera.frame_stack]` (e.g., `4`).
+- **Config Key:** `[camera.frame_stack]` (e.g., `1`).
 
 ### 3. Greyscale Conversion
 - **Location:** `spectroo/dsp/pipeline.py` -> `to_greyscale()`
@@ -198,7 +198,9 @@ The utility `fit_calibration(points, degree)` in `spectroo/core/calibration.py` 
 In `config.toml`, coefficients are saved inside the `[calibration]` section:
 ```toml
 [calibration]
-coefficients = [4.908312176350018e-09, -1.31915423401267e-05, 0.1199805160322903, 396.23747211356584]
+coefficients = []
+degree = 3
+n_points = 0
 ```
 These coefficients are stored in **highest-degree-first order** (i.e. $c_3, c_2, c_1, c_0$ for a cubic fit). This aligns directly with standard NumPy math, allowing absolute wavelengths to be calculated across all pixel indices using:
 ```python
@@ -344,20 +346,20 @@ All runtime options are configured via key-value parameters in `config.toml`.
 | Section | Parameter | Type | Status | Description / Reader |
 |---|---|---|---|---|
 | **`[camera]`** | `resolution` | Array of 2 ints | Locked | Dimensions `[W, H]` (e.g. `[2592, 200]`). Loaded by `FrameSource`. |
-| | `exposure_us` | Integer | Measured | Sensor exposure (e.g. `200000` µs). Read by `FrameSource` and UI. |
-| | `frame_stack` | Integer | Assumed | Count of stacked frames (e.g. `4`). Read by `LivePipelineWorker` and `SingleAcquisitionWorker`. |
+| | `exposure_us` | Integer | Measured | Sensor exposure (e.g. `20000` µs). Read by `FrameSource` and UI. |
+| | `frame_stack` | Integer | Assumed | Count of stacked frames (e.g. `1`). Read by `LivePipelineWorker` and `SingleAcquisitionWorker`. |
 | **`[optics]`** | `tilt_angle_deg`| Float | Measured | Sensor skew rotation (e.g. `0.0`). Read by `apply_tilt_correction`. |
 | | `flip_spectrum` | Boolean | Assumed | Flip spectrum horizontally (e.g. `false`). Read by `apply_flip`. |
-| | `center_y` | Integer | Measured | Row index for spectrum center (e.g. `100`). Read by `extract_band`. |
-| **`[dsp]`** | `band_half_height`| Integer | Assumed | Extraction row window (e.g. `25`). Read by `extract_band`. |
-| | `savgol_window` | Integer | Assumed | Savitzky-Golay filter size (e.g. `7`). Read by `smooth_savgol`. |
+| | `center_y` | Integer | Measured | Row index for spectrum center (e.g. `63`). Read by `extract_band`. |
+| **`[dsp]`** | `band_half_height`| Integer | Assumed | Extraction row window (e.g. `15`). Read by `extract_band`. |
+| | `savgol_window` | Integer | Assumed | Savitzky-Golay filter size (e.g. `5`). Read by `smooth_savgol`. |
 | | `savgol_polyorder`| Integer | Assumed | Savitzky-Golay polynomial order (e.g. `3`). Read by `smooth_savgol`. |
 | | `baseline_enabled`| Boolean | Assumed | Subtract continuous baseline. Read by `subtract_baseline`. |
 | | `baseline_window`| Integer | Assumed | Baseline estimation filter window (e.g. `51`). Read by `subtract_baseline`. |
 | | `baseline_polyorder`| Integer | Assumed | Baseline estimation polynomial order (e.g. `2`). Read by `subtract_baseline`. |
 | **`[calibration]`**| `coefficients` | Array of floats| Measured | Polynomial terms. Read by `apply_calibration` and written by `CalibrationWindow`. |
 | | `degree` | Integer | Assumed | Polynomial fitting degree (e.g. `3`). Read by `fit_calibration`. |
-| | `n_points` | Integer | Measured | Points used for calibration (e.g. `4`). Written by `CalibrationWindow`. |
+| | `n_points` | Integer | Measured | Points used for calibration (e.g. `0`). Written by `CalibrationWindow`. |
 | **`[peaks]`** | `prominence_threshold`| Float | Assumed | Peak detection threshold (e.g. `250.0`). Read by `find_spectrum_peaks`. |
 | | `min_distance` | Integer | Assumed | Minimum peak spacing in pixels (e.g. `15`). Read by `find_spectrum_peaks`. |
 | **`[history]`** | `db_path` | String | Assumed | File path for SQLite database. Read by `db.py`. |

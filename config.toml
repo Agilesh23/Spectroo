@@ -12,21 +12,21 @@ wavelength_range_nm = [400, 700]
 
 [camera]
 resolution = [2592, 200]
-exposure_us = 200000
+exposure_us = 20000
 exposure_min_us = 110
 exposure_max_us = 3066979
-frame_stack = 4                    # pending T7
+frame_stack = 1                    # pending T7
 
 [optics]                            # one-time, locked via startup calibration
-tilt_angle_deg = 0.471
-flip_spectrum = true
-center_y = 205
+tilt_angle_deg = 0.0
+flip_spectrum = false
+center_y = 63
 
 [dsp]
-band_half_height = 27
-savgol_window = 7
+band_half_height = 15
+savgol_window = 5
 savgol_polyorder = 3
-baseline_method = "minimum_filter1d_sg"   # pending T6: or "sg_only"
+baseline_method = "sg_only"   # pending T6: or "sg_only"
 baseline_window = 51
 baseline_polyorder = 2
 baseline_modifies_stored_data = true       # ASSUMPTION — confirm
@@ -74,6 +74,6 @@ thumbnail_storage = "file_path"     # ASSUMPTION — vs "blob"
 shutdown_pin = 3                    # TBD — confirm during build
 
 [calibration]
-coefficients = [4.908312176350018e-09, -1.31915423401267e-05, 0.1199805160322903, 396.23747211356584]
+coefficients = []
 degree = 3
-n_points = 4
+n_points = 0
