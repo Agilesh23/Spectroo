@@ -25,8 +25,11 @@ LOG_PATH = os.path.expanduser("~/spectroo/logs/spectroo.log")
 
 def run_desktop(config: dict, dev: bool = False) -> None:
     """Launch the PyQt5 desktop application."""
+    from PyQt5.QtCore import Qt
     from PyQt5.QtWidgets import QApplication
     from spectroo.ui.main_window import SpectrooMainWindow
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     app = QApplication(sys.argv)
     app.setApplicationName("Spectroo")
     window = SpectrooMainWindow(config, dev=dev)

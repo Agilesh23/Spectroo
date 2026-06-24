@@ -120,13 +120,6 @@ async def test_capture_blocked_during_live(app):
         assert response.status_code == 409
 
 
-# 8. test_history_initially_empty
-async def test_history_initially_empty(app):
-    async with get_client(app) as client:
-        response = await client.get("/api/history")
-        assert response.status_code == 200
-        assert response.json() == []
-
 
 # 9. test_save_without_frame_returns_400
 async def test_save_without_frame_returns_400(app):

@@ -219,38 +219,6 @@ def post_save(body: SaveRequest, request: Request):
     return {"saved": True, "record_id": record_id}
 
 
-@router.get("/api/history")
-def get_history_list(request: Request):
-    config = request.app.state.config
-    records = get_history(config)
-
-    history_data = []
-    for r in records:
-        history_data.append({
-            "id": r.id,
-            "timestamp": r.timestamp,
-            "peaks": [p.wavelength_nm for p in r.peaks[:3]]
-        })
-
-    return history_data
-
-
-@router.get("/api/history/{record_id}")
-def get_history_detail(record_id: int, request: Request):
-    config = request.app.state.config
-    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
-    record = get_record(db_path, record_id)
-
-    if record is None:
-        raise HTTPException(status_code=404, detail="Record not found")
-
-    return {
-        "id": record.id,
-        "timestamp": record.timestamp,
-        "wavelengths": record.wavelengths,
-        "intensities": record.intensity,
-        "peaks": [p.wavelength_nm for p in record.peaks]
-    }
 
 
 @router.get("/api/export/{record_id}")

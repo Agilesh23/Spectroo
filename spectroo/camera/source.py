@@ -1,8 +1,11 @@
 """PiCameraFrameSource (RGB888) + MockFrameSource."""
 
 from abc import ABC, abstractmethod
+import logging
 import numpy as np
 from spectroo.core.exceptions import CameraNotFoundError
+
+logger = logging.getLogger("spectroo.camera")
 
 
 class FrameSource(ABC):
@@ -127,5 +130,12 @@ class PiCameraFrameSource(FrameSource):
         self._picam2.set_controls({"ExposureTime": exposure_us})
 
     def close(self) -> None:
-        """Stop capture stream."""
-        self._picam2.stop()
+        """Stop capture stream and release the camera device back to the camera manager."""
+        try:
+            self._picam2.stop()
+        except Exception:
+            logger.warning("Error stopping camera", exc_info=True)
+        try:
+            self._picam2.close()
+        except Exception:
+            logger.warning("Error closing camera", exc_info=True)
