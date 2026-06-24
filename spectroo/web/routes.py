@@ -103,13 +103,11 @@ def post_capture(body: CaptureRequest, request: Request):
         dsp_cfg = config.get("dsp", {})
         peaks_cfg = config.get("peaks", {})
 
+        from spectroo.dsp.corrections import load_dark_frame, load_flat_field
         dark_path = config.get("storage", {}).get("dark_frame_path", "")
-        dark_frame_1d = None
-        if dark_path and os.path.exists(dark_path):
-            try:
-                dark_frame_1d = np.load(dark_path)
-            except Exception:
-                pass
+        flat_path = config.get("storage", {}).get("flat_field_path", "")
+        dark_frame_1d = load_dark_frame(dark_path)
+        response_flat = load_flat_field(flat_path)
 
         cal_coefs = config.get("calibration", {}).get("coefficients")
         calibration = None
@@ -123,6 +121,7 @@ def post_capture(body: CaptureRequest, request: Request):
             peaks_cfg=peaks_cfg,
             exposure_us=exposure_us,
             dark_frame_1d=dark_frame_1d,
+            response_flat=response_flat,
             calibration=calibration
         )
 

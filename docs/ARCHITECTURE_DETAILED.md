@@ -131,7 +131,7 @@ graph TD
 ### 7. Dark Subtraction
 - **Location:** `spectroo/dsp/corrections.py` -> `subtract_dark()`
 - **Action:** Subtracts the background sensor noise (captured with lens closed).
-- **Underlying Call:** Element-wise subtraction: `np.clip(intensity - dark_frame, 0, None)`.
+- **Underlying Call:** Element-wise subtraction: `np.clip(intensity - dark_frame, 0, None)`. Prior to subtraction, the file is loaded via the `load_dark_frame()` helper in `corrections.py`, which validates the file integrity and reports success/failure (rather than silently failing or guessing based on file existence).
 - **Data Shape & DType:** Input: `(W,)` `float32`. Output: `(W,)` `float32`.
 - **Config Key:** `[storage.dark_frame_path]`.
 
@@ -152,7 +152,7 @@ graph TD
 ### 10. Flat-Field Correction
 - **Location:** `spectroo/dsp/corrections.py` -> `apply_flat_field()`
 - **Action:** Divides the intensity by the baseline sensitivity curve of the sensor.
-- **Underlying Call:** Division: `intensity / flat_field_response`.
+- **Underlying Call:** Division: `intensity / flat_field_response`. Prior to correction, the flat field response file is loaded via the `load_flat_field()` helper in `corrections.py`, which validates the file structure/integrity and reports success/failure.
 - **Data Shape & DType:** Input: `(W,)` `float32`. Output: `(W,)` `float32`.
 - **Config Key:** `[storage.flat_field_path]`.
 
@@ -288,7 +288,7 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 - **`SpectrumPlotWidget`**
   Renders the 1D spectrum curve. It accepts inputs through `set_data(wavelengths, intensities, peaks)` and redraws the graph using standard vector operations.
 - **`StatusBar`**
-  Displays diagnostic status dictionary inputs including FPS, peak listings, dark frame loading state, and calibration validity.
+  Displays diagnostic status dictionary inputs including FPS, peak listings, dark frame loading state, flat field loading state, and calibration validity. Both dark frame and flat field indicators are updated live per-frame from the results of the execution run of the DSP pipeline.
 - **`HistoryPanel`**
   Side-dockable list that loads and displays database rows. Emits a `record_selected(id)` signal when clicked, prompting the main window to query SQLite and update the plot.
 
@@ -336,6 +336,7 @@ CREATE TABLE IF NOT EXISTS history (
 - **`export_csv(record, path)`**: Saves the data as a tab-delimited text file containing `Pixel, Wavelength (nm), Intensity`.
 - **`dark_frame.npy`**: Stored as a raw binary array using `np.save()` for dark subtraction.
 - **`response_flat.json`**: Stores the sensor spectral sensitivity response curve to correct for non-uniform sensor gain.
+- Note: The system tracks `dark_frame_loaded` and `flat_field_loaded` as real runtime load-success flags (in the `Spectrum` model and `run_pipeline` result), ensuring indicators reflect actual file parsing success rather than just checking if a file exists on disk.
 
 ---
 
@@ -461,11 +462,16 @@ In `main.py`, CLI parsing decides the runtime flow:
 - **Description:** The `subtract_baseline` logic in `spectroo/dsp/filters.py` used static window sizing which caused issues on small test signals in unit tests, and deviated from the V1 dynamic sliding minimum filter approach.
 - **Fix:** Updated the function to implement the dynamic `minimum_filter1d` kernel and adjust `savgol_filter` window size dynamically based on input signal length.
 
+### 10. Web Mode Missing Flat-Field Correction
+- **Status:** **Fixed**.
+- **Description:** The web server REST endpoints and websocket stream previously never loaded or applied `response_flat.json`, leaving flat-field correction exclusive to desktop mode.
+- **Fix:** Consolidated both desktop and web paths onto the same `load_dark_frame` / `load_flat_field` helpers, ensuring flat-field correction is fully active in web mode too.
+
 ---
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **121 automated tests** inside the `tests/` directory.
+The test suite contains **122 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -475,7 +481,7 @@ The test suite contains **121 automated tests** inside the `tests/` directory.
   Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.
 - **`test_dev_calibration.py` (8 tests)**
   Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions.
-- **`test_dsp.py` (12 tests)**
+- **`test_dsp.py` (13 tests)**
   Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, and tilt corrections.
 - **`test_flat_field.py` (5 tests)**
   Tests `FlatFieldWorker` capture sequence, missing dark frame fallbacks, divide-by-zero guards, clamping thresholds, and dev-mode gating of the shortcut.

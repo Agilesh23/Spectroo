@@ -51,14 +51,12 @@ async def live_stream(websocket: WebSocket):
             peaks_cfg = config.get("peaks", {})
             exposure_us = config.get("camera", {}).get("exposure_us", 200000)
 
-            # Load 1D dark frame if path exists
+            # Load dark frame and flat-field if path exists
+            from spectroo.dsp.corrections import load_dark_frame, load_flat_field
             dark_path = config.get("storage", {}).get("dark_frame_path", "")
-            dark_frame_1d = None
-            if dark_path and __import__("os").path.exists(dark_path):
-                try:
-                    dark_frame_1d = np.load(dark_path)
-                except Exception:
-                    pass
+            flat_path = config.get("storage", {}).get("flat_field_path", "")
+            dark_frame_1d = load_dark_frame(dark_path)
+            response_flat = load_flat_field(flat_path)
 
             spec = run_pipeline(
                 [frame],
@@ -66,7 +64,8 @@ async def live_stream(websocket: WebSocket):
                 dsp_cfg,
                 peaks_cfg,
                 exposure_us,
-                dark_frame_1d=dark_frame_1d
+                dark_frame_1d=dark_frame_1d,
+                response_flat=response_flat
             )
             intensities = spec.intensity
             

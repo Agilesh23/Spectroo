@@ -30,6 +30,8 @@ class Spectrum:
     peaks: list[Peak]
     calibration_rms_at_capture: float | None
     timestamp: str  # ISO 8601 UTC
+    dark_frame_loaded: bool = False
+    flat_field_loaded: bool = False
 
 
 @dataclass

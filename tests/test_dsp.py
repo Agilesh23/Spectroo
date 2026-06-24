@@ -251,3 +251,124 @@ def test_run_pipeline_calibrated():
     expected_wavelengths = 2.0 * np.arange(6) + 400.0
     np.testing.assert_array_almost_equal(spec.wavelengths, expected_wavelengths)
     assert spec.calibration_rms_at_capture == pytest.approx(0.12)
+
+
+def test_corrections_loading_and_pipeline_flags(tmp_path):
+    import json
+    from spectroo.dsp.corrections import load_dark_frame, load_flat_field
+    
+    # Paths
+    valid_dark_path = tmp_path / "valid_dark.npy"
+    corrupt_dark_path = tmp_path / "corrupt_dark.npy"
+    valid_flat_path = tmp_path / "valid_flat.json"
+    corrupt_flat_path = tmp_path / "corrupt_flat.json"
+    missing_path = tmp_path / "does_not_exist.ext"
+    
+    # 1. Prepare files
+    # Valid dark (.npy)
+    dummy_dark = np.ones(6, dtype=np.float32) * 5.0
+    np.save(str(valid_dark_path), dummy_dark)
+    
+    # Corrupt dark (write garbage bytes)
+    with open(corrupt_dark_path, "wb") as f:
+        f.write(b"garbage data")
+        
+    # Valid flat (JSON array)
+    dummy_flat = [1.0, 1.1, 0.9, 1.0, 1.2, 0.8]
+    with open(valid_flat_path, "w") as f:
+        json.dump(dummy_flat, f)
+        
+    # Corrupt flat (invalid JSON or invalid structure)
+    with open(corrupt_flat_path, "w") as f:
+        f.write("invalid json {")
+        
+    # 2. Test load functions
+    # Valid files
+    loaded_dark = load_dark_frame(str(valid_dark_path))
+    assert loaded_dark is not None
+    np.testing.assert_array_equal(loaded_dark, dummy_dark)
+    
+    loaded_flat = load_flat_field(str(valid_flat_path))
+    assert loaded_flat is not None
+    np.testing.assert_array_equal(loaded_flat, np.array(dummy_flat, dtype=np.float32))
+    
+    # Missing files
+    assert load_dark_frame(str(missing_path)) is None
+    assert load_flat_field(str(missing_path)) is None
+    assert load_dark_frame("") is None
+    assert load_flat_field("") is None
+    
+    # Corrupt files
+    assert load_dark_frame(str(corrupt_dark_path)) is None
+    assert load_flat_field(str(corrupt_flat_path)) is None
+    
+    # 3. Test run_pipeline flags with these loaded values
+    f1 = np.ones((8, 6, 3), dtype=np.float32) * 10.0
+    frames = [f1]
+    optics = {"tilt_angle_deg": 0.0, "center_y": 4, "flip_spectrum": False}
+    dsp_cfg = {
+        "band_half_height": 1,
+        "savgol_window": 5,
+        "savgol_polyorder": 2,
+        "baseline_method": "sg_only",
+        "baseline_window": 5,
+        "baseline_polyorder": 2,
+    }
+    peaks_cfg = {
+        "prominence_pct": 0.1,
+        "prominence_min": 0.5,
+        "min_distance_px": 2,
+    }
+    
+    # Case A: Both loaded successfully
+    spec_both = run_pipeline(
+        frames,
+        optics,
+        dsp_cfg,
+        peaks_cfg,
+        exposure_us=200000,
+        dark_frame_1d=loaded_dark,
+        response_flat=loaded_flat
+    )
+    assert spec_both.dark_frame_loaded is True
+    assert spec_both.flat_field_loaded is True
+    
+    # Case B: Both missing/None
+    spec_none = run_pipeline(
+        frames,
+        optics,
+        dsp_cfg,
+        peaks_cfg,
+        exposure_us=200000,
+        dark_frame_1d=None,
+        response_flat=None
+    )
+    assert spec_none.dark_frame_loaded is False
+    assert spec_none.flat_field_loaded is False
+    
+    # Case C: Only dark frame loaded
+    spec_only_dark = run_pipeline(
+        frames,
+        optics,
+        dsp_cfg,
+        peaks_cfg,
+        exposure_us=200000,
+        dark_frame_1d=loaded_dark,
+        response_flat=None
+    )
+    assert spec_only_dark.dark_frame_loaded is True
+    assert spec_only_dark.flat_field_loaded is False
+    
+    # Case D: Only flat field loaded
+    spec_only_flat = run_pipeline(
+        frames,
+        optics,
+        dsp_cfg,
+        peaks_cfg,
+        exposure_us=200000,
+        dark_frame_1d=None,
+        response_flat=loaded_flat
+    )
+    assert spec_only_flat.dark_frame_loaded is False
+    assert spec_only_flat.flat_field_loaded is True
+

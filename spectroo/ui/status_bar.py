@@ -31,6 +31,7 @@ class StatusBar(QWidget):
         self.fps_label = QLabel("FPS: 0.0", self)
         self.calib_label = QLabel("Calibration: Uncalibrated", self)
         self.dark_label = QLabel("Dark Frame: Not Loaded", self)
+        self.flat_label = QLabel("Flat Field: Not Loaded", self)
         self.peaks_label = QLabel("Peaks: None", self)
         self.message_label = QLabel("", self)
         self.message_label.setStyleSheet("color: #0066cc; font-weight: bold;")
@@ -38,6 +39,7 @@ class StatusBar(QWidget):
         layout.addWidget(self.fps_label)
         layout.addWidget(self.calib_label)
         layout.addWidget(self.dark_label)
+        layout.addWidget(self.flat_label)
         layout.addWidget(self.peaks_label)
         layout.addStretch()
         layout.addWidget(self.message_label)
@@ -57,6 +59,10 @@ class StatusBar(QWidget):
         if "dark_loaded" in data:
             status = "Loaded" if data["dark_loaded"] else "Not Loaded"
             self.dark_label.setText(f"Dark Frame: {status}")
+
+        if "flat_loaded" in data:
+            status = "Loaded" if data["flat_loaded"] else "Not Loaded"
+            self.flat_label.setText(f"Flat Field: {status}")
 
         if "peaks" in data:
             peaks = data["peaks"]

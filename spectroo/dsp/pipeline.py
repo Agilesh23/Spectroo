@@ -132,4 +132,6 @@ def run_pipeline(
         if calibration is not None
         else None,
         timestamp=timestamp,
+        dark_frame_loaded=dark_frame_1d is not None,
+        flat_field_loaded=response_flat is not None,
     )

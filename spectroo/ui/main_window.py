@@ -80,6 +80,13 @@ class SpectrooMainWindow(QMainWindow):
 
         self._connect_signals()
 
+        dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
+        flat_path = self.config.get("storage", {}).get("flat_field_path", "")
+        self.status_bar.update_status({
+            "dark_loaded": bool(dark_path and __import__("os").path.exists(dark_path)),
+            "flat_loaded": bool(flat_path and __import__("os").path.exists(flat_path))
+        })
+
     def _connect_signals(self) -> None:
         self.control_panel.mode_changed.connect(self._on_mode_changed)
         self.control_panel.start_requested.connect(self._on_start)
@@ -232,8 +239,10 @@ class SpectrooMainWindow(QMainWindow):
             "calibrated": is_calibrated,
             "peaks": peak_vals,
         })
-        dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
-        self.status_bar.update_status({"dark_loaded": bool(dark_path and __import__("os").path.exists(dark_path))})
+        if "dark_frame_loaded" in data:
+            self.status_bar.update_status({"dark_loaded": data["dark_frame_loaded"]})
+        if "flat_field_loaded" in data:
+            self.status_bar.update_status({"flat_loaded": data["flat_field_loaded"]})
         
         # Reconstruct Peak objects list from peak indices
         peaks_list = []
@@ -289,6 +298,8 @@ class SpectrooMainWindow(QMainWindow):
     def _on_flat_field_finished(self, message: str) -> None:
         logger.info("Flat-field worker finished: %s", message)
         self.status_bar.update_status({"message": message})
+        flat_path = self.config.get("storage", {}).get("flat_field_path", "")
+        self.status_bar.update_status({"flat_loaded": bool(flat_path and __import__("os").path.exists(flat_path))})
         self._flat_worker.deleteLater()
 
     def _on_export(self) -> None:

@@ -43,14 +43,11 @@ class LivePipelineWorker(QThread):
             dsp_cfg = self.config.get("dsp", {})
             peaks_cfg = self.config.get("peaks", {})
 
-            # Load 1D dark frame if path exists
+            from spectroo.dsp.corrections import load_dark_frame, load_flat_field
             dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
-            dark_frame_1d = None
-            if dark_path and __import__("os").path.exists(dark_path):
-                try:
-                    dark_frame_1d = np.load(dark_path)
-                except Exception:
-                    pass
+            flat_path = self.config.get("storage", {}).get("flat_field_path", "")
+            dark_frame_1d = load_dark_frame(dark_path)
+            response_flat = load_flat_field(flat_path)
 
             self._frame_source.set_exposure_us(
                 self.config.get("camera", {}).get("exposure_us", 200000)
@@ -69,7 +66,8 @@ class LivePipelineWorker(QThread):
                         dsp_cfg,
                         peaks_cfg,
                         exposure_us,
-                        dark_frame_1d=dark_frame_1d
+                        dark_frame_1d=dark_frame_1d,
+                        response_flat=response_flat
                     )
                     intensities = spec.intensity
 
@@ -85,7 +83,9 @@ class LivePipelineWorker(QThread):
                     self.frame_ready.emit({
                         "wavelengths": self._wavelengths,
                         "intensities": intensities,
-                        "peaks": peak_indices
+                        "peaks": peak_indices,
+                        "dark_frame_loaded": spec.dark_frame_loaded,
+                        "flat_field_loaded": spec.flat_field_loaded
                     })
 
                     now = time.time()
@@ -152,13 +152,11 @@ class SingleAcquisitionWorker(QThread):
             peaks_cfg = self.config.get("peaks", {})
             exposure_us = self.config.get("camera", {}).get("exposure_us", 200000)
 
+            from spectroo.dsp.corrections import load_dark_frame, load_flat_field
             dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
-            dark_frame_1d = None
-            if dark_path and __import__("os").path.exists(dark_path):
-                try:
-                    dark_frame_1d = np.load(dark_path)
-                except Exception:
-                    pass
+            flat_path = self.config.get("storage", {}).get("flat_field_path", "")
+            dark_frame_1d = load_dark_frame(dark_path)
+            response_flat = load_flat_field(flat_path)
 
             spec = run_pipeline(
                 [averaged],
@@ -166,7 +164,8 @@ class SingleAcquisitionWorker(QThread):
                 dsp_cfg,
                 peaks_cfg,
                 exposure_us,
-                dark_frame_1d=dark_frame_1d
+                dark_frame_1d=dark_frame_1d,
+                response_flat=response_flat
             )
             intensities = spec.intensity
 
@@ -182,7 +181,9 @@ class SingleAcquisitionWorker(QThread):
             self.frame_ready.emit({
                 "wavelengths": self._wavelengths,
                 "intensities": intensities,
-                "peaks": peak_indices
+                "peaks": peak_indices,
+                "dark_frame_loaded": spec.dark_frame_loaded,
+                "flat_field_loaded": spec.flat_field_loaded
             })
         except Exception as e:
             self.error_occurred.emit(str(e))
