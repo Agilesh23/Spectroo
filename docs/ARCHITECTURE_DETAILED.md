@@ -445,7 +445,7 @@ In `main.py`, CLI parsing decides the runtime flow:
 ### 7. Thread Worker Camera Source Collision Bug
 - **Status:** **Fixed**.
 - **Description:** Previously, `LivePipelineWorker`, `SingleAcquisitionWorker`, and `DarkFrameWorker` each instantiated a local `PiCameraFrameSource` internally within their `run()` methods. This conflicted with the shared camera instance managed by `SpectrooMainWindow`, causing initialization and camera acquisition blockages.
-- **Fix:** Refactored the workers to accept the shared `frame_source` instance via their constructor and use it directly, ensuring exposure settings are set via this shared interface. Also corrected the single acquisition worker to query `frame_stack` configuration instead of the deprecated `n_frames` key.
+- **Fix:** Refactored the workers to accept the shared `frame_source` instance via their constructor and use it directly, ensuring exposure settings are set via this shared interface. Added a 0.5-second settle delay after setting the exposure before initiating frame captures, and moved the exposure configuration in `LivePipelineWorker` to execute once before entering the loop to avoid per-frame overhead. Also corrected the single acquisition worker to query `frame_stack` configuration instead of the deprecated `n_frames` key.
 
 ### 8. Baseline Subtraction Implementation Discrepancy
 - **Status:** **Fixed**.

@@ -51,9 +51,14 @@ class LivePipelineWorker(QThread):
                 except Exception:
                     pass
 
+            self._frame_source.set_exposure_us(
+                self.config.get("camera", {}).get("exposure_us", 200000)
+            )
+            # allow camera to settle after exposure change
+            time.sleep(0.5)
+
             while self._running:
                 try:
-                    self._frame_source.set_exposure_us(self.config.get("camera", {}).get("exposure_us", 200000))
                     frame = self._frame_source.get_frame() if hasattr(self._frame_source, "get_frame") else self._frame_source.capture_frame()
 
                     exposure_us = self.config.get("camera", {}).get("exposure_us", 200000)
@@ -128,7 +133,10 @@ class SingleAcquisitionWorker(QThread):
 
     def run(self) -> None:
         try:
-            self._frame_source.set_exposure_us(self.config.get("camera", {}).get("exposure_us", 200000))
+            self._frame_source.set_exposure_us(
+                self.config.get("camera", {}).get("exposure_us", 200000)
+            )
+            time.sleep(0.5)  # allow camera to settle
             n_frames = self.config.get("camera", {}).get("frame_stack", 4)
             frames = []
             for _ in range(n_frames):
