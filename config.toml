@@ -24,7 +24,7 @@ center_y = 63
 
 [dsp]
 band_half_height = 15
-savgol_window = 5
+savgol_window = 11
 savgol_polyorder = 3
 baseline_method = "sg_only"   # pending T6: or "sg_only"
 baseline_window = 51

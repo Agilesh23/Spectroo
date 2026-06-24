@@ -353,7 +353,7 @@ All runtime options are configured via key-value parameters in `config.toml`.
 | | `flip_spectrum` | Boolean | Assumed | Flip spectrum horizontally (e.g. `false`). Read by `apply_flip`. |
 | | `center_y` | Integer | Measured | Row index for spectrum center (e.g. `63`). Read by `extract_band`. |
 | **`[dsp]`** | `band_half_height`| Integer | Assumed | Extraction row window (e.g. `15`). Read by `extract_band`. |
-| | `savgol_window` | Integer | Assumed | Savitzky-Golay filter size (e.g. `5`). Read by `smooth_savgol`. |
+| | `savgol_window` | Integer | Assumed | Savitzky-Golay filter size (e.g. `11`). Read by `smooth_savgol`. |
 | | `savgol_polyorder`| Integer | Assumed | Savitzky-Golay polynomial order (e.g. `3`). Read by `smooth_savgol`. |
 | | `baseline_enabled`| Boolean | Assumed | Subtract continuous baseline. Read by `subtract_baseline`. |
 | | `baseline_window`| Integer | Assumed | Baseline estimation filter window (e.g. `51`). Read by `subtract_baseline`. |
@@ -481,7 +481,7 @@ In `main.py`, CLI parsing decides the runtime flow:
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **128 automated tests** inside the `tests/` directory.
+The test suite contains **129 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -491,7 +491,7 @@ The test suite contains **128 automated tests** inside the `tests/` directory.
   Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.
 - **`test_dev_calibration.py` (13 tests)**
   Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions. Includes tests for `_update_spectrum` dark subtraction (1D and 2D dark with nonzero tilt), baseline gating, and missing-file fallback.
-- **`test_dsp.py` (14 tests)**
+- **`test_dsp.py` (15 tests)**
   Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, tilt corrections, and the `baseline_enabled` gate in `run_pipeline`.
 - **`test_flat_field.py` (5 tests)**
   Tests `FlatFieldWorker` capture sequence, missing dark frame fallbacks, divide-by-zero guards, clamping thresholds, and dev-mode gating of the shortcut.

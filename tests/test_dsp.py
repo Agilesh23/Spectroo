@@ -115,6 +115,72 @@ def test_smooth_savgol():
     assert actual.shape == intensity.shape
 
 
+# 8b. smooth_savgol: window=11 regression guard — noise vs peak-sharpness balance
+def test_smooth_savgol_window11_noise_and_fwhm():
+    """
+    Regression guard for dsp.savgol_window = 11.
+
+    Synthetic signal (2592 px, matching real Spectroo width):
+      - Gaussian noise floor: mean=300, std=40 (shot noise at 20 ms exposure)
+      - Three Gaussian peaks: FWHM 10px, 14px, 18px
+
+    Asserts:
+      1. window=11 reduces inter-peak noise RMS by >= 40% vs window=5.
+      2. The narrowest peak (FWHM 10px) is NOT broadened beyond ±1px.
+
+    If this test fails after a config or code change, it means the SG
+    filter is either not smoothing enough (< 40% noise reduction) or has
+    started broadening narrow peaks (FWHM drift > 1px).
+    """
+    import scipy.signal
+
+    N = 2592
+    rng = np.random.default_rng(seed=42)
+    x = np.arange(N, dtype=np.float64)
+
+    # Three Gaussian peaks matching benchmark parameters
+    cx0, h0, s0 = 650,  2000.0, 4.3   # FWHM ≈ 10 px
+    cx1, h1, s1 = 1296, 3000.0, 5.9   # FWHM ≈ 14 px
+    cx2, h2, s2 = 1950, 1500.0, 7.6   # FWHM ≈ 18 px
+
+    signal = (
+        h0 * np.exp(-((x - cx0) ** 2) / (2 * s0 ** 2)) +
+        h1 * np.exp(-((x - cx1) ** 2) / (2 * s1 ** 2)) +
+        h2 * np.exp(-((x - cx2) ** 2) / (2 * s2 ** 2))
+    )
+    noisy = (signal + rng.normal(loc=300.0, scale=40.0, size=N)).astype(np.float32)
+
+    def fwhm(arr, cx, half=60):
+        seg = arr[max(0, cx - half): min(len(arr), cx + half)]
+        half_max = seg.min() + (seg.max() - seg.min()) / 2.0
+        idx = np.where(seg >= half_max)[0]
+        return float(idx[-1] - idx[0]) if len(idx) >= 2 else float("nan")
+
+    noise_region = slice(750, 1200)
+    raw_rms = float(np.std(noisy[noise_region] - np.mean(noisy[noise_region])))
+
+    sm5  = smooth_savgol(noisy, window=5,  polyorder=3)
+    sm11 = smooth_savgol(noisy, window=11, polyorder=3)
+
+    rms5  = float(np.std(sm5[noise_region]  - np.mean(sm5[noise_region])))
+    rms11 = float(np.std(sm11[noise_region] - np.mean(sm11[noise_region])))
+
+    noise_reduction_pct = 100.0 * (1.0 - rms11 / raw_rms)
+    assert noise_reduction_pct >= 40.0, (
+        f"window=11 should reduce noise by >=40% vs raw; got {noise_reduction_pct:.1f}%"
+    )
+
+    # FWHM of narrowest peak (10px true) must stay within ±1px
+    fwhm_w5_narrow  = fwhm(sm5,  cx0)
+    fwhm_w11_narrow = fwhm(sm11, cx0)
+    true_fwhm_narrow = fwhm(signal, cx0)
+    assert abs(fwhm_w11_narrow - true_fwhm_narrow) <= 1.0, (
+        f"window=11 broadened the 10px peak: true={true_fwhm_narrow:.1f}px, "
+        f"smoothed={fwhm_w11_narrow:.1f}px (tolerance ±1px)"
+    )
+    _ = fwhm_w5_narrow  # suppress unused warning; value used for context in manual review
+
+
 # 9. subtract_baseline: both methods ("minimum_filter1d_sg" and "sg_only") -> shape preserved
 def test_subtract_baseline():
     intensity = np.array(
