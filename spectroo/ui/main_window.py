@@ -103,7 +103,7 @@ class SpectrooMainWindow(QMainWindow):
         self._on_stop()
         if self.current_mode == "single":
             self.control_panel.start_btn.setEnabled(False)
-            self._acq_worker = SingleAcquisitionWorker(self.config, self)
+            self._acq_worker = SingleAcquisitionWorker(self.config, self._frame_source, self)
             self._acq_worker.frame_ready.connect(self._on_frame_ready)
             self._acq_worker.error_occurred.connect(self._on_worker_error)
             self._acq_worker.finished.connect(self._acq_worker.deleteLater)
@@ -114,7 +114,7 @@ class SpectrooMainWindow(QMainWindow):
         elif self.current_mode == "live":
             self.control_panel.start_btn.setEnabled(False)
             self.control_panel.stop_btn.setEnabled(True)
-            self._live_worker = LivePipelineWorker(self.config, self)
+            self._live_worker = LivePipelineWorker(self.config, self._frame_source, self)
             self._live_worker.frame_ready.connect(self._on_frame_ready)
             self._live_worker.error_occurred.connect(self._on_worker_error)
             self._live_worker.fps_updated.connect(
@@ -266,7 +266,7 @@ class SpectrooMainWindow(QMainWindow):
             "Capture Dark Frame",
             "Cover the lens completely to block all light, then click OK."
         )
-        self._dark_worker = DarkFrameWorker(self.config, self)
+        self._dark_worker = DarkFrameWorker(self.config, self._frame_source, self)
         self._dark_worker.finished.connect(self._on_dark_frame_finished)
         self._dark_worker.start()
 

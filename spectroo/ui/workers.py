@@ -5,8 +5,6 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from spectroo.core.calibration import PolynomialCalibration
 from spectroo.dsp.pipeline import run_pipeline, average_frames, to_greyscale
 from spectroo.dsp.peaks import find_spectrum_peaks
-from spectroo.camera.source import PiCameraFrameSource
-from spectroo.core.exceptions import CameraNotFoundError
 
 if not hasattr(PolynomialCalibration, "evaluate"):
     PolynomialCalibration.evaluate = lambda self, x: np.polyval(self.coefficients, x)
@@ -21,9 +19,10 @@ class LivePipelineWorker(QThread):
     error_occurred = pyqtSignal(str)
     fps_updated = pyqtSignal(float)
 
-    def __init__(self, config: dict, parent=None) -> None:
+    def __init__(self, config: dict, frame_source, parent=None) -> None:
         super().__init__(parent)
         self.config = config
+        self._frame_source = frame_source
         self._running = False
         self.frame_times = []
 
@@ -38,18 +37,6 @@ class LivePipelineWorker(QThread):
     def run(self) -> None:
         self._running = True
         self.frame_times = []
-        source = None
-        try:
-            res = tuple(self.config.get("camera", {}).get("resolution", [2592, 200]))
-            exp = self.config.get("camera", {}).get("exposure_us", 200000)
-            source = PiCameraFrameSource(resolution=res, exposure_us=exp)
-        except CameraNotFoundError as e:
-            self.error_occurred.emit(str(e))
-            return
-        except Exception as e:
-            self.error_occurred.emit(str(e))
-            return
-
         try:
             optics = self.config.get("optics", {})
             dsp_cfg = self.config.get("dsp", {})
@@ -66,8 +53,8 @@ class LivePipelineWorker(QThread):
 
             while self._running:
                 try:
-                    source.set_exposure_us(self.config.get("camera", {}).get("exposure_us", 200000))
-                    frame = source.get_frame() if hasattr(source, "get_frame") else source.capture_frame()
+                    self._frame_source.set_exposure_us(self.config.get("camera", {}).get("exposure_us", 200000))
+                    frame = self._frame_source.get_frame() if hasattr(self._frame_source, "get_frame") else self._frame_source.capture_frame()
 
                     exposure_us = self.config.get("camera", {}).get("exposure_us", 200000)
                     spec = run_pipeline(
@@ -110,12 +97,8 @@ class LivePipelineWorker(QThread):
                 except Exception as e:
                     self.error_occurred.emit(str(e))
                     break
-        finally:
-            if source is not None:
-                try:
-                    source.close()
-                except Exception:
-                    pass
+        except Exception as e:
+            self.error_occurred.emit(str(e))
 
     def stop(self) -> None:
         self._running = False
@@ -130,9 +113,10 @@ class SingleAcquisitionWorker(QThread):
     frame_ready = pyqtSignal(object)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, config: dict, parent=None) -> None:
+    def __init__(self, config: dict, frame_source, parent=None) -> None:
         super().__init__(parent)
         self.config = config
+        self._frame_source = frame_source
 
         N = config.get("camera", {}).get("resolution", [2592, 200])[0]
         cal_coefs = config.get("calibration", {}).get("coefficients", None)
@@ -143,20 +127,11 @@ class SingleAcquisitionWorker(QThread):
             self._wavelengths = np.arange(N)
 
     def run(self) -> None:
-        source = None
-        try:
-            res = tuple(self.config.get("camera", {}).get("resolution", [2592, 200]))
-            exp = self.config.get("camera", {}).get("exposure_us", 200000)
-            source = PiCameraFrameSource(resolution=res, exposure_us=exp)
-        except Exception as e:
-            self.error_occurred.emit(str(e))
-            return
-
         try:
             n_frames = self.config.get("camera", {}).get("n_frames", 4)
             frames = []
             for _ in range(n_frames):
-                frame = source.get_frame() if hasattr(source, "get_frame") else source.capture_frame()
+                frame = self._frame_source.get_frame() if hasattr(self._frame_source, "get_frame") else self._frame_source.capture_frame()
                 frames.append(frame)
                 time.sleep(0.01)
 
@@ -201,12 +176,6 @@ class SingleAcquisitionWorker(QThread):
             })
         except Exception as e:
             self.error_occurred.emit(str(e))
-        finally:
-            if source is not None:
-                try:
-                    source.close()
-                except Exception:
-                    pass
 
 
 class DarkFrameWorker(QThread):
@@ -216,24 +185,16 @@ class DarkFrameWorker(QThread):
     # TODO: T11 — review threading model after hardware concurrency test
     finished = pyqtSignal(str)
 
-    def __init__(self, config: dict, parent=None) -> None:
+    def __init__(self, config: dict, frame_source, parent=None) -> None:
         super().__init__(parent)
         self.config = config
+        self._frame_source = frame_source
 
     def run(self) -> None:
-        source = None
-        try:
-            res = tuple(self.config.get("camera", {}).get("resolution", [2592, 200]))
-            exp = self.config.get("camera", {}).get("exposure_us", 200000)
-            source = PiCameraFrameSource(resolution=res, exposure_us=exp)
-        except Exception as e:
-            self.finished.emit(str(e))
-            return
-
         try:
             frames = []
             for _ in range(4):
-                frame = source.get_frame() if hasattr(source, "get_frame") else source.capture_frame()
+                frame = self._frame_source.get_frame() if hasattr(self._frame_source, "get_frame") else self._frame_source.capture_frame()
                 frames.append(frame)
                 time.sleep(0.01)
 
@@ -251,9 +212,3 @@ class DarkFrameWorker(QThread):
                 self.finished.emit("Dark frame path not specified in configuration.")
         except Exception as e:
             self.finished.emit(str(e))
-        finally:
-            if source is not None:
-                try:
-                    source.close()
-                except Exception:
-                    pass
