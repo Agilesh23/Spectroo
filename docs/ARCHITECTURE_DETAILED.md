@@ -19,7 +19,7 @@ The Spectroo v3 application is organized into modular directories separating the
 - **`requirements.txt`**
   A standard pip requirements list pointing directly to specified dependency versions to pin execution environments during setup.
 - **`scripts/`**
-  Contains utility scripts for startup detection and system daemonization. It hosts `boot_detect.sh` (which checks for physical screens and starts the corresponding service) and `spectroo.service` (the systemd unit definition file).
+  Contains utility scripts for startup detection, system daemonization, and hotspot routing. It hosts `boot_detect.sh` (the environment wrapper that delegates to `main.py`), `setup_hotspot.sh` (access point configuration script), and the `systemd/` directory containing service unit stubs and the main `spectroo.service` unit.
 
 ### `spectroo` Submodules
 
@@ -28,10 +28,12 @@ The Spectroo v3 application is organized into modular directories separating the
   - **`config.py`**: Handles loading, parsing, and structured reading of the configuration values using standard python libraries.
   - **`models.py`**: Defines structured dataclasses used throughout the data pipeline, such as `CalibrationPoint`, `Peak`, `Spectrum`, and `HistoryRecord`.
   - **`calibration.py`**: Hosts the mathematics for fitting calibration polynomial curves using least-squares regressions.
+  - **`grating_model.py`**: Provides lookup table (LUT) mathematical models mapping pixel indices to wavelengths using the grating diffraction equation. (Used exclusively in tests).
   - **`exceptions.py`**: Defines standard custom exceptions like `CameraNotFoundError` and `CalibrationError` to catch expected errors gracefully.
 - **`spectroo/camera/`**
   Handles sensor interfacing.
   - **`source.py`**: Defines the `FrameSource` abstract base class, `PiCameraFrameSource` (the hardware controller implementing dynamic `picamera2` integration), and `MockFrameSource` (the synthetic frame generator which generates simulated bands for off-hardware testing).
+  - **`startup_calibration.py`**: Runs auto-alignment and calibration procedures (tilt, center row, and spectral flip detection) during hardware initialization (used in tests).
 - **`spectroo/dsp/`**
   The digital signal processing core.
   - **`pipeline.py`**: Integrates all frame-level and spectrum-level filtering steps into a single logical execution flow.
@@ -56,10 +58,12 @@ The Spectroo v3 application is organized into modular directories separating the
   Developer-only PyQt5 views.
   - **`calibration_window.py`**: An interactive wizard allowing developers to click peaks in the live spectrum, enter reference wavelengths, run polynomial fits, and apply them.
   - **`camera_preview_window.py`**: A diagnostic panel displaying raw 2D frames from the camera, assisting in physical alignment and exposure testing.
+  - **`config_editor.py`**: Unimplemented placeholder for an interactive developer TOML editor.
 - **`spectroo/web/`**
   Hosts the standalone hotspot interface.
   - **`app.py`**: Initializes the FastAPI server.
   - **`routes.py`**: Serves static HTML pages (dashboard, history, dev tools).
+  - **`routes_dev.py`**: Unimplemented placeholder for developer REST actions.
   - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs to browser clients.
   - **`static/`**: Houses CSS styling, Javascript logic, and raw HTML templates for browser rendering.
 
@@ -168,7 +172,7 @@ graph TD
 - **Action:** Identifies emission or absorption lines in the smoothed profile.
 - **Underlying Call:** `scipy.signal.find_peaks(intensity, prominence=thresh, distance=min_dist)`.
 - **Data Shape & DType:** Input: `(W,)` `float32`. Output: List of integer indices corresponding to peak positions.
-- **Config Key:** `[peaks.prominence_threshold]` and `[peaks.min_distance]`.
+- **Config Key:** `[peaks.prominence_pct]`, `[peaks.prominence_min]`, and `[peaks.min_distance_px]`.
 
 ### 13. Spectrum Object Assembly
 - **Location:** `spectroo/ui/main_window.py` -> `_on_frame_ready()`
@@ -186,12 +190,12 @@ graph TD
 The Spectroo v3 application maps pixel coordinates to wavelengths via least-squares polynomial regressions.
 
 ### Calibration Fitting Mechanics
-The utility `fit_calibration(points, degree)` in `spectroo/core/calibration.py` accepts a list of `CalibrationPoint` structures (each matching a clicked `pixel_index` with a known `known_wavelength_nm`).
+The utility `fit_calibration(points, degree_low=2, degree_high=3, degree_threshold_points=4, min_points=2)` in `spectroo/core/calibration.py` accepts a list of `CalibrationPoint` structures.
 - Fits a polynomial $P(x) = c_d x^d + c_{d-1} x^{d-1} + \dots + c_0$ using:
   ```python
-  coefs = np.polyfit(pixels, wavelengths, degree)
+  coefficients = np.polyfit(pixels, wavelengths, degree)
   ```
-- Returns a `CalibrationResult` containing the coefficients array, the polynomial degree, and the calculated Root Mean Square (RMS) error:
+- Returns a `PolynomialCalibration` containing the coefficients list, the polynomial degree, and the calculated Root Mean Square (RMS) error (`rms_nm`):
   $$\text{RMS} = \sqrt{\frac{1}{N} \sum_{i=1}^N (P(x_i) - \lambda_i)^2}$$
 
 ### Coefficient Storage Format
@@ -316,7 +320,7 @@ CREATE TABLE IF NOT EXISTS history (
     wavelengths TEXT,                 -- JSON-serialized array (NULL if uncalibrated)
     peaks TEXT,                       -- JSON-serialized list of Peak dicts
     png_path TEXT NOT NULL,           -- Path to thumbnail image
-    calibration_rms REAL              -- RMS fit error
+    calibration_rms_at_capture REAL              -- RMS fit error
 );
 ```
 
@@ -333,7 +337,7 @@ CREATE TABLE IF NOT EXISTS history (
 
 ### File Exports
 - **`export_json(record, path)`**: Saves the spectrum data structure as a JSON file.
-- **`export_csv(record, path)`**: Saves the data as a tab-delimited text file containing `Pixel, Wavelength (nm), Intensity`.
+- **`export_csv(record, path)`**: Saves the data as a comma-separated CSV file containing `pixel_index, intensity, wavelength_nm`.
 - **`dark_frame.npy`**: Stored as a raw binary array using `np.save()` for dark subtraction.
 - **`response_flat.json`**: Stores the sensor spectral sensitivity response curve to correct for non-uniform sensor gain.
 - Note: The system tracks `dark_frame_loaded` and `flat_field_loaded` as real runtime load-success flags (in the `Spectrum` model and `run_pipeline` result), ensuring indicators reflect actual file parsing success rather than just checking if a file exists on disk.
@@ -361,14 +365,16 @@ All runtime options are configured via key-value parameters in `config.toml`.
 | **`[calibration]`**| `coefficients` | Array of floats| Measured | Polynomial terms. Read by `apply_calibration` and written by `CalibrationWindow`. |
 | | `degree` | Integer | Assumed | Polynomial fitting degree (e.g. `3`). Read by `fit_calibration`. |
 | | `n_points` | Integer | Measured | Points used for calibration (e.g. `0`). Written by `CalibrationWindow`. |
-| **`[peaks]`** | `prominence_threshold`| Float | Assumed | Peak detection threshold (e.g. `250.0`). Read by `find_spectrum_peaks`. |
-| | `min_distance` | Integer | Assumed | Minimum peak spacing in pixels (e.g. `15`). Read by `find_spectrum_peaks`. |
+| **`[peaks]`** | `prominence_pct` | Float | Assumed | Percentage prominence threshold (e.g. `0.10`). Read by `find_spectrum_peaks`. |
+| | `prominence_min` | Float | Assumed | Minimum prominence value (e.g. `0.01`). Read by `find_spectrum_peaks`. |
+| | `min_distance_px` | Integer | Assumed | Minimum peak spacing in pixels (e.g. `20`). Read by `find_spectrum_peaks`. |
 | **`[history]`** | `db_path` | String | Assumed | File path for SQLite database. Read by `db.py`. |
 | | `max_entries` | Integer | Assumed | Maximum history records stored. Read by `save_record`. |
 | **`[storage]`** | `dark_frame_path`| String | Assumed | File path for dark frame binary. Read by workers and pipeline. |
 | | `flat_field_path`| String | Assumed | File path for response flat-field JSON array. Read by pipeline and written by `FlatFieldWorker`. |
-| **`[web]`** | `host` | String | Locked | Bind address (e.g. `0.0.0.0`). Read by `FastAPI` / `Uvicorn`. |
-| | `port` | Integer | Locked | Bind port (e.g. `8000`). Read by `FastAPI` / `Uvicorn`. |
+| **`[web]`** | `host` | String | Locked | Bind address (e.g. `0.0.0.0`). Read by `main.py` (defaults to `0.0.0.0`). |
+| | `internal_port` | Integer | Locked | Internal bind port for Uvicorn (e.g. `8000`). Read by `main.py`. |
+| | `public_port` | Integer | Locked | Public external web port (e.g. `80`). |
 | | `dev_password` | String | Locked | Authentication password for dev routes. Read by `routes.py`. |
 | **`[hotspot]`** | `ssid` | String | Locked | Hotspot Access Point name. Read by AP setup script. |
 | | `password` | String | Locked | Hotspot AP WPA password. Read by AP setup script. |
@@ -379,109 +385,66 @@ All runtime options are configured via key-value parameters in `config.toml`.
 
 The startup sequence is managed by shell scripts and system daemons.
 
-### Startup Pipeline (`boot_detect.sh`)
-At boot, the script `scripts/boot_detect.sh` is executed by systemd:
-1. It queries physical display status via `/sys/class/drm/` looking for active displays (HDMI or DSI touchscreen).
-2. If an active display interface is detected:
-   - Configures local X Server / Wayland parameters.
-   - Starts `spectroo-desktop.service` to launch the PyQt5 GUI.
-3. If no physical display is detected:
-   - Configures the host wireless interface into an Access Point using hostapd/dnsmasq.
-   - Starts `spectroo-web.service` to bind Uvicorn to port `8000` on the hotspot IP (`192.168.4.1`).
+### Startup Pipeline and Mode Detection
+The system startup sequence executes through a single unified process:
+1. **Systemd Service**: At boot, `systemd` launches `spectroo.service` (defined in `scripts/systemd/spectroo.service`).
+2. **Environment Wrapper**: The service executes `scripts/boot_detect.sh`, which loads the virtual environment (`.venv`) and passes execution to `main.py` via `exec python main.py "$@"`.
+3. **Hardware Boot Detection**: `main.py` runs with default `--mode auto`, which calls `detect_boot_mode()` from `spectroo/system/boot_detect.py`.
+4. **Display Check**: `detect_boot_mode()` inspects `/sys/bus/platform/drivers/vc4_dsi/` for a touchscreen, and scans `/sys/class/drm/card*-HDMI-*/status` for connected monitors. If either is found, it returns `"desktop"`; otherwise, it falls back to `"web"`.
+5. **Execution Routing**: Based on the returned boot mode, `main.py` directly executes the PyQt5 application via `run_desktop()` or starts the Uvicorn/FastAPI server via `run_web()`.
+
+### Hotspot and Network Deployment
+When deployed headless, networking and routing are established once during deployment using `scripts/setup_hotspot.sh`:
+- **Access Point & DHCP**: Configures `hostapd` to broadcast the SSID (default `"Spectroo"`, overridable via the `SPECTROO_SSID` environment variable) and `dnsmasq` to assign IP leases on the `wlan0` interface (default range `192.168.4.2-192.168.4.20`, overridable via the `SPECTROO_DHCP` environment variable).
+- **Static IP Gateway**: Binds the wireless interface to the static IP gateway (default `192.168.4.1`, overridable via the `SPECTROO_IP` environment variable) inside `/etc/dhcpcd.conf`.
+- **Port Forwarding**: Adds an `iptables` NAT PREROUTING rule to redirect TCP traffic on port `80` to the internal Uvicorn server port `8000` (overridable via the `SPECTROO_PORT` environment variable).
+- **Avahi Daemon**: Configures `avahi-daemon` to resolve requests for `spectroo.local` to the hotspot gateway.
 
 ### Systemd Configuration (`spectroo.service`)
-The primary systemd unit definition wraps the startup checks:
+The primary systemd unit definition (located at `scripts/systemd/spectroo.service`) is:
 ```ini
 [Unit]
-Description=Spectroo Spectrometer Daemon
+Description=Spectroo v3 Spectrometer Application
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /home/pi/Spectroo/spectroo_v3/scripts/boot_detect.sh
+User=spectroo
+WorkingDirectory=/home/spectroo/spectroo_v3
+ExecStartPre=/bin/sleep 30
+ExecStart=/home/spectroo/spectroo_v3/scripts/boot_detect.sh
 Restart=on-failure
-User=pi
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
 ```
-*(Note: systemd configuration stubs for individual `spectroo-desktop` and `spectroo-web` units exist, but their concrete service definitions are placeholder references.)*
+*(Note: systemd configuration stubs `spectroo-boot-detect.service`, `spectroo-desktop.service`, and `spectroo-web.service` exist in the repository as placeholder TODO stubs.)*
 
 ### Main Entry Mode Routing
 In `main.py`, CLI parsing decides the runtime flow:
-- `--mode desktop`: Instantiates `QApplication`, configures `SpectrooMainWindow`, and executes the loop.
-- `--mode web`: Imports `uvicorn` and binds to the configured host and port.
-- `--dev` / `--no-dev`: Enables or disables developer mode (default: True, use `--no-dev` to disable). Sets a developer mode flag to enable dev-only features and shortcuts (including `Ctrl+Shift+F` flat-field capture).
+- `--mode auto` (default): Runs display interface detection to select `"desktop"` or `"web"` mode dynamically.
+- `--mode desktop`: Forces PyQt5 GUI instantiation and execution.
+- `--mode web`: Forces FastAPI/Uvicorn server binding.
+- `--dev` / `--no-dev`: Enables or disables developer mode (default: True). Enables developer keyboard shortcuts (`Ctrl+Shift+D` calibration, `Ctrl+Shift+Q` dark frame, `Ctrl+Shift+F` flat field).
 
 ---
 
 ## SECTION 9 — Known Bugs and Workarounds
 
-### 1. Polynomial Coefficient Reversal Bug
-- **Status:** **Fixed**.
-- **Description:** Calibration coefficients were previously saved in reverse order (`low-to-high` instead of `high-to-low`), resulting in invalid wavelength mapping on restart.
-- **Fix:** Fixed in `CalibrationWindow._on_apply()` by removing `reversed()`, saving the list in the correct order for `np.polyval()`.
-
-### 2. PiCameraFrameSource Method Indentation Bug
-- **Status:** **Fixed**.
-- **Description:** Capture and configuration methods were nested inside `__init__` instead of being defined at the class level.
-- **Fix:** Dedented `capture_frame()`, `set_exposure_us()`, and `close()` to the class level.
-
-### 3. Developer Mode Enabled Unconditionally
-- **Status:** **Fixed**.
-- **Description:** Previously, `self._dev_mode` was set to `True` unconditionally inside `SpectrooMainWindow.__init__`.
-- **Fix:** Removed the hardcoded override in the constructor. Updated the CLI parser in `main.py` to default to `True` using `argparse.BooleanOptionalAction`, allowing `--no-dev` to disable it on the command line.
-
-### 4. SIGINT/Ctrl+C Does Not Terminate GUI
+### 1. SIGINT/Ctrl+C Does Not Terminate GUI
 - **Status:** **Open**.
 - **Description:** When launching the PyQt application from the terminal, pressing `Ctrl+C` doesn't always exit immediately because python signal handlers can't interrupt the Qt event loop.
 - **Workaround:** Close the UI window directly or send `SIGKILL` (kill -9) from another terminal.
-
-### 5. Calibration Apply Crash
-- **Status:** **Fixed**.
-- **Description:** In the developer calibration window, clicking "Apply & Close" would crash if the `tomli_w` library was missing.
-- **Fix:** Added a fallback mechanism that parses the TOML manually and replaces configuration values while preserving comments.
-
-### 6. Missing `response_flat.json`
-- **Status:** **Fixed**.
-- **Description:** Dynamic flat-field corrections look for a `response_flat.json` file, which was not auto-generated by the application.
-- **Fix:** Implemented `FlatFieldWorker` (triggered via `Ctrl+Shift+F` in dev mode) to capture and auto-generate `response_flat.json` using the standard flat-field calibration sequence.
-
-### 7. Thread Worker Camera Source Collision Bug
-- **Status:** **Fixed**.
-- **Description:** Previously, `LivePipelineWorker`, `SingleAcquisitionWorker`, and `DarkFrameWorker` each instantiated a local `PiCameraFrameSource` internally within their `run()` methods. This conflicted with the shared camera instance managed by `SpectrooMainWindow`, causing initialization and camera acquisition blockages.
-- **Fix:** Refactored the workers to accept the shared `frame_source` instance via their constructor and use it directly, ensuring exposure settings are set via this shared interface. Added a 0.5-second settle delay after setting the exposure before initiating frame captures, and moved the exposure configuration in `LivePipelineWorker` to execute once before entering the loop to avoid per-frame overhead. Also corrected the single acquisition worker to query `frame_stack` configuration instead of the deprecated `n_frames` key.
-
-### 9. 2D Dark Frame Subtraction Shape Mismatch
-- **Status:** **Fixed**.
-- **Description:** The `DarkFrameWorker` saves the dark frame as a 2D array, but the pipeline subtraction logic expected a 1D array of shape `(W,)`, leading to potential shape mismatch exceptions.
-- **Fix:** Updated the pipeline's `run_pipeline` function to dynamically convert 2D dark frames to 1D using active optics settings (`apply_tilt_correction -> extract_band -> apply_flip`) before performing subtraction.
-
-### 8. Baseline Subtraction Implementation Discrepancy
-- **Status:** **Fixed**.
-- **Description:** The `subtract_baseline` logic in `spectroo/dsp/filters.py` used static window sizing which caused issues on small test signals in unit tests, and deviated from the V1 dynamic sliding minimum filter approach.
-- **Fix:** Updated the function to implement the dynamic `minimum_filter1d` kernel and adjust `savgol_filter` window size dynamically based on input signal length.
-
-### 10. Web Mode Missing Flat-Field Correction
-- **Status:** **Fixed**.
-- **Description:** The web server REST endpoints and websocket stream previously never loaded or applied `response_flat.json`, leaving flat-field correction exclusive to desktop mode.
-- **Fix:** Consolidated both desktop and web paths onto the same `load_dark_frame` / `load_flat_field` helpers, ensuring flat-field correction is fully active in web mode too.
-
-### 11. Baseline Toggle Had No Effect on Main Pipeline
-- **Status:** **Fixed**.
-- **Description:** `subtract_baseline()` was called unconditionally in `run_pipeline()` regardless of `dsp.baseline_enabled`. The UI toggle in `ControlPanel` was correctly wired and wrote the flag to `config["dsp"]["baseline_enabled"]`, but `pipeline.py` never read it — the call was made on every frame regardless of the setting.
-- **Fix:** Wrapped the `subtract_baseline()` call in `pipeline.py` with `if dsp_cfg.get("baseline_enabled", True):`. Added `baseline_enabled = true` explicitly to `config.toml [dsp]`. The `default=True` preserves existing behaviour when the key is absent.
-
-### 12. CalibrationWindow Displayed Raw Uncorrected Signal
-- **Status:** **Fixed**.
-- **Description:** `CalibrationWindow._update_spectrum()` bypassed `run_pipeline()` entirely, running only greyscale → tilt → band extract → flip. No dark subtraction or baseline correction was applied, causing the stray-light/continuum hump to appear in the calibration display even when the main window's baseline toggle was enabled.
-- **Fix:** Added dark subtraction (using the shared `load_dark_frame()` helper, with the same 2D→1D collapse logic as `run_pipeline` for non-zero tilt angles) and baseline subtraction (gated on `dsp.baseline_enabled`) directly in `_update_spectrum()`. Flat-field and SG-smoothing remain excluded to preserve unsmoothed peak positions for calibration clicks.
 
 ---
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **129 automated tests** inside the `tests/` directory.
+The test suite contains **130 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -497,7 +460,7 @@ The test suite contains **129 automated tests** inside the `tests/` directory.
   Tests `FlatFieldWorker` capture sequence, missing dark frame fallbacks, divide-by-zero guards, clamping thresholds, and dev-mode gating of the shortcut.
 - **`test_history_panel.py` (8 tests)**
   Tests loading, rendering, and selecting items in the UI history sidebar.
-- **`test_main_window.py` (10 tests)**
+- **`test_main_window.py` (12 tests)**
   Tests window startup, signal routes, and thread worker creation.
 - **`test_plot_widget.py` (10 tests)**
   Verifies coordinate scaling, gridlines, zoom/pan bounds, and cursor placements.
@@ -507,7 +470,7 @@ The test suite contains **129 automated tests** inside the `tests/` directory.
   Tests SQLite database creations, record insertions/queries, and CSV/JSON exports.
 - **`test_system.py` (8 tests)**
   Tests platform detection and hardware diagnostic scripts.
-- **`test_ui_widgets.py` (16 tests)**
+- **`test_ui_widgets.py` (14 tests)**
   Verifies button behaviors, layout spacing, and control panel logging functions.
-- **`test_web.py` (10 tests)**
+- **`test_web.py` (11 tests)**
   Tests the FastAPI router endpoints, WebSocket feeds, and data endpoints.

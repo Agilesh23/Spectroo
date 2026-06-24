@@ -39,12 +39,17 @@ Spectroo v3 is a Raspberry Pi-powered optical spectrometer application that turn
 
 Spectroo v3 operates in dual-mode (Desktop GUI or Web/Hotspot API) based on hardware detection or manual override.
 
-- **Launch as Desktop Application (VNC mode):**
+- **Launch with Display Auto-detection (Default):**
+  Auto-detects whether a physical screen is present. Launches PyQt5 GUI on screen detection, falling back to Uvicorn/FastAPI headless server otherwise:
+  ```bash
+  python main.py
+  ```
+- **Force Launch as Desktop Application (VNC mode):**
   If running headlessly on a Pi but redirecting the display over VNC:
   ```bash
   QT_QPA_PLATFORM=vnc python main.py --mode desktop
   ```
-- **Launch as Web App & Hotspot API:**
+- **Force Launch as Web App & Hotspot API:**
   ```bash
   python main.py --mode web
   ```
