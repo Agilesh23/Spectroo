@@ -43,6 +43,9 @@ class SpectrooMainWindow(QMainWindow):
         self.dev_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
         self.dev_shortcut.activated.connect(self._open_dev_window)
 
+        self.cam_shortcut = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+        self.cam_shortcut.activated.connect(self._open_camera_preview)
+
         self.setWindowTitle("Spectroo")
         self.setMinimumSize(1000, 600)
         self.setStyleSheet("background-color: #ffffff;")
@@ -153,6 +156,11 @@ class SpectrooMainWindow(QMainWindow):
         cal_window = CalibrationWindow(self.config, self._frame_source, parent=self)
         cal_window.calibration_applied.connect(self._on_calibration_applied)
         cal_window.exec_()
+
+    def _open_camera_preview(self) -> None:
+        from spectroo.ui.dev.camera_preview_window import CameraPreviewWindow
+        win = CameraPreviewWindow(self.config, self._frame_source, parent=self)
+        win.exec_()
 
     def _on_calibration_applied(self) -> None:
         from spectroo.core.config import load_config
