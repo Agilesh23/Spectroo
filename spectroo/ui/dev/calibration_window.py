@@ -475,6 +475,16 @@ class CalibrationWindow(QDialog):
         run_fit_btn.clicked.connect(self._on_run_fit)
         btn_layout.addWidget(run_fit_btn)
 
+        undo_btn = QPushButton("Undo Last", self)
+        undo_btn.setFixedHeight(34)
+        undo_btn.setStyleSheet(
+            "QPushButton { background-color: #6b7280; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #4b5563; }"
+        )
+        undo_btn.clicked.connect(self._on_undo)
+        btn_layout.addWidget(undo_btn)
+
         apply_btn = QPushButton("Apply & Close", self)
         apply_btn.setFixedHeight(34)
         apply_btn.setStyleSheet(
