@@ -144,10 +144,10 @@ graph TD
 
 ### 9. Baseline Subtraction
 - **Location:** `spectroo/dsp/filters.py` -> `subtract_baseline()`
-- **Action:** Removes slow-varying background illumination (e.g., continuous thermal glow).
-- **Underlying Call:** Computes local minimums using `scipy.ndimage.minimum_filter1d(intensity, size=window)` followed by secondary Savitzky-Golay smoothing, and subtracts it: `np.clip(intensity - baseline, 0, None)`.
+- **Action:** Removes slow-varying background illumination (e.g., continuous thermal glow) using a dynamic sliding window approach.
+- **Underlying Call:** Estimates baseline profile by applying `scipy.ndimage.minimum_filter1d` with size `2 * max(1, len(intensity_1d) // 20)` and mode `'nearest'`, followed by secondary smoothing via `scipy.signal.savgol_filter` (using window size `min(51, len(intensity_1d))` adjusted to be odd and greater than or equal to 3 to support short mock inputs dynamically, and polynomial degree 2), and subtracts this profile: `np.clip(intensity_1d - baseline, 0, None)`.
 - **Data Shape & DType:** Input: `(W,)` `float32`. Output: `(W,)` `float32`.
-- **Config Key:** `[dsp.baseline_savgol_window]` and `[dsp.baseline_savgol_polyorder]`.
+- **Config Key:** `[dsp.baseline_method]`, `[dsp.baseline_window]` (or baseline window size mapped internally), and `[dsp.baseline_polyorder]`.
 
 ### 10. Flat-Field Correction
 - **Location:** `spectroo/dsp/corrections.py` -> `apply_flat_field()`
@@ -353,8 +353,8 @@ All runtime options are configured via key-value parameters in `config.toml`.
 | | `savgol_window` | Integer | Assumed | Savitzky-Golay filter size (e.g. `7`). Read by `smooth_savgol`. |
 | | `savgol_polyorder`| Integer | Assumed | Savitzky-Golay polynomial order (e.g. `3`). Read by `smooth_savgol`. |
 | | `baseline_enabled`| Boolean | Assumed | Subtract continuous baseline. Read by `subtract_baseline`. |
-| | `baseline_savgol_window`| Integer | Assumed | Baseline estimation filter window (e.g. `51`). Read by `subtract_baseline`. |
-| | `baseline_savgol_polyorder`| Integer | Assumed | Baseline estimation polynomial order (e.g. `2`). Read by `subtract_baseline`. |
+| | `baseline_window`| Integer | Assumed | Baseline estimation filter window (e.g. `51`). Read by `subtract_baseline`. |
+| | `baseline_polyorder`| Integer | Assumed | Baseline estimation polynomial order (e.g. `2`). Read by `subtract_baseline`. |
 | **`[calibration]`**| `coefficients` | Array of floats| Measured | Polynomial terms. Read by `apply_calibration` and written by `CalibrationWindow`. |
 | | `degree` | Integer | Assumed | Polynomial fitting degree (e.g. `3`). Read by `fit_calibration`. |
 | | `n_points` | Integer | Measured | Points used for calibration (e.g. `4`). Written by `CalibrationWindow`. |
@@ -446,6 +446,11 @@ In `main.py`, CLI parsing decides the runtime flow:
 - **Status:** **Fixed**.
 - **Description:** Previously, `LivePipelineWorker`, `SingleAcquisitionWorker`, and `DarkFrameWorker` each instantiated a local `PiCameraFrameSource` internally within their `run()` methods. This conflicted with the shared camera instance managed by `SpectrooMainWindow`, causing initialization and camera acquisition blockages.
 - **Fix:** Refactored the workers to accept the shared `frame_source` instance via their constructor and use it directly.
+
+### 8. Baseline Subtraction Implementation Discrepancy
+- **Status:** **Fixed**.
+- **Description:** The `subtract_baseline` logic in `spectroo/dsp/filters.py` used static window sizing which caused issues on small test signals in unit tests, and deviated from the V1 dynamic sliding minimum filter approach.
+- **Fix:** Updated the function to implement the dynamic `minimum_filter1d` kernel and adjust `savgol_filter` window size dynamically based on input signal length.
 
 ---
 

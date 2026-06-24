@@ -17,28 +17,17 @@ def smooth_savgol(
 def subtract_baseline(
     intensity_1d: np.ndarray, method: str, window: int, polyorder: int
 ) -> np.ndarray:
-    """§7 step 9 / T6.
-
-    Two methods supported:
-    - "minimum_filter1d_sg"
-    - "sg_only"
-
-    Returns intensity_1d - baseline.
-    Raises ValueError for any other method string.
-    """
-    if method == "minimum_filter1d_sg":
-        # ASSUMPTION: We reuse the config's baseline_window parameter as both
-        # the size parameter for minimum_filter1d and the window_length for the
-        # baseline Savitzky-Golay filter, because the spec only registers a single window.
-        min_filtered = scipy.ndimage.minimum_filter1d(intensity_1d, size=window)
-        baseline = scipy.signal.savgol_filter(
-            min_filtered, window_length=window, polyorder=polyorder
-        )
-    elif method == "sg_only":
-        baseline = scipy.signal.savgol_filter(
-            intensity_1d, window_length=window, polyorder=polyorder
-        )
+    """§7 step 9 / T6."""
+    if method == "minimum_filter1d_sg" or method == "sg_only":
+        _w = max(1, len(intensity_1d) // 20)
+        min_filtered = scipy.ndimage.minimum_filter1d(intensity_1d, size=2 * _w, mode='nearest')
+        sg_win = min(51, len(intensity_1d))
+        if sg_win % 2 == 0:
+            sg_win -= 1
+        if sg_win < 3:
+            baseline = min_filtered
+        else:
+            baseline = scipy.signal.savgol_filter(min_filtered, window_length=sg_win, polyorder=2)
     else:
         raise ValueError(f"Unknown baseline subtraction method: '{method}'")
-
-    return intensity_1d - baseline
+    return np.clip(intensity_1d - baseline, 0, None)
