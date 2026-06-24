@@ -1,184 +1,79 @@
 # Spectroo v3
 
-**A Raspberry Pi–powered optical spectrometer application** that turns an ArduCAM camera, a diffraction grating spectroscope, and a Raspberry Pi 4B into a fully calibrated, browsable spectral measurement instrument.
+Spectroo v3 is a Raspberry Pi-powered optical spectrometer application that turns an ArduCAM camera, a diffraction grating spectroscope, and a Raspberry Pi 4B into a fully calibrated, browsable spectral measurement instrument. It supports real-time spectrum acquisition, digital signal processing (DSP), custom QPainter graph rendering, wavelength calibration, history storage, and developer utilities.
 
-Spectroo v3 merges the best of its two predecessors — v1's pixel-perfect PyQt5 desktop UI and v2's config-driven dual-mode deployment — into a single, polished end-user product.
+## 🛠️ Hardware Requirements
 
----
+- **Processor Board:** Raspberry Pi 4 Model B (4GB or 8GB recommended).
+- **Camera Sensor:** ArduCAM B0035 (OV5647, 5MP sensor with IR filter) connected via CSI ribbon cable.
+- **Lens:** M12 mount lens with 12 mm focal length, f/1.2 aperture.
+- **Optics:** Handheld diffraction grating gemological spectroscope.
+- **Physical Case:** 3D-printed alignment bench to hold the camera lens and spectroscope collinearly.
 
-## ✨ Features
+## 📥 Setup Instructions
 
-| Feature | Description |
-|---|---|
-| **Dual-mode boot** | Automatically detects whether a display is connected. Launches as a **desktop app** (PyQt5) or a **Wi-Fi hotspot + web server** (FastAPI). |
-| **Real-time spectrum** | Live camera capture → greyscale → tilt correction → band extraction → dark subtraction → Savitzky-Golay smoothing → baseline subtraction → peak detection — all in a single configurable pipeline. |
-| **Custom QPainter rendering** | No matplotlib. The entire spectrum visualization (gradient fills, peak annotations, zoom/pan, inspect overlay) is drawn with `QPainter` for maximum performance. |
-| **Polynomial calibration** | Adaptive-degree polynomial fit (pixel → wavelength) with RMS error tracking. Calibrate once in developer mode, lock the coefficients in `config.toml`, and never recalibrate. |
-| **Spectrum history** | Every saved spectrum is stored in SQLite with a PNG thumbnail, and can be exported as CSV, JSON, or full-size annotated PNG. |
-| **Developer mode** | Hidden `Ctrl+Shift+D` shortcut or `--dev` CLI flag unlocks live calibration, camera preview, and config editing tools. |
-| **Zero external services** | Runs entirely offline. In web mode, the Pi creates its own hotspot (`spectroo.local`) — no router or internet required. |
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/Agilesh23/Spectroo.git
+   cd Spectroo/spectroo_v3
+   ```
 
----
+2. **Create and Activate a Virtual Environment:**
+   ```bash
+   python -m venv .venv
+   # On Linux/macOS:
+   source .venv/bin/activate
+   # On Windows:
+   .venv\Scripts\activate
+   ```
 
-## 🏗️ Architecture
+3. **Install Dependencies in Editable Mode:**
+   ```bash
+   pip install -e .
+   ```
 
-```
-spectroo_v3/
-├── config.toml                     # Single source of truth for all parameters
-├── main.py                         # Entry point (auto-detect / --mode / --dev)
-├── scripts/                        # Shell scripts & systemd units
-├── spectroo/
-│   ├── core/                       # Models, calibration, config, exceptions
-│   ├── camera/                     # PiCameraFrameSource + MockFrameSource
-│   ├── dsp/                        # Pipeline, collapse, corrections, filters, peaks
-│   ├── storage/                    # SQLite DB + CSV/JSON/PNG export
-│   ├── ui/                         # PyQt5 desktop interface
-│   │   ├── main_window.py
-│   │   ├── plot_widget.py          # QPainter spectrum canvas
-│   │   ├── control_panel.py
-│   │   ├── history_panel.py
-│   │   └── dev/                    # Developer-only calibration & preview tools
-│   ├── web/                        # FastAPI + vanilla JS frontend
-│   │   ├── app.py
-│   │   ├── routes.py / ws.py
-│   │   └── static/                 # index.html, history.html, dev.html
-│   └── system/                     # Boot detection, shutdown handler
-└── tests/                          # 115 unit & integration tests
-```
+4. **Configuration File Location:**
+   All configuration settings live in the `config.toml` file located in the root of the project: `spectroo_v3/config.toml`.
 
-Desktop and web modes are thin shells over **one shared core** — the same camera source, the same DSP pipeline, the same SQLite history, and the same `config.toml`.
+## 🚀 How to Launch
 
----
+Spectroo v3 operates in dual-mode (Desktop GUI or Web/Hotspot API) based on hardware detection or manual override.
 
-## 🛠️ Hardware
+- **Launch as Desktop Application (VNC mode):**
+  If running headlessly on a Pi but redirecting the display over VNC:
+  ```bash
+  QT_QPA_PLATFORM=vnc python main.py --mode desktop
+  ```
+- **Launch as Web App & Hotspot API:**
+  ```bash
+  python main.py --mode web
+  ```
+- **Launch with Dev Mode Enabled:**
+  ```bash
+  python main.py --dev
+  ```
 
-| Component | Spec |
-|---|---|
-| Board | Raspberry Pi 4 Model B |
-| Camera | ArduCAM B0035 (OV5647 + IR filter), CSI ribbon |
-| Lens | M12, 12 mm focal length, f/1.2 aperture |
-| Spectroscope | Handheld diffraction grating gemological spectroscope |
-| Resolution | 2592 × 200 (cropped from 2592 × 1944) |
-| Display | HDMI or DSI touchscreen (auto-detected at boot) |
+## ⌨️ Dev Mode Keyboard Shortcuts
 
----
+When developer mode (`--dev`) is enabled or `_dev_mode` is set to `True` in the desktop client, the following shortcuts become active on the main window:
+- `Ctrl+Shift+D`: Opens the **Developer Calibration Window** for manually adding wavelength points and executing polynomial fits.
+- `Ctrl+Shift+C`: Opens the **Live Camera Feed Preview** to display raw camera imagery, adjust exposure times, and align optical components.
 
-## 🚀 Getting Started
+## ⚙️ Configuration Reference (`config.toml`)
 
-### Prerequisites
+Key sections in `config.toml`:
+- `[camera]`: Controls resolution, exposure (microseconds), and frame stacking counts.
+- `[optics]`: Stores physical alignment corrections (e.g., tilt angle, spectrum flip, and locked center horizontal row).
+- `[dsp]`: Sets the band height for extraction, Savitzky-Golay filtering window/polyorder, and baseline subtraction method.
+- `[calibration]`: Stores the polynomial coefficients, locked polynomial degree, and minimum data points required for fitting.
+- `[peaks]`: Configures prominence thresholds and search constraints for peak identification.
+- `[history]`: Defines the SQLite database file path and maximum record counts.
+- `[web]`: Configures server ports and developer route authentication passwords.
+- `[hotspot]`: Manages standalone Access Point SSID, password, channel, and gateway IP.
 
-- Python ≥ 3.11
-- `picamera2` (Linux/Pi only — automatically skipped on Windows/macOS)
-- PyQt5 ≥ 5.15
+## ⚠️ Known Limitations
 
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/Agilesh23/Spectroo.git
-cd Spectroo
-
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-# .venv\Scripts\activate         # Windows
-
-# Install in editable mode
-pip install -e .
-```
-
-### Running
-
-```bash
-# Auto-detect mode (desktop if display found, web otherwise)
-python main.py
-
-# Force a specific mode
-python main.py --mode desktop
-python main.py --mode web
-
-# Enable developer tools
-python main.py --dev
-```
-
-### Running on Windows (development)
-
-On Windows, the camera is unavailable so a `MockFrameSource` generates synthetic spectra automatically. All UI, DSP, storage, and calibration logic works identically.
-
----
-
-## 🧪 Testing
-
-```bash
-# Run the full test suite (115 tests)
-pytest
-
-# Run a specific module
-pytest tests/test_dev_calibration.py -v
-pytest tests/test_dsp.py -v
-pytest tests/test_storage.py -v
-```
-
-All tests run headlessly using `QT_QPA_PLATFORM=offscreen`.
-
----
-
-## ⚙️ Configuration
-
-All runtime parameters live in a single [`config.toml`](config.toml):
-
-| Section | Purpose |
-|---|---|
-| `[camera]` | Resolution, exposure, frame stacking |
-| `[optics]` | Tilt angle, flip, center row (locked after startup calibration) |
-| `[dsp]` | Band height, Savitzky-Golay window, baseline method |
-| `[calibration]` | Polynomial degree, min points, coefficients |
-| `[peaks]` | Prominence thresholds, display caps |
-| `[boot]` | Auto/desktop/web mode, warm-up delay |
-| `[hotspot]` | SSID, password, channel, gateway |
-| `[web]` | Ports, dev password |
-| `[history]` | SQLite path, max entries |
-
----
-
-## 📡 Web API (Hotspot Mode)
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | GET | Live spectrum dashboard |
-| `/history` | GET | Browsable history page |
-| `/api/spectrum` | GET | Current spectrum as JSON |
-| `/api/history` | GET | List saved records |
-| `/api/history/{id}` | GET | Single record detail |
-| `/api/export/{id}/{fmt}` | GET | Download CSV / JSON / PNG |
-| `/ws/spectrum` | WS | Real-time spectrum stream |
-
----
-
-## 🔬 DSP Pipeline
-
-Each frame passes through these stages in order:
-
-1. **Average** — stack `N` frames to float32
-2. **Greyscale** — luminance conversion (0.299R + 0.587G + 0.114B)
-3. **Tilt correction** — `scipy.ndimage.rotate` with `reshape=False`
-4. **Band extraction** — collapse rows around locked `center_y`
-5. **Flip** — reverse array if `flip_spectrum` is set
-6. **Dark subtraction** — subtract stored 1D dark frame
-7. **Savitzky-Golay smoothing** — configurable window and polynomial order
-8. **Baseline subtraction** — minimum filter + SG method
-9. **Flat-field correction** — spectral response normalization
-10. **Wavelength mapping** — polynomial calibration or grating LUT
-11. **Peak detection** — `scipy.signal.find_peaks` with prominence ranking
-
----
-
-## 📜 License
-
-This project is developed for educational and research purposes.
-
----
-
-## 👤 Author
-
-**Agilesh** — [GitHub](https://github.com/Agilesh23)
+- **Platform-dependent Camera Driver:** `picamera2` is only supported on Linux/Raspberry Pi. On Windows, macOS, or generic Linux setups lacking `libcamera`, the application automatically falls back to `MockFrameSource` generating synthetic spectrum patterns.
+- **Plain HTTP Web Auth:** Dev routes on the Web API (`/dev`) are protected by a password over plain HTTP, which is suitable for local hotspot use but not secure on public networks without SSL/TLS termination.
+- **Flat-field Calibration Capture:** The flat-field calibration file (`response_flat.json`) must be pre-populated manually or captured using standard reference light sources, as automated reference acquisition is not fully implemented in the UI.
+- **CLI Signal Handling:** Pressing `Ctrl+C` in the CLI during active VNC desktop runs does not always immediately terminate the PyQt event loop, requiring manual process termination in some headless setups.
