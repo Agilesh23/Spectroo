@@ -231,7 +231,6 @@
             <div class="separator"></div>
             
             <div class="section-header">DATA</div>
-            <button id="save-btn" style="margin-bottom: 6px;">Save</button>
             <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
             <button id="export-csv-btn" disabled>Export CSV</button>
         </div>
@@ -574,6 +573,32 @@
                 ctx.fill();
             }
 
+            // Inspect/Cursor crosshair lines (behind the curve)
+            if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
+                const inspectW = wavelengths[inspectIdx];
+                const inspectY = intensities[inspectIdx];
+                const px = xMax !== xMin ? margin.left + (inspectW - xMin) / (xMax - xMin) * plotW : margin.left;
+                const py = canvas.height - margin.bottom - (inspectY / yLimit) * plotH;
+
+                ctx.strokeStyle = 'rgba(150, 150, 150, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+
+                // Vertical dashed line down to the x-axis
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px, canvas.height - margin.bottom);
+                ctx.stroke();
+
+                // Horizontal dashed line across to the y-axis (left margin)
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(margin.left, py);
+                ctx.stroke();
+
+                ctx.setLineDash([]);
+            }
+
             // Curve line
             if (pxArr.length > 0) {
                 ctx.strokeStyle = colors.curve;
@@ -618,67 +643,44 @@
                 });
             }
 
-            // Inspect overlay
-            if (inspectX !== null && inspectIdx !== null) {
-                const idx = inspectIdx;
-                if (idx >= 0 && idx < wavelengths.length) {
-                    const inspectW = inspectX;
-                    if (inspectW >= xMin && inspectW <= xMax) {
-                        const inspectY = intensities[idx];
-                        const px = xMax !== xMin ? margin.left + (inspectW - xMin) / (xMax - xMin) * plotW : margin.left;
-                        const py = canvas.height - margin.bottom - (inspectY / yLimit) * plotH;
-
-                        // Vertical dashed line
-                        ctx.strokeStyle = colors.inspectLine;
-                        ctx.lineWidth = 1.5;
-                        ctx.setLineDash([4, 4]);
-                        ctx.beginPath();
-                        ctx.moveTo(px, margin.top);
-                        ctx.lineTo(px, canvas.height - margin.bottom);
-                        ctx.stroke();
-                        ctx.setLineDash([]);
-
-                        // Tooltip card
-                        const cardW = 105;
-                        const cardH = 52;
-                        let cardX = px + 10;
-                        let cardY = py - 60;
-
-                        const xEnd = canvas.width - margin.right;
-                        if (cardX + cardW > xEnd) {
-                            cardX = px - 115;
-                        }
-                        if (cardY < margin.top) {
-                            cardY = py + 10;
-                        }
-
-                        // Background
-                        ctx.fillStyle = '#ffffff';
-                        ctx.strokeStyle = '#cccccc';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.roundRect ? ctx.roundRect(cardX, cardY, cardW, cardH, 4) : ctx.rect(cardX, cardY, cardW, cardH);
-                        ctx.fill();
-                        ctx.stroke();
-
-                        // Content
-                        ctx.fillStyle = colors.text;
-                        ctx.font = '8px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        const tooltipStr = isCalibrated
-                            ? `${inspectW.toFixed(1)} nm\n${inspectY.toFixed(1)} cts\nPx ${idx}`
-                            : `Px ${idx}\n${inspectY.toFixed(1)} cts`;
-
-                        const lines = tooltipStr.split('\n');
-                        lines.forEach((line, i) => {
-                            ctx.fillText(line, cardX + cardW / 2, cardY + cardH / 2 + (i - (lines.length - 1) / 2) * 12);
-                        });
-                    }
-                }
-            }
-
             ctx.restore();
+
+            // Readout box in bottom-right corner of chart area
+            if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
+                const inspectW = wavelengths[inspectIdx];
+                const inspectY = intensities[inspectIdx];
+                const isCalibrated = (fullMax - fullMin) > 200;
+
+                const boxW = 120;
+                const boxH = 50;
+                const boxX = canvas.width - margin.right - boxW - 8;
+                const boxY = canvas.height - margin.bottom - boxH - 8;
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.strokeStyle = '#cccccc';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(boxX, boxY, boxW, boxH, 4);
+                } else {
+                    ctx.rect(boxX, boxY, boxW, boxH);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = colors.text;
+                ctx.font = '9px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+
+                ctx.fillText(`Pixel: ${inspectIdx}`, boxX + 8, boxY + 6);
+                if (isCalibrated) {
+                    ctx.fillText(`Wavelength: ${inspectW.toFixed(1)} nm`, boxX + 8, boxY + 18);
+                } else {
+                    ctx.fillText(`Pixel: ${inspectW.toFixed(0)}`, boxX + 8, boxY + 18);
+                }
+                ctx.fillText(`Intensity: ${inspectY.toFixed(1)}`, boxX + 8, boxY + 30);
+            }
         }
 
         // Canvas interaction
@@ -711,37 +713,6 @@
                 panStartXMin = zoomXMin !== null ? zoomXMin : fullMin;
                 panStartXMax = zoomXMax !== null ? zoomXMax : fullMax;
                 return;
-            }
-
-            if (e.button === 0) { // Left click inspect
-                const xStart = margin.left;
-                if (plotW <= 0) return;
-
-                let clickX = mouseX;
-                if (clickX < xStart) clickX = xStart;
-                else if (clickX > xStart + plotW) clickX = xStart + plotW;
-
-                const fullMin = currentWavelengths[0];
-                const fullMax = currentWavelengths[currentWavelengths.length - 1];
-                const xMin = zoomXMin !== null ? zoomXMin : fullMin;
-                const xMax = zoomXMax !== null ? zoomXMax : fullMax;
-
-                const frac = (clickX - xStart) / plotW;
-                const target = xMin + frac * (xMax - xMin);
-
-                let minDiff = Infinity;
-                let bestIdx = 0;
-                for (let i = 0; i < currentWavelengths.length; i++) {
-                    const diff = Math.abs(currentWavelengths[i] - target);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        bestIdx = i;
-                    }
-                }
-
-                inspectIdx = bestIdx;
-                inspectX = currentWavelengths[bestIdx];
-                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
             }
         });
 
@@ -829,6 +800,61 @@
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
         });
 
+        canvas.addEventListener('mousemove', (e) => {
+            if (!currentWavelengths || currentWavelengths.length === 0) return;
+            if (isPanning) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const logicalWidth = canvas.clientWidth;
+            const logicalHeight = canvas.clientHeight;
+            const plotW = logicalWidth - margin.left - margin.right;
+            const plotH = logicalHeight - margin.top - margin.bottom;
+
+            if (mouseX >= margin.left && mouseX <= logicalWidth - margin.right &&
+                mouseY >= margin.top && mouseY <= logicalHeight - margin.bottom) {
+
+                const fullMin = currentWavelengths[0];
+                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+                const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+
+                const frac = (mouseX - margin.left) / plotW;
+                const targetVal = xMin + frac * (xMax - xMin);
+
+                let minDiff = Infinity;
+                let bestIdx = 0;
+                for (let i = 0; i < currentWavelengths.length; i++) {
+                    const diff = Math.abs(currentWavelengths[i] - targetVal);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestIdx = i;
+                    }
+                }
+
+                inspectIdx = bestIdx;
+                inspectX = currentWavelengths[bestIdx];
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+            } else {
+                if (inspectIdx !== null) {
+                    inspectIdx = null;
+                    inspectX = null;
+                    drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            if (inspectIdx !== null) {
+                inspectIdx = null;
+                inspectX = null;
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+            }
+        });
+
         // Status Updater
         function updateStatusBar(status) {
             if (status.calibrated !== undefined) {
@@ -886,7 +912,6 @@
         const exposureInput = document.getElementById('exposure-input');
         const plotModeBtn = document.getElementById('plot-mode-btn');
         const baselineBtn = document.getElementById('baseline-btn');
-        const saveBtn = document.getElementById('save-btn');
         const exportJsonBtn = document.getElementById('export-json-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
 
@@ -980,6 +1005,8 @@
                 
                 // Draw frame
                 drawSpectrum(data.wavelengths, data.intensities, data.peaks);
+                exportJsonBtn.disabled = false;
+                exportCsvBtn.disabled = false;
                 
                 // Check calibration status and update peaks label
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
@@ -1019,6 +1046,8 @@
                 
                 const data = await res.json();
                 drawSpectrum(data.wavelengths, data.intensities, data.peaks);
+                exportJsonBtn.disabled = false;
+                exportCsvBtn.disabled = false;
                 
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
                 updatePeaksStatus(data.peaks, isCalibrated);
@@ -1085,48 +1114,13 @@
             // Baseline Corr toggle is state only in front-end for visual feedback
         });
 
-        // Save and Export
-        saveBtn.addEventListener('click', async () => {
-            if (!currentWavelengths) {
-                alert("No frame data available to save");
-                return;
-            }
-            const label = prompt("Enter a label for this spectrum capture:", "");
-            if (label === null) return; // User cancelled
-            
-            try {
-                const res = await fetch('/api/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ label })
-                });
-                if (res.status === 400) {
-                    alert("No frame data available to save");
-                    return;
-                }
-                const data = await res.json();
-                if (data.saved) {
-                    lastRecordId = data.record_id;
-                    exportJsonBtn.disabled = false;
-                    exportCsvBtn.disabled = false;
-                    
-
-                }
-            } catch (err) {
-                console.error("Error saving spectrum:", err);
-            }
-        });
-
+        // Export handlers
         exportJsonBtn.addEventListener('click', () => {
-            if (lastRecordId) {
-                window.location.href = `/api/export/${lastRecordId}?format=json`;
-            }
+            window.location.href = `/api/export/current?format=json`;
         });
 
         exportCsvBtn.addEventListener('click', () => {
-            if (lastRecordId) {
-                window.location.href = `/api/export/${lastRecordId}?format=csv`;
-            }
+            window.location.href = `/api/export/current?format=csv`;
         });
 
     </script>

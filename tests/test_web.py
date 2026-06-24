@@ -140,3 +140,40 @@ async def test_exposure_clamp(app):
         response_high = await client.post("/api/exposure", json={"exposure_us": 9999999})
         assert response_high.status_code == 200
         assert response_high.json()["exposure_us"] == 3066979
+
+
+# 11. test_export_current_success
+async def test_export_current_success(app):
+    app.state.current_frame = {
+        "wavelengths": [400.0, 500.0, 600.0],
+        "intensities": [10.0, 20.0, 30.0],
+        "peaks": [1]
+    }
+    app.state.current_exposure = 200000
+    from spectroo.core.models import Peak
+    app.state.current_peaks = [Peak(pixel_index=1, wavelength_nm=500.0, intensity=20.0, prominence=0.0)]
+
+    async with get_client(app) as client:
+        # JSON
+        response = await client.get("/api/export/current?format=json")
+        assert response.status_code == 200
+        assert "application/json" in response.headers["content-type"]
+        data = response.json()
+        assert data["exposure_us"] == 200000
+        assert data["intensity"] == [10.0, 20.0, 30.0]
+        assert data["peaks"][0]["pixel_index"] == 1
+
+        # CSV
+        response_csv = await client.get("/api/export/current?format=csv")
+        assert response_csv.status_code == 200
+        assert "text/csv" in response_csv.headers["content-type"]
+        assert "pixel_index,intensity,wavelength_nm" in response_csv.text
+
+
+# 12. test_export_current_no_frame_returns_400
+async def test_export_current_no_frame_returns_400(app):
+    app.state.current_frame = None
+    async with get_client(app) as client:
+        response = await client.get("/api/export/current")
+        assert response.status_code == 400
+

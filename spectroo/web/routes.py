@@ -221,6 +221,70 @@ def post_save(body: SaveRequest, request: Request):
 
 
 
+@router.get("/api/export/current")
+def get_export_current(request: Request, background_tasks: BackgroundTasks, format: str = "json"):
+    config = request.app.state.config
+    current_frame = request.app.state.current_frame
+
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No frame data available to export")
+
+    exposure_us = getattr(request.app.state, "current_exposure", None)
+    if exposure_us is None:
+        exposure_us = config.get("camera", {}).get("exposure_us", 200000)
+
+    # Reconstruct or reuse Peak objects
+    peaks_list = getattr(request.app.state, "current_peaks", None)
+    if peaks_list is None:
+        peaks_list = []
+        intensities = current_frame["intensities"]
+        wavelengths = current_frame["wavelengths"]
+        for idx in current_frame["peaks"]:
+            wl = wavelengths[idx] if wavelengths is not None else None
+            peaks_list.append(Peak(
+                pixel_index=int(idx),
+                wavelength_nm=wl,
+                intensity=float(intensities[idx]),
+                prominence=0.0
+            ))
+
+    record = HistoryRecord(
+        id=None,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        exposure_us=exposure_us,
+        pixel_indices=list(range(len(current_frame["intensities"]))),
+        intensity=current_frame["intensities"],
+        wavelengths=current_frame["wavelengths"],
+        peaks=peaks_list,
+        png_path="",
+        calibration_rms_at_capture=None
+    )
+
+    suffix = ".csv" if format == "csv" else ".json"
+    fd, temp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+
+    try:
+        if format == "csv":
+            export_csv(record, temp_path)
+            media_type = "text/csv"
+            filename = "spectrum_current.csv"
+        else:
+            export_json(record, temp_path)
+            media_type = "application/json"
+            filename = "spectrum_current.json"
+
+        background_tasks.add_task(os.remove, temp_path)
+        return FileResponse(temp_path, media_type=media_type, filename=filename)
+    except Exception as e:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/api/export/{record_id}")
 def get_export_record(record_id: int, request: Request, background_tasks: BackgroundTasks, format: str = "json"):
     config = request.app.state.config
