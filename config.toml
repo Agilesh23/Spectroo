@@ -29,6 +29,7 @@ savgol_polyorder = 3
 baseline_method = "sg_only"   # pending T6: or "sg_only"
 baseline_window = 51
 baseline_polyorder = 2
+baseline_enabled = true                     # toggle via UI "Baseline Corr" button
 baseline_modifies_stored_data = true       # ASSUMPTION — confirm
 dark_refresh_interval_s = 60               # staleness prompt only, NOT a silent re-capture — see §7/§18.8
 

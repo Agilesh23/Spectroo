@@ -253,6 +253,42 @@ def test_run_pipeline_calibrated():
     assert spec.calibration_rms_at_capture == pytest.approx(0.12)
 
 
+# 13. run_pipeline: baseline_enabled flag gates subtract_baseline correctly
+def test_run_pipeline_baseline_enabled_flag():
+    """Verify baseline_enabled=False skips subtract_baseline, True applies it."""
+    # Use a flat + hump frame so baseline subtraction changes the output noticeably
+    f1 = np.ones((8, 6, 3), dtype=np.float32) * 50.0
+    frames = [f1]
+    optics = {"tilt_angle_deg": 0.0, "center_y": 4, "flip_spectrum": False}
+    base_dsp = {
+        "band_half_height": 1,
+        "savgol_window": 5,
+        "savgol_polyorder": 2,
+        "baseline_method": "sg_only",
+        "baseline_window": 5,
+        "baseline_polyorder": 2,
+    }
+    peaks_cfg = {"prominence_pct": 0.1, "prominence_min": 0.5, "min_distance_px": 2}
+
+    # Run with baseline enabled (default / explicit True)
+    dsp_enabled = {**base_dsp, "baseline_enabled": True}
+    spec_on = run_pipeline(frames, optics, dsp_enabled, peaks_cfg, exposure_us=200000)
+
+    # Run with baseline disabled
+    dsp_disabled = {**base_dsp, "baseline_enabled": False}
+    spec_off = run_pipeline(frames, optics, dsp_disabled, peaks_cfg, exposure_us=200000)
+
+    # When baseline is enabled on a flat signal it clips everything to ~0;
+    # when disabled the smoothed flat values remain positive.
+    assert np.mean(spec_off.intensity) > np.mean(spec_on.intensity), (
+        "Disabling baseline should leave higher raw intensity than enabling it"
+    )
+
+    # Run without the key at all — should default to True (same as enabled)
+    spec_default = run_pipeline(frames, optics, base_dsp, peaks_cfg, exposure_us=200000)
+    np.testing.assert_array_almost_equal(spec_default.intensity, spec_on.intensity)
+
+
 def test_corrections_loading_and_pipeline_flags(tmp_path):
     import json
     from spectroo.dsp.corrections import load_dark_frame, load_flat_field

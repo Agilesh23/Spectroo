@@ -294,7 +294,7 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 
 ### Developer Views
 - **`CalibrationWindow`**
-  Allows live data plotting alongside an interactive points builder. Displays live pixel intensities, lets developers double-click peaks to input wavelengths, and runs `fit_calibration`.
+  Allows live data plotting alongside an interactive points builder. Displays live pixel intensities, lets developers double-click peaks to input wavelengths, and runs `fit_calibration`. The live display (`_update_spectrum`, called every 200 ms via `QTimer`) now applies dark subtraction (via `load_dark_frame()` helper, with 2D→1D collapse using `apply_tilt_correction` for non-zero tilt) and baseline subtraction (gated on `dsp.baseline_enabled`, using the same `baseline_method/window/polyorder` config values as `run_pipeline`). Flat-field correction and Savitzky-Golay smoothing are intentionally omitted — calibration depends on unsmoothed raw peak positions for accurate pixel-to-wavelength clicks.
 - **`CameraPreviewWindow`**
   Displays raw 2D frames at 10 FPS. Provides physical lens alignment validation. Includes an **Apply** button which commits exposure times to both the loaded memory config and the active `FrameSource`.
 
@@ -467,11 +467,21 @@ In `main.py`, CLI parsing decides the runtime flow:
 - **Description:** The web server REST endpoints and websocket stream previously never loaded or applied `response_flat.json`, leaving flat-field correction exclusive to desktop mode.
 - **Fix:** Consolidated both desktop and web paths onto the same `load_dark_frame` / `load_flat_field` helpers, ensuring flat-field correction is fully active in web mode too.
 
+### 11. Baseline Toggle Had No Effect on Main Pipeline
+- **Status:** **Fixed**.
+- **Description:** `subtract_baseline()` was called unconditionally in `run_pipeline()` regardless of `dsp.baseline_enabled`. The UI toggle in `ControlPanel` was correctly wired and wrote the flag to `config["dsp"]["baseline_enabled"]`, but `pipeline.py` never read it — the call was made on every frame regardless of the setting.
+- **Fix:** Wrapped the `subtract_baseline()` call in `pipeline.py` with `if dsp_cfg.get("baseline_enabled", True):`. Added `baseline_enabled = true` explicitly to `config.toml [dsp]`. The `default=True` preserves existing behaviour when the key is absent.
+
+### 12. CalibrationWindow Displayed Raw Uncorrected Signal
+- **Status:** **Fixed**.
+- **Description:** `CalibrationWindow._update_spectrum()` bypassed `run_pipeline()` entirely, running only greyscale → tilt → band extract → flip. No dark subtraction or baseline correction was applied, causing the stray-light/continuum hump to appear in the calibration display even when the main window's baseline toggle was enabled.
+- **Fix:** Added dark subtraction (using the shared `load_dark_frame()` helper, with the same 2D→1D collapse logic as `run_pipeline` for non-zero tilt angles) and baseline subtraction (gated on `dsp.baseline_enabled`) directly in `_update_spectrum()`. Flat-field and SG-smoothing remain excluded to preserve unsmoothed peak positions for calibration clicks.
+
 ---
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **122 automated tests** inside the `tests/` directory.
+The test suite contains **128 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -479,10 +489,10 @@ The test suite contains **122 automated tests** inside the `tests/` directory.
   Tests polynomial fitting logic, least-squares calculations, RMS error tracking, and wavelength conversions.
 - **`test_camera.py` (5 tests)**
   Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.
-- **`test_dev_calibration.py` (8 tests)**
-  Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions.
-- **`test_dsp.py` (13 tests)**
-  Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, and tilt corrections.
+- **`test_dev_calibration.py` (13 tests)**
+  Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions. Includes tests for `_update_spectrum` dark subtraction (1D and 2D dark with nonzero tilt), baseline gating, and missing-file fallback.
+- **`test_dsp.py` (14 tests)**
+  Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, tilt corrections, and the `baseline_enabled` gate in `run_pipeline`.
 - **`test_flat_field.py` (5 tests)**
   Tests `FlatFieldWorker` capture sequence, missing dark frame fallbacks, divide-by-zero guards, clamping thresholds, and dev-mode gating of the shortcut.
 - **`test_history_panel.py` (8 tests)**

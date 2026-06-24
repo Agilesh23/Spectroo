@@ -518,7 +518,7 @@ class CalibrationWindow(QDialog):
         try:
             if self._frame_source is None:
                 raise ValueError("Frame source not configured")
-            
+
             if hasattr(self._frame_source, "get_frame"):
                 frame = self._frame_source.get_frame()
             else:
@@ -547,6 +547,29 @@ class CalibrationWindow(QDialog):
             intensities = extract_band(frame_2d, center_y, band_half_height)
             flip_spectrum = optics.get("flip_spectrum", False)
             intensities = apply_flip(intensities, flip_spectrum)
+
+            # Dark subtraction — use shared helper; silently skip if file missing/corrupt
+            from spectroo.dsp.corrections import load_dark_frame, subtract_dark
+            dark_path = self._config.get("storage", {}).get("dark_frame_path", "")
+            dark_frame = load_dark_frame(dark_path)
+            if dark_frame is not None:
+                if dark_frame.ndim == 2:
+                    # 2-D dark saved by DarkFrameWorker — collapse to 1-D with same optics
+                    from spectroo.dsp.pipeline import apply_tilt_correction as _tilt
+                    dark_2d = _tilt(dark_frame, tilt_angle) if tilt_angle != 0.0 else dark_frame
+                    dark_frame = apply_flip(
+                        extract_band(dark_2d, center_y, band_half_height),
+                        flip_spectrum,
+                    )
+                intensities = subtract_dark(intensities, dark_frame)
+
+            # Baseline subtraction — gated on dsp.baseline_enabled (same config key as main pipeline)
+            if dsp.get("baseline_enabled", True):
+                from spectroo.dsp.filters import subtract_baseline
+                method = dsp.get("baseline_method", "sg_only")
+                window = dsp.get("baseline_window", 51)
+                polyorder = dsp.get("baseline_polyorder", 2)
+                intensities = subtract_baseline(intensities, method, window, polyorder)
 
             self._current_intensities = intensities
             self.canvas.set_spectrum(intensities)

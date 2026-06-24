@@ -90,13 +90,14 @@ def run_pipeline(
         band, dsp_cfg["savgol_window"], dsp_cfg["savgol_polyorder"]
     )
 
-    # 8. Baseline subtraction
-    band = subtract_baseline(
-        band,
-        dsp_cfg["baseline_method"],
-        dsp_cfg["baseline_window"],
-        dsp_cfg["baseline_polyorder"],
-    )
+    # 8. Baseline subtraction (skipped when baseline_enabled is False)
+    if dsp_cfg.get("baseline_enabled", True):
+        band = subtract_baseline(
+            band,
+            dsp_cfg["baseline_method"],
+            dsp_cfg["baseline_window"],
+            dsp_cfg["baseline_polyorder"],
+        )
 
     # 9. Response flat-field correction
     if response_flat is not None:
