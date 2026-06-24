@@ -284,13 +284,13 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 - **`SpectrooMainWindow`**
   The central controller class. It initializes components, configures thread workers (`LivePipelineWorker`, `SingleAcquisitionWorker`, `DarkFrameWorker`) by passing the shared `self._frame_source` instance, connects signals, and handles overall window lifecycle events.
 - **`ControlPanel`**
-  Contains interactive elements. Emits `mode_changed`, `start_requested`, `stop_requested`, `exposure_changed`, `plot_mode_changed`, `calibrate_requested`, `dark_frame_requested`, and `save_clicked` signals.
+  Contains interactive elements. Emits `mode_changed`, `start_requested`, `stop_requested`, `exposure_changed`, `plot_mode_changed`, and `shutdown_requested` signals.
 - **`SpectrumPlotWidget`**
   Renders the 1D spectrum curve. It accepts inputs through `set_data(wavelengths, intensities, peaks)` and redraws the graph using standard vector operations.
 - **`StatusBar`**
   Displays diagnostic status dictionary inputs including FPS, peak listings, dark frame loading state, flat field loading state, and calibration validity. Both dark frame and flat field indicators are updated live per-frame from the results of the execution run of the DSP pipeline.
-- **`HistoryPanel`**
-  Side-dockable list that loads and displays database rows. Emits a `record_selected(id)` signal when clicked, prompting the main window to query SQLite and update the plot.
+- **`HistoryPanel`** (Hidden from layout)
+  Side-dockable list that loads and displays database rows. Retained in the codebase but removed from the visible UI layout to lock down non-dev options.
 
 ### Developer Views
 - **`CalibrationWindow`**

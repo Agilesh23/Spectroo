@@ -88,29 +88,14 @@ def test_shutdown_button_exists():
     assert hasattr(panel, "shutdown_btn")
     assert panel.shutdown_btn.text() == "Shutdown"
 
-
-def test_save_btn_exists():
-    from PyQt5.QtWidgets import QPushButton
+def test_removed_buttons_not_present():
     panel = ControlPanel()
-    assert hasattr(panel, "save_btn")
-    assert isinstance(panel.save_btn, QPushButton)
-
-
-def test_save_clicked_signal_exists():
-    panel = ControlPanel()
-    assert hasattr(panel, "save_clicked")
-    called = False
-    def on_click():
-        nonlocal called
-        called = True
-    panel.save_clicked.connect(on_click)
-    panel.save_clicked.emit()
-    assert called is True
-
-
-def test_save_btn_label():
-    panel = ControlPanel()
-    assert panel.save_btn.text() == "Save Spectrum"
+    assert not hasattr(panel, "save_btn")
+    assert not hasattr(panel, "save_clicked")
+    assert not hasattr(panel, "calibrate_btn")
+    assert not hasattr(panel, "calibrate_requested")
+    assert not hasattr(panel, "dark_btn")
+    assert not hasattr(panel, "dark_frame_requested")
 
 
 def test_control_panel_buttons_logging(caplog):
@@ -174,40 +159,22 @@ def test_control_panel_buttons_logging(caplog):
         panel.baseline_btn.click()
         assert any("Button clicked: Baseline Corr" in r.message for r in caplog.records)
         caplog.clear()
-
-        # 7. Calibrate...
-        # Patch the modal dialog box from opening
-        with patch.object(window, "_open_dev_window") as mock_open:
-            panel.calibrate_btn.click()
-            assert any("Button clicked: Calibrate..." in r.message for r in caplog.records)
-        caplog.clear()
-
-        # 8. Capture Dark Frame
-        panel.dark_btn.click()
-        assert any("Button clicked: Capture Dark Frame" in r.message for r in caplog.records)
-        caplog.clear()
-
-        # 9. Export JSON
+        # 7. Export JSON
         panel.export_btn.click()
         assert any("Button clicked: Export JSON" in r.message for r in caplog.records)
         caplog.clear()
 
-        # 10. Save Chart
+        # 8. Save Chart
         panel.save_chart_btn.click()
         assert any("Button clicked: Save Chart" in r.message for r in caplog.records)
         caplog.clear()
 
-        # 11. Save Spectrum
-        panel.save_btn.click()
-        assert any("Button clicked: Save Spectrum" in r.message for r in caplog.records)
-        caplog.clear()
-
-        # 12. History
+        # 9. History
         panel.history_btn.click()
         assert any("Button clicked: History" in r.message for r in caplog.records)
         caplog.clear()
 
-        # 13. Shutdown
+        # 10. Shutdown
         panel.shutdown_btn.click()
         assert any("Button clicked: Shutdown" in r.message for r in caplog.records)
         caplog.clear()

@@ -17,13 +17,10 @@ class ControlPanel(QWidget):
     exposure_changed    = pyqtSignal(int)
     plot_mode_changed   = pyqtSignal(str)   # "color" | "plain"
     baseline_toggled    = pyqtSignal(bool)
-    calibrate_requested = pyqtSignal()
-    dark_frame_requested = pyqtSignal()
     export_requested    = pyqtSignal()
     save_chart_requested = pyqtSignal()
     shutdown_requested  = pyqtSignal()      # NEW — not in v1
     history_toggled     = pyqtSignal()
-    save_clicked        = pyqtSignal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -128,29 +125,17 @@ class ControlPanel(QWidget):
         self.layout.addWidget(self.plot_mode_btn)
         self.layout.addWidget(self.baseline_btn)
 
-        # 4. CALIBRATION
-        self._add_header("CALIBRATION")
-        self.calibrate_btn = QPushButton("Calibrate...")
-        self.calibrate_btn.clicked.connect(self.calibrate_requested.emit)
-        self.layout.addWidget(self.calibrate_btn)
-
-        # 5. DATA
+        # 4. DATA
         self._add_header("DATA")
-        self.dark_btn = QPushButton("Capture Dark Frame")
-        self.dark_btn.clicked.connect(self.dark_frame_requested.emit)
         self.export_btn = QPushButton("Export JSON")
         self.export_btn.clicked.connect(self.export_requested.emit)
         self.save_chart_btn = QPushButton("Save Chart")
         self.save_chart_btn.clicked.connect(self.save_chart_requested.emit)
-        self.save_btn = QPushButton("Save Spectrum")
-        self.save_btn.clicked.connect(self.save_clicked.emit)
         
-        self.layout.addWidget(self.dark_btn)
         self.layout.addWidget(self.export_btn)
         self.layout.addWidget(self.save_chart_btn)
-        self.layout.addWidget(self.save_btn)
 
-        # 6. SYSTEM
+        # 5. SYSTEM
         self._add_header("SYSTEM")
         self.history_btn = QPushButton("History")
         self.history_btn.clicked.connect(self._on_history_clicked)

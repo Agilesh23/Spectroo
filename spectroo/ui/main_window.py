@@ -39,15 +39,18 @@ class SpectrooMainWindow(QMainWindow):
 
         from PyQt5.QtWidgets import QShortcut
         from PyQt5.QtGui import QKeySequence
-        self.dev_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
-        self.dev_shortcut.activated.connect(self._open_dev_window)
-
         self.cam_shortcut = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
         self.cam_shortcut.activated.connect(self._open_camera_preview)
 
         if self._dev_mode:
             self.flat_field_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
             self.flat_field_shortcut.activated.connect(self._on_flat_field_capture)
+
+            self.dev_shortcut = QShortcut(QKeySequence("Ctrl+Shift+D"), self)
+            self.dev_shortcut.activated.connect(self._on_calibrate)
+
+            self.dark_shortcut = QShortcut(QKeySequence("Ctrl+Shift+Q"), self)
+            self.dark_shortcut.activated.connect(self._on_dark_frame)
 
         self.setWindowTitle("Spectroo")
         self.setMinimumSize(1000, 600)
@@ -72,8 +75,7 @@ class SpectrooMainWindow(QMainWindow):
         content_layout.addWidget(self.control_panel)
         main_layout.addLayout(content_layout)
 
-        self.history_panel = HistoryPanel(self.config, self)
-        main_layout.insertWidget(1, self.history_panel)
+        self.history_panel = None
 
         self.status_bar = StatusBar(self)
         main_layout.addWidget(self.status_bar)
@@ -93,15 +95,11 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.stop_requested.connect(self._on_stop)
         self.control_panel.exposure_changed.connect(self._on_exposure_changed)
         self.control_panel.plot_mode_changed.connect(self.plot_widget.set_fill_mode)
-        self.control_panel.calibrate_requested.connect(self._on_calibrate)
-        self.control_panel.dark_frame_requested.connect(self._on_dark_frame)
         self.control_panel.baseline_toggled.connect(self._on_baseline_toggled)
         self.control_panel.export_requested.connect(self._on_export)
         self.control_panel.save_chart_requested.connect(self._on_save_chart)
         self.control_panel.shutdown_requested.connect(self._on_shutdown)
         self.control_panel.history_toggled.connect(self._on_history_toggled)
-        self.history_panel.record_selected.connect(self._on_history_record_selected)
-        self.control_panel.save_clicked.connect(self._on_save_clicked)
 
     def _on_mode_changed(self, mode: str) -> None:
         self.current_mode = mode
@@ -202,7 +200,8 @@ class SpectrooMainWindow(QMainWindow):
 
     def _on_history_toggled(self) -> None:
         logger.info("Button clicked: History")
-        self.history_panel._on_toggle()
+        if self.history_panel:
+            self.history_panel._on_toggle()
 
     def closeEvent(self, event) -> None:
         self._on_stop()
@@ -387,4 +386,5 @@ class SpectrooMainWindow(QMainWindow):
             logging.getLogger("spectroo.ui").warning("No spectrum to save.")
             return
         self.save_spectrum()
-        self.history_panel.refresh()
+        if self.history_panel:
+            self.history_panel.refresh()

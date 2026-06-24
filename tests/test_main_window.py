@@ -81,7 +81,7 @@ def test_on_save_clicked_no_spectrum(window):
     from unittest.mock import MagicMock
     window.current_spectrum = None
     window.save_spectrum = MagicMock()
-    window.history_panel.refresh = MagicMock()
+    window.history_panel = MagicMock()
     
     window._on_save_clicked()
     
@@ -105,9 +105,36 @@ def test_on_save_clicked_calls_save_and_refresh(window):
     
     window.current_spectrum = dummy_spectrum
     window.save_spectrum = MagicMock()
-    window.history_panel.refresh = MagicMock()
+    window.history_panel = MagicMock()
     
     window._on_save_clicked()
     
     window.save_spectrum.assert_called_once()
     window.history_panel.refresh.assert_called_once()
+
+
+def test_shortcuts_gated_by_dev_mode():
+    cfg = {
+        "camera": {"exposure_us": 50000, "n_frames": 4},
+        "dsp": {"baseline_enabled": True},
+        "storage": {"dark_frame_path": "dark_frame.npy"},
+        "calibration": {},
+    }
+    
+    # 1. Dev Mode True
+    window_dev = SpectrooMainWindow(cfg, dev=True)
+    assert hasattr(window_dev, "dev_shortcut")
+    assert hasattr(window_dev, "dark_shortcut")
+    assert hasattr(window_dev, "flat_field_shortcut")
+    assert window_dev.dev_shortcut.key().toString() == "Ctrl+Shift+D"
+    assert window_dev.dark_shortcut.key().toString() == "Ctrl+Shift+Q"
+    
+    # 2. Dev Mode False
+    window_prod = SpectrooMainWindow(cfg, dev=False)
+    assert not hasattr(window_prod, "dev_shortcut")
+    assert not hasattr(window_prod, "dark_shortcut")
+    assert not hasattr(window_prod, "flat_field_shortcut")
+
+
+def test_history_panel_not_in_layout(window):
+    assert window.history_panel is None
