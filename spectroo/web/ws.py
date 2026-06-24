@@ -13,11 +13,12 @@ router = APIRouter()
 async def live_stream(websocket: WebSocket):
     await websocket.accept()
     
-    if websocket.app.state.live_active:
+    if websocket.app.state.ws_client_connected:
         await websocket.send_json({"error": "device busy"})
         await websocket.close()
         return
         
+    websocket.app.state.ws_client_connected = True
     websocket.app.state.live_active = True
     source = None
     try:
@@ -28,11 +29,13 @@ async def live_stream(websocket: WebSocket):
     except CameraNotFoundError:
         await websocket.send_json({"error": "camera not available"})
         websocket.app.state.live_active = False
+        websocket.app.state.ws_client_connected = False
         await websocket.close()
         return
     except Exception as e:
         await websocket.send_json({"error": str(e)})
         websocket.app.state.live_active = False
+        websocket.app.state.ws_client_connected = False
         await websocket.close()
         return
 
@@ -103,6 +106,7 @@ async def live_stream(websocket: WebSocket):
             pass
     finally:
         websocket.app.state.live_active = False
+        websocket.app.state.ws_client_connected = False
         if source is not None:
             try:
                 source.close()

@@ -7,6 +7,7 @@ def create_app(config: dict) -> FastAPI:
     app = FastAPI(title="Spectroo", version="3.0")
     app.state.config = config
     app.state.live_active = False
+    app.state.ws_client_connected = False
     app.state.current_frame = None   # dict | None: latest frame data
 
     app.include_router(routes.router)
