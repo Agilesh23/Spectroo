@@ -5,7 +5,8 @@ import numpy as np
 from PyQt5.QtCore import Qt, QPointF, QRectF, pyqtSignal, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QDialog, QTableWidget, QTableWidgetItem, QPushButton,
-    QVBoxLayout, QHBoxLayout, QMessageBox, QInputDialog, QHeaderView, QLabel
+    QVBoxLayout, QHBoxLayout, QMessageBox, QInputDialog, QHeaderView, QLabel,
+    QSpinBox
 )
 from PyQt5.QtGui import QColor, QPainter, QPen, QBrush, QPolygonF, QFont
 
@@ -413,11 +414,23 @@ class CalibrationWindow(QDialog):
         self.canvas.point_clicked.connect(self._on_canvas_click)
         left_layout.addWidget(self.canvas, stretch=1)
 
+        exposure_layout = QHBoxLayout()
+        exposure_label = QLabel("Exposure (µs):", self)
+        self._exposure_spinbox = QSpinBox(self)
+        self._exposure_spinbox.setRange(110, 3066979)
+        self._exposure_spinbox.setSingleStep(10000)
+        self._exposure_spinbox.setValue(self._config.get("camera", {}).get("exposure_us", 200000))
+        self._exposure_spinbox.valueChanged.connect(self._on_exposure_changed)
+        exposure_layout.addWidget(exposure_label)
+        exposure_layout.addWidget(self._exposure_spinbox)
+        left_layout.addLayout(exposure_layout)
+
         reset_zoom_btn = QPushButton("Reset Zoom", self)
         reset_zoom_btn.setFixedHeight(35)
         reset_zoom_btn.setStyleSheet(
-            "QPushButton { background-color: #555555; color: white; border: none; font-weight: bold; border-radius: 4px; }"
-            "QPushButton:hover { background-color: #333333; }"
+            "QPushButton { background-color: #374151; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #1f2937; }"
         )
         reset_zoom_btn.clicked.connect(self.canvas.reset_zoom)
         left_layout.addWidget(reset_zoom_btn)
@@ -439,8 +452,9 @@ class CalibrationWindow(QDialog):
         run_fit_btn = QPushButton("Run Fit", self)
         run_fit_btn.setFixedHeight(35)
         run_fit_btn.setStyleSheet(
-            "QPushButton { background-color: #3366cc; color: white; border: none; font-weight: bold; border-radius: 4px; }"
-            "QPushButton:hover { background-color: #224499; }"
+            "QPushButton { background-color: #2563eb; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #1d4ed8; }"
         )
         run_fit_btn.clicked.connect(self._on_run_fit)
         btn_layout.addWidget(run_fit_btn)
@@ -448,8 +462,9 @@ class CalibrationWindow(QDialog):
         undo_btn = QPushButton("Undo Last", self)
         undo_btn.setFixedHeight(35)
         undo_btn.setStyleSheet(
-            "QPushButton { background-color: #aaaaaa; color: black; border: none; font-weight: bold; border-radius: 4px; }"
-            "QPushButton:hover { background-color: #888888; }"
+            "QPushButton { background-color: #6b7280; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #4b5563; }"
         )
         undo_btn.clicked.connect(self._on_undo)
         btn_layout.addWidget(undo_btn)
@@ -457,8 +472,9 @@ class CalibrationWindow(QDialog):
         apply_btn = QPushButton("Apply & Close", self)
         apply_btn.setFixedHeight(35)
         apply_btn.setStyleSheet(
-            "QPushButton { background-color: #228b22; color: white; border: none; font-weight: bold; border-radius: 4px; }"
-            "QPushButton:hover { background-color: #1b6c1b; }"
+            "QPushButton { background-color: #16a34a; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #15803d; }"
         )
         apply_btn.clicked.connect(self._on_apply)
         btn_layout.addWidget(apply_btn)
@@ -471,6 +487,11 @@ class CalibrationWindow(QDialog):
         self.timer.setInterval(200)
         self.timer.timeout.connect(self._update_spectrum)
         self.timer.start()
+
+    def _on_exposure_changed(self, value: int) -> None:
+        if "camera" not in self._config:
+            self._config["camera"] = {}
+        self._config["camera"]["exposure_us"] = value
 
     def _update_spectrum(self) -> None:
         try:
