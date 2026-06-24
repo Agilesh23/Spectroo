@@ -12,7 +12,7 @@ class CameraPreviewWindow(QDialog):
         self._frame_source = frame_source
         self.setWindowTitle("Spectroo — Live Camera Feed")
         self.setMinimumSize(800, 300)
-        self.setStyleSheet("background-color: #111111;")
+        self.setStyleSheet("background-color: #ffffff;")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -20,20 +20,30 @@ class CameraPreviewWindow(QDialog):
 
         self._image_label = QLabel(self)
         self._image_label.setAlignment(Qt.AlignCenter)
-        self._image_label.setStyleSheet("background-color: #000000;")
+        self._image_label.setStyleSheet("background-color: #e5e7eb;")
         self._image_label.setMinimumHeight(220)
         layout.addWidget(self._image_label, stretch=1)
 
         controls = QHBoxLayout()
         exp_label = QLabel("Exposure (µs):", self)
-        exp_label.setStyleSheet("color: white; font-size: 12px;")
+        exp_label.setStyleSheet("color: #111111; font-size: 12px;")
         self._exp_spin = QSpinBox(self)
         self._exp_spin.setRange(110, 3066979)
         self._exp_spin.setSingleStep(10000)
         self._exp_spin.setValue(config.get("camera", {}).get("exposure_us", 200000))
-        self._exp_spin.valueChanged.connect(self._on_exposure_changed)
+        
+        apply_exp_btn = QPushButton("Apply", self)
+        apply_exp_btn.setFixedHeight(34)
+        apply_exp_btn.setStyleSheet(
+            "QPushButton { background-color: #2563eb; color: white; border: none; "
+            "font-weight: bold; font-size: 13px; border-radius: 6px; padding: 6px 16px; }"
+            "QPushButton:hover { background-color: #1d4ed8; }"
+        )
+        apply_exp_btn.clicked.connect(self._on_apply_exposure)
+        
         controls.addWidget(exp_label)
         controls.addWidget(self._exp_spin)
+        controls.addWidget(apply_exp_btn)
         controls.addStretch()
 
         close_btn = QPushButton("Close", self)
@@ -52,10 +62,18 @@ class CameraPreviewWindow(QDialog):
         self._timer.timeout.connect(self._update_frame)
         self._timer.start()
 
-    def _on_exposure_changed(self, value: int):
+    def _on_apply_exposure(self):
+        value = self._exp_spin.value()
         if "camera" not in self._config:
             self._config["camera"] = {}
         self._config["camera"]["exposure_us"] = value
+        try:
+            if hasattr(self._frame_source, "set_exposure"):
+                self._frame_source.set_exposure(value)
+            elif hasattr(self._frame_source, "_camera"):
+                self._frame_source._camera.set_controls({"ExposureTime": value})
+        except Exception:
+            pass
 
     def _update_frame(self):
         try:
