@@ -68,10 +68,7 @@ class CameraPreviewWindow(QDialog):
             self._config["camera"] = {}
         self._config["camera"]["exposure_us"] = value
         try:
-            if hasattr(self._frame_source, "set_exposure"):
-                self._frame_source.set_exposure(value)
-            elif hasattr(self._frame_source, "_camera"):
-                self._frame_source._camera.set_controls({"ExposureTime": value})
+            self._frame_source.set_exposure_us(value)
         except Exception:
             pass
 
