@@ -48,16 +48,17 @@ Spectroo v3 operates in dual-mode (Desktop GUI or Web/Hotspot API) based on hard
   ```bash
   python main.py --mode web
   ```
-- **Launch with Dev Mode Enabled:**
+- **Launch with Dev Mode Disabled:**
   ```bash
-  python main.py --dev
+  python main.py --no-dev
   ```
 
 ## ⌨️ Dev Mode Keyboard Shortcuts
 
-When developer mode (`--dev`) is enabled or `_dev_mode` is set to `True` in the desktop client, the following shortcuts become active on the main window:
+When developer mode is active (default is enabled, use `--no-dev` to disable), the following shortcuts become active on the main window:
 - `Ctrl+Shift+D`: Opens the **Developer Calibration Window** for manually adding wavelength points and executing polynomial fits.
 - `Ctrl+Shift+C`: Opens the **Live Camera Feed Preview** to display raw camera imagery, adjust exposure times, and align optical components.
+- `Ctrl+Shift+F`: Captures a **Flat-field Reference** profile, saving it to `data/response_flat.json`.
 
 ## ⚙️ Configuration Reference (`config.toml`)
 
@@ -75,5 +76,4 @@ Key sections in `config.toml`:
 
 - **Platform-dependent Camera Driver:** `picamera2` is only supported on Linux/Raspberry Pi. On Windows, macOS, or generic Linux setups lacking `libcamera`, the application automatically falls back to `MockFrameSource` generating synthetic spectrum patterns.
 - **Plain HTTP Web Auth:** Dev routes on the Web API (`/dev`) are protected by a password over plain HTTP, which is suitable for local hotspot use but not secure on public networks without SSL/TLS termination.
-- **Flat-field Calibration Capture:** The flat-field calibration file (`response_flat.json`) must be pre-populated manually or captured using standard reference light sources, as automated reference acquisition is not fully implemented in the UI.
 - **CLI Signal Handling:** Pressing `Ctrl+C` in the CLI during active VNC desktop runs does not always immediately terminate the PyQt event loop, requiring manual process termination in some headless setups.

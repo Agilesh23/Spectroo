@@ -77,3 +77,8 @@ shutdown_pin = 3                    # TBD — confirm during build
 coefficients = []
 degree = 3
 n_points = 0
+
+[storage]
+dark_frame_path = "data/dark_frame.npy"
+flat_field_path = "data/response_flat.json"
+

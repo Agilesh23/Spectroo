@@ -78,7 +78,12 @@ def run_pipeline(
 
     # 6. Dark subtraction
     if dark_frame_1d is not None:
+        if dark_frame_1d.ndim == 2:
+            dark_tilted = apply_tilt_correction(dark_frame_1d, optics["tilt_angle_deg"])
+            dark_band = extract_band(dark_tilted, optics["center_y"], dsp_cfg["band_half_height"])
+            dark_frame_1d = apply_flip(dark_band, optics["flip_spectrum"])
         band = subtract_dark(band, dark_frame_1d)
+
 
     # 7. Savitzky-Golay smoothing
     band = smooth_savgol(

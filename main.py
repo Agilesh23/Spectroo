@@ -55,8 +55,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--dev",
-        action="store_true",
-        help="Enable developer mode",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable developer mode (use --no-dev to disable)",
     )
     args = parser.parse_args()
 

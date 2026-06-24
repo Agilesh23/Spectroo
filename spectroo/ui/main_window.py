@@ -8,7 +8,7 @@ logger = logging.getLogger("spectroo")
 from spectroo.ui.plot_widget import SpectrumPlotWidget
 from spectroo.ui.control_panel import ControlPanel
 from spectroo.ui.status_bar import StatusBar
-from spectroo.ui.workers import LivePipelineWorker, SingleAcquisitionWorker, DarkFrameWorker
+from spectroo.ui.workers import LivePipelineWorker, SingleAcquisitionWorker, DarkFrameWorker, FlatFieldWorker
 from spectroo.storage.export import export_csv, export_json
 from spectroo.core.models import HistoryRecord, Peak
 from spectroo.ui.history_panel import HistoryPanel
@@ -29,7 +29,6 @@ class SpectrooMainWindow(QMainWindow):
         self.baseline_enabled = True
         self.current_spectrum = None
 
-        self._dev_mode = True
         res = tuple(self.config.get("camera", {}).get("resolution", [2592, 200]))
         try:
             from spectroo.camera.source import PiCameraFrameSource
@@ -45,6 +44,10 @@ class SpectrooMainWindow(QMainWindow):
 
         self.cam_shortcut = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
         self.cam_shortcut.activated.connect(self._open_camera_preview)
+
+        if self._dev_mode:
+            self.flat_field_shortcut = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
+            self.flat_field_shortcut.activated.connect(self._on_flat_field_capture)
 
         self.setWindowTitle("Spectroo")
         self.setMinimumSize(1000, 600)
@@ -275,6 +278,18 @@ class SpectrooMainWindow(QMainWindow):
         dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
         self.status_bar.update_status({"dark_loaded": bool(dark_path and __import__("os").path.exists(dark_path))})
         self._dark_worker.deleteLater()
+
+    def _on_flat_field_capture(self) -> None:
+        logger.info("Shortcut triggered: Capture Flat Field | Exposure: %s", self.config.get("camera", {}).get("exposure_us"))
+        self.status_bar.update_status({"message": "Capturing flat-field..."})
+        self._flat_worker = FlatFieldWorker(self.config, self._frame_source, self)
+        self._flat_worker.finished.connect(self._on_flat_field_finished)
+        self._flat_worker.start()
+
+    def _on_flat_field_finished(self, message: str) -> None:
+        logger.info("Flat-field worker finished: %s", message)
+        self.status_bar.update_status({"message": message})
+        self._flat_worker.deleteLater()
 
     def _on_export(self) -> None:
         logger.info("Button clicked: Export JSON")

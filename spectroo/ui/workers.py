@@ -3,7 +3,8 @@ import time
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 from spectroo.core.calibration import PolynomialCalibration
-from spectroo.dsp.pipeline import run_pipeline, average_frames, to_greyscale
+from spectroo.dsp.pipeline import run_pipeline, average_frames, to_greyscale, apply_tilt_correction
+from spectroo.dsp.collapse import extract_band, apply_flip
 from spectroo.dsp.peaks import find_spectrum_peaks
 
 if not hasattr(PolynomialCalibration, "evaluate"):
@@ -221,3 +222,89 @@ class DarkFrameWorker(QThread):
                 self.finished.emit("Dark frame path not specified in configuration.")
         except Exception as e:
             self.finished.emit(str(e))
+
+
+class FlatFieldWorker(QThread):
+    """
+    Captures a flat-field profile and saves it to disk.
+    """
+    # TODO: T11 — review threading model after hardware concurrency test
+    finished = pyqtSignal(str)
+
+    def __init__(self, config: dict, frame_source, parent=None) -> None:
+        super().__init__(parent)
+        self.config = config
+        self._frame_source = frame_source
+
+    def run(self) -> None:
+        try:
+            import os
+            import json
+            import logging
+            logger = logging.getLogger("spectroo")
+
+            self._frame_source.set_exposure_us(
+                self.config.get("camera", {}).get("exposure_us", 200000)
+            )
+            time.sleep(0.5)  # allow camera to settle
+
+            n_frames = self.config.get("camera", {}).get("frame_stack", 4)
+            frames = []
+            for _ in range(n_frames):
+                frame = self._frame_source.get_frame() if hasattr(self._frame_source, "get_frame") else self._frame_source.capture_frame()
+                frames.append(frame)
+                time.sleep(0.01)
+
+            averaged = average_frames(frames)
+            grey = to_greyscale(averaged)
+
+            optics = self.config.get("optics", {})
+            dsp_cfg = self.config.get("dsp", {})
+
+            tilted = apply_tilt_correction(grey, optics.get("tilt_angle_deg", 0.0))
+            band = extract_band(tilted, optics.get("center_y", 0), dsp_cfg.get("band_half_height", 15))
+            profile = apply_flip(band, optics.get("flip_spectrum", False))
+
+            # Subtract dark frame if it exists
+            dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
+            if dark_path and os.path.exists(dark_path):
+                try:
+                    dark_frame = np.load(dark_path)
+                    if dark_frame.ndim == 2:
+                        dark_tilted = apply_tilt_correction(dark_frame, optics.get("tilt_angle_deg", 0.0))
+                        dark_band = extract_band(dark_tilted, optics.get("center_y", 0), dsp_cfg.get("band_half_height", 15))
+                        dark_frame_1d = apply_flip(dark_band, optics.get("flip_spectrum", False))
+                    else:
+                        dark_frame_1d = dark_frame
+                    
+                    from spectroo.dsp.corrections import subtract_dark
+                    profile = subtract_dark(profile, dark_frame_1d)
+                except Exception as e:
+                    logger.warning(f"Failed to subtract dark frame: {e}")
+            else:
+                logger.warning("Dark frame not found, proceeding without dark subtraction.")
+
+            # Clamp to prevent near-zero spikes downstream
+            floor = np.mean(profile) * 0.05
+            profile = np.clip(profile, floor, None)
+
+            # Normalize by dividing by its mean
+            mean_val = np.mean(profile)
+            if mean_val <= 0:
+                raise ValueError("Cannot normalize flat-field: mean intensity is zero or negative.")
+            profile = profile / mean_val
+
+            # Save as JSON array
+            flat_path = self.config.get("storage", {}).get("flat_field_path", "data/response_flat.json")
+            if flat_path:
+                parent_dir = os.path.dirname(flat_path)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                with open(flat_path, "w") as f:
+                    json.dump(profile.tolist(), f)
+                self.finished.emit(f"Flat-field saved successfully to: {flat_path}")
+            else:
+                self.finished.emit("Flat-field path not specified in configuration.")
+        except Exception as e:
+            self.finished.emit(str(e))
+

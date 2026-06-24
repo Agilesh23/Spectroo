@@ -32,12 +32,15 @@ class StatusBar(QWidget):
         self.calib_label = QLabel("Calibration: Uncalibrated", self)
         self.dark_label = QLabel("Dark Frame: Not Loaded", self)
         self.peaks_label = QLabel("Peaks: None", self)
+        self.message_label = QLabel("", self)
+        self.message_label.setStyleSheet("color: #0066cc; font-weight: bold;")
 
         layout.addWidget(self.fps_label)
         layout.addWidget(self.calib_label)
         layout.addWidget(self.dark_label)
         layout.addWidget(self.peaks_label)
         layout.addStretch()
+        layout.addWidget(self.message_label)
 
     def update_status(self, data: dict) -> None:
         """
@@ -67,3 +70,7 @@ class StatusBar(QWidget):
                 self.peaks_label.setText(f"Peaks: {', '.join(peak_strs)}")
             else:
                 self.peaks_label.setText("Peaks: None")
+
+        if "message" in data:
+            self.message_label.setText(data["message"])
+
