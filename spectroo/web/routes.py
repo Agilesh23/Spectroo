@@ -1,6 +1,5 @@
 import os
 import tempfile
-import time
 from datetime import datetime, timezone
 from typing import Optional
 import numpy as np
@@ -63,18 +62,6 @@ def get_root():
 def get_status(request: Request):
     config = request.app.state.config
     live_active = request.app.state.live_active
-
-    # Check idle timeout for preview source (30s)
-    source = getattr(request.app.state, "dev_preview_source", None)
-    if source is not None:
-        last_poll = getattr(request.app.state, "dev_preview_last_poll", 0.0)
-        if time.time() - last_poll > 30.0:
-            try:
-                source.close()
-            except Exception:
-                pass
-            request.app.state.dev_preview_source = None
-
     calibrated = False
     cal_section = config.get("calibration", {})
     if cal_section and cal_section.get("coefficients"):
@@ -187,14 +174,6 @@ def get_current_frame(request: Request):
 
 @router.post("/api/live/start")
 def post_live_start(request: Request):
-    # Release preview camera if active to prevent collision
-    source = getattr(request.app.state, "dev_preview_source", None)
-    if source is not None:
-        try:
-            source.close()
-        except Exception:
-            pass
-        request.app.state.dev_preview_source = None
 
     request.app.state.live_active = True
     return {"status": "live started"}
@@ -386,17 +365,5 @@ async def restart_pipeline(request: Request):
     request.app.state.live_active = False
     request.app.state.ws_client_connected = False
     request.app.state.current_frame = None
-    source = getattr(request.app.state, "dev_preview_source", None)
-    
-    import threading
-    def _do_close(src):
-        try:
-            src.close()
-        except Exception:
-            pass
-
-    if source is not None:
-        threading.Thread(target=_do_close, args=(source,), daemon=True).start()
-        request.app.state.dev_preview_source = None
     return {"ok": True}
 

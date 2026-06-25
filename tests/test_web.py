@@ -198,102 +198,6 @@ async def test_baseline_toggle(app):
         assert app.state.config["dsp"]["baseline_enabled"] is True
 
 
-# 14. test_dev_auth_required
-async def test_dev_auth_required(app):
-    async with get_client(app) as client:
-        # No password
-        response = await client.get("/api/dev/preview")
-        assert response.status_code == 401
-
-        # Wrong password
-        response = await client.get("/api/dev/preview?password=wrong")
-        assert response.status_code == 401
-
-        # Correct password via query param
-        response = await client.get("/api/dev/preview?password=changeme")
-        assert response.status_code == 503  # falls to camera not available
-
-        # Correct password via header
-        response = await client.get("/api/dev/preview", headers={"X-Dev-Password": "changeme"})
-        assert response.status_code == 503
-
-
-# 15. test_dev_endpoints_live_conflict
-async def test_dev_endpoints_live_conflict(app):
-    app.state.live_active = True
-    async with get_client(app) as client:
-        # Preview
-        response = await client.get("/api/dev/preview?password=changeme")
-        assert response.status_code == 409
-        assert "Stop live mode" in response.json()["detail"]
-
-        # Dark
-        response = await client.post("/api/dev/dark?password=changeme")
-        assert response.status_code == 409
-        assert "Stop live mode" in response.json()["detail"]
-
-        # Flat
-        response = await client.post("/api/dev/flat?password=changeme")
-        assert response.status_code == 409
-        assert "Stop live mode" in response.json()["detail"]
-
-
-# 16. test_dev_endpoints_no_camera_503
-async def test_dev_endpoints_no_camera_503(app):
-    app.state.live_active = False
-    async with get_client(app) as client:
-        # Dark
-        response = await client.post("/api/dev/dark?password=changeme")
-        assert response.status_code == 503
-
-        # Flat
-        response = await client.post("/api/dev/flat?password=changeme")
-        assert response.status_code == 503
-
-
-# 17. test_dev_calibrate_success
-async def test_dev_calibrate_success(app):
-    payload = {
-        "pairs": [
-            {"pixel": 100, "wavelength": 400.0},
-            {"pixel": 500, "wavelength": 500.0},
-            {"pixel": 900, "wavelength": 600.0}
-        ]
-    }
-    async with get_client(app) as client:
-        response = await client.post("/api/dev/calibrate?password=changeme", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert len(data["coefficients"]) == 3
-        assert "rms_nm" in data
-        assert "residuals_nm" in data
-        assert len(data["residuals_nm"]) == 3
-        assert isinstance(data["residuals_nm"][0], float)
-        
-        # Verify and print exact values
-        rms_nm = data["rms_nm"]
-        residuals = data["residuals_nm"]
-        rms_calc = (sum(r**2 for r in residuals) / len(residuals))**0.5
-        print(f"\n[VERIFICATION] rms_nm={rms_nm}")
-        print(f"[VERIFICATION] residuals_nm={residuals}")
-        print(f"[VERIFICATION] sqrt(mean(residuals**2))={rms_calc}")
-        assert abs(rms_nm - rms_calc) < 1e-12
-        
-        assert app.state.config["calibration"]["coefficients"] == data["coefficients"]
-
-
-# 18. test_dev_calibrate_insufficient_points
-async def test_dev_calibrate_insufficient_points(app):
-    payload = {
-        "pairs": [
-            {"pixel": 100, "wavelength": 400.0}
-        ]
-    }
-    async with get_client(app) as client:
-        response = await client.post("/api/dev/calibrate?password=changeme", json=payload)
-        assert response.status_code == 400
-        assert "Fewer than 2 calibration points" in response.json()["detail"]
 
 
 # 19. test_shutdown_endpoint
@@ -320,17 +224,6 @@ async def test_restart_pipeline_idle(app):
     assert app.state.ws_client_connected is False
 
 
-# 21. test_restart_pipeline_closes_dev_preview
-@pytest.mark.asyncio
-async def test_restart_pipeline_closes_dev_preview(app):
-    from unittest.mock import MagicMock
-    mock_source = MagicMock()
-    app.state.dev_preview_source = mock_source
-    async with get_client(app) as client:
-        response = await client.post("/api/restart")
-    assert response.status_code == 200
-    mock_source.close.assert_called_once()
-    assert app.state.dev_preview_source is None
 
 
 @pytest.mark.asyncio
@@ -359,29 +252,6 @@ async def test_current_frame_with_data(app):
     assert data["peaks"] == [1]
 
 
-@pytest.mark.asyncio
-async def test_dev_calibrate_returns_residuals(app):
-    from unittest.mock import patch, MagicMock
-    mock_calib = MagicMock()
-    mock_calib.coefficients = [1.0, 0.0]
-    mock_calib.degree = 1
-    mock_calib.rms_nm = 0.5
-    with patch("spectroo.web.routes_dev.fit_calibration",
-               return_value=mock_calib):
-        async with get_client(app) as client:
-            response = await client.post(
-                "/api/dev/calibrate",
-                json={"pairs": [
-                    {"pixel": 100, "wavelength": 450.0},
-                    {"pixel": 500, "wavelength": 550.0}
-                ]},
-                params={"password": "changeme"}
-            )
-    assert response.status_code == 200
-    data = response.json()
-    assert "residuals_nm" in data
-    assert "rms_nm" in data
-    assert len(data["residuals_nm"]) == 2
 
 
 

@@ -67,8 +67,7 @@ The Spectroo v3 application is organized into modular directories separating the
 - **`spectroo/web/`**
   Hosts the standalone hotspot interface.
   - **`app.py`**: Initializes the FastAPI server.
-  - **`routes.py`**: Serves static HTML pages, dashboard, history, dev tools, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout). Also provides `/api/current_frame` to return the last captured frame data without querying the camera hardware.
-  - **`routes_dev.py`**: Houses developer REST endpoints (raw camera preview, dark frame capture, flat field reference capture, least-squares calibration fitting). All endpoints require authentication via `Depends(verify_dev_password)` except `/api/dev/preview/stop` which is unauthenticated and idempotent to allow reliable client-side cleanup. Includes `/api/dev/auth` for lightweight credential checking.
+  - **`routes.py`**: Serves static HTML pages, dashboard, history, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout). Also provides `/api/current_frame` to return the last captured frame data without querying the camera hardware.
   - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs and dynamic stats (including `cpu_temp` and `cpu_temp_warn`) to browser clients.
   - **`static/`**: Houses CSS styling, Javascript logic, and raw HTML templates for browser rendering.
 
@@ -247,18 +246,7 @@ coefs_low_to_high = list(self._fit_result.coefficients)
 - **Individual Point Deletion**: The developer can delete any coordinate pair inside the point list table individually, rather than being restricted to undoing the most recent point. Deletion immediately triggers a state cache write and recalculates fit staleness.
 ```
 
-### Web Calibration Modal (N6)
-- **Two-Panel Layout (60/40 split)**: The Wavelength Calibration modal (`#dev-calib-modal`) features a live spectrum canvas on the left (60% width) and a points table with control actions on the right (40% width).
-- **In-Memory State**: Unlike the desktop UI, all calibration point mapping state is held purely in-memory (`calibPairs`, `calibFitResult`, `calibFitPairs`) during the web session. There is no `localStorage` caching or file persistence of points across page reloads.
-- **Canvas Rendering (`drawCalibSpectrumFull`)**: A custom drawing routine plots:
-  - The raw 1D pixel intensity spectrum (black line, left Y-axis).
-  - Vertical blue dashed lines at each active pixel coordinate.
-  - The red polynomial fit curve (right Y-axis, evaluating the fit polynomial at each pixel index using the returned coefficients).
-- **Instant Persistence on Fit**: Hitting **Run Fit** (`calibRunFit`) triggers a POST request to `/api/dev/calibrate`. If the regression succeeds, the backend immediately writes the coefficients to `config.toml` and updates the active app state configuration. Thus, calibration is fully applied at fit-time.
-- **Apply & Close**: Clicking **Apply & Close** (`calibApplyClose`) simply closes the modal panel, since configuration persistence has already completed at fit-time.
-- **Table Operations**: **Undo Last** (`calibUndoLast`) and per-row **Delete** (`calibDeleteRow`) splice the in-memory `calibPairs` array by index and trigger a clean re-render (`calibRenderTable`) and canvas redraw (`calibRedraw`).
-- **Exposure Adjustments & Zoom**: The exposure input and **Apply** button post the value directly to `/api/exposure`. The **Reset Zoom** button re-invokes `calibRedraw` without state mutation.
-- **Hierarchy & Overlay Layering**: The modal is configured with `z-index: 1005` inline, positioning it cleanly below `#dev-preview-modal` (`1010`) and `#dev-password-modal` (`1020`), but above the base `.dev-modal-overlay` (`1000`) of the developer control modal.
+
 
 ---
 
@@ -322,12 +310,8 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 ### System Safeguards & Layout Polish
 - **Overheat Safety Alerts**: CPU temperature status fields render in bold red accompanied by `(WARNING: OVERHEAT)` on both desktop and web clients (standard JSON status poll and live WebSocket packets) when the Pi exceeds $80.0^\circ\text{C}$.
 - **Web Inspection Tooltip Relocation**: The plot canvas hover inspector tooltip was moved from the bottom-right to a static position in the top-left of the chart area (`margin.left + 8`, `margin.top + 8`). The entire inspection box has been scaled $30\%$ bigger, including box coordinates, text padding, and font-size (`12px Arial`).
-- **Web System Controls**: The sidebar `.control-panel` hosts a `SYSTEM` controls section containing a `Shutdown` button (`POST /api/shutdown`) and a `Restart System` button (`POST /api/restart`). The restart button resets the application state (`live_active`, `ws_client_connected`, `current_frame`) and closes any active developer preview cameras, bringing the server back to a clean startup condition.
+- **Web System Controls**: The sidebar `.control-panel` hosts a `SYSTEM` controls section containing a `Shutdown` button (`POST /api/shutdown`) and a `Restart System` button (`POST /api/restart`). The restart button resets the application state (`live_active`, `ws_client_connected`, `current_frame`), bringing the server back to a clean startup condition.
 - **Live-to-Single Poll Sync**: The web frontend periodic status polling matches current streaming state, preventing polling intervals from reverting the mode selector away from a pending selection.
-- **Developer Password Gate & Authentication**: The standalone web frontend gates developer entry under a session validation flow. Hitting `Ctrl+Shift+Alt+D` invokes a password overlay prompt. The frontend validates the password against `/api/dev/auth` and caches the authenticated state in the session variable `devPassword` before displaying the developer calibration modal.
-- **Color Preview Diagnostic Modal**: The camera preview diagnostic window fetches color RGB frame arrays directly from the endpoint `/api/dev/preview` (`channels: 3`). The client-side renderer maps these channels onto `dev-preview-canvas` via HTML5 `ImageData` RGBA values, ensuring a full-color alignment preview.
-- **Live Calibration Modal Spectrum Canvas**: Moved out of the main developer tools modal into a dedicated wavelength calibration modal (`#dev-calib-modal`), displaying a live spectrum canvas polling `/api/current_frame` at 500ms alongside point-mapping tables. See Section 3 for workflow details.
-- **Web Shortcut Refactoring**: Web shortcuts are simplified to reduce overlap. All keyboard hotkeys except `Ctrl+Shift+Alt+D` are removed. Other dev commands (such as Raw Camera Preview, Dark Frame Capture, Flat Field Capture) are initiated through explicit UI buttons within the developer dashboard views.
 
 ---
 
@@ -402,7 +386,6 @@ All runtime options are configured via key-value parameters in `config.toml`.
 | **`[web]`** | `host` | String | Locked | Bind address (e.g. `0.0.0.0`). Read by `main.py` (defaults to `0.0.0.0`). |
 | | `internal_port` | Integer | Locked | Internal bind port for Uvicorn (e.g. `8000`). Read by `main.py`. |
 | | `public_port` | Integer | Locked | Public external web port (e.g. `80`). |
-| | `dev_password` | String | Locked | Authentication password for dev routes. Read by `routes.py`. |
 | **`[hotspot]`** | `ssid` | String | Locked | Hotspot Access Point name. Read by AP setup script. |
 | | `password` | String | Locked | Hotspot AP WPA password. Read by AP setup script. |
 
@@ -496,5 +479,5 @@ The test suite contains **151 automated tests** inside the `tests/` directory.
   Tests platform detection, hardware diagnostic scripts, CPU temperature reading fallbacks, and boundary checks for the safe operating temperature warnings.
 - **`test_ui_widgets.py` (14 tests)**
   Verifies button behaviors, layout spacing, and control panel logging functions.
-- **`test_web.py` (23 tests)**
-  Tests the FastAPI router endpoints, WebSocket feeds, dev-mode routes, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, restart pipeline state resets, `/api/current_frame` endpoints, and `test_dev_calibrate_returns_residuals` verifying the `/api/dev/calibrate` endpoint returns per-point `residuals_nm` and `rms_nm`.
+- **`test_web.py` (16 tests)**
+  Tests the FastAPI router endpoints, WebSocket feeds, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, restart pipeline state resets, and `/api/current_frame` endpoints.
