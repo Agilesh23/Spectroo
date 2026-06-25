@@ -45,6 +45,22 @@ def verify_dev_auth(password: str = Depends(verify_dev_password)):
     return {"ok": True}
 
 
+@router.post("/api/dev/preview/start")
+def post_dev_preview_start(request: Request):
+    if request.app.state.live_active:
+        raise HTTPException(status_code=409, detail="Stop live mode first")
+    source = getattr(request.app.state, "dev_preview_source", None)
+    if source is None:
+        config = request.app.state.config
+        res = tuple(config.get("camera", {}).get("resolution", (2592, 200)))
+        try:
+            source = PiCameraFrameSource(resolution=res)
+            request.app.state.dev_preview_source = source
+        except CameraNotFoundError as e:
+            raise HTTPException(status_code=503, detail="Camera not available") from e
+    return {"ok": True}
+
+
 @router.get("/api/dev/preview")
 def get_dev_preview(request: Request, password: str = Depends(verify_dev_password)):
     if request.app.state.live_active:

@@ -387,11 +387,16 @@ async def restart_pipeline(request: Request):
     request.app.state.ws_client_connected = False
     request.app.state.current_frame = None
     source = getattr(request.app.state, "dev_preview_source", None)
-    if source is not None:
+    
+    import threading
+    def _do_close(src):
         try:
-            source.close()
+            src.close()
         except Exception:
             pass
+
+    if source is not None:
+        threading.Thread(target=_do_close, args=(source,), daemon=True).start()
         request.app.state.dev_preview_source = None
     return {"ok": True}
 

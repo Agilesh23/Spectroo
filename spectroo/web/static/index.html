@@ -212,6 +212,12 @@
             align-items: center;
             z-index: 1000;
         }
+        #dev-preview-modal {
+            z-index: 1010;
+        }
+        #dev-password-modal {
+            z-index: 1020;
+        }
         .dev-modal-overlay.hidden {
             display: none;
         }
@@ -450,47 +456,19 @@
 
     <!-- Developer & Calibration Control Modal -->
     <div id="dev-control-modal" class="dev-modal-overlay hidden">
-        <div class="dev-modal-content">
+        <div class="dev-modal-content" style="width: 400px;">
             <div class="dev-modal-header">
-                <span>Developer Tools & Calibration</span>
+                <span>Developer Tools</span>
                 <span class="close-icon" onclick="closeControlModal()">&times;</span>
             </div>
-            <div class="dev-modal-body">
-                <div class="dev-section-title">Hardware Actions</div>
-                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                    <button class="dev-btn" id="dev-dark-btn">Capture Dark Frame</button>
-                    <button class="dev-btn" id="dev-flat-btn">Capture Flat Field</button>
-                    <button class="dev-btn" id="dev-preview-btn" onclick="openPreviewModal()">Camera Preview</button>
+            <div class="dev-modal-body" style="padding: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <button class="dev-btn" id="dev-dark-btn" style="height: 50px; font-size: 13px;">Dark Frame</button>
+                    <button class="dev-btn" id="dev-flat-btn" style="height: 50px; font-size: 13px;">Flat Field</button>
+                    <button class="dev-btn" id="dev-preview-btn" onclick="openPreviewModal()" style="height: 50px; font-size: 13px;">Camera Preview</button>
+                    <button class="dev-btn" onclick="openCalibModal()" style="height: 50px; font-size: 13px;">Calibration</button>
                 </div>
-                <div id="dev-hardware-status" class="dev-status-box">Ready for action.</div>
-
-                <div class="dev-section-title">Live Pixel Spectrum</div>
-                <div class="dev-canvas-container">
-                    <canvas id="dev-calib-canvas"></canvas>
-                </div>
-
-                <div class="dev-section-title">Wavelength Calibration Mapping</div>
-                <table class="dev-table" id="dev-calib-table">
-                    <thead>
-                        <tr>
-                            <th>Pixel Index</th>
-                            <th>Wavelength (nm)</th>
-                            <th>Residual (nm)</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dev-calib-tbody">
-                        <!-- Dynamic rows here -->
-                    </tbody>
-                </table>
-                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                    <button class="dev-btn" onclick="addCalibRow()">+ Add Point</button>
-                    <button class="dev-btn primary" id="dev-calib-fit-btn">Fit & Apply Calibration</button>
-                </div>
-                <div id="dev-calib-status" class="dev-status-box">Enter at least 2 mapping pairs and click Fit.</div>
-            </div>
-            <div class="dev-modal-footer">
-                <button class="dev-btn" onclick="closeControlModal()">Close</button>
+                <button class="dev-btn" onclick="closeControlModal()" style="height: 40px; font-size: 13px; background-color: #f3f4f6; color: #333333; border: 1px solid #d1d5db;">Close</button>
             </div>
         </div>
     </div>
@@ -1512,18 +1490,18 @@
         let calibPollInterval = null;
 
         async function fetchDev(url, options = {}) {
-            let devPassword = localStorage.getItem('devPassword') || 'changeme';
+            let devPasswordVal = devPassword || 'changeme';
             if (!options.headers) options.headers = {};
             
             const urlObj = new URL(url, window.location.origin);
-            urlObj.searchParams.set('password', devPassword);
+            urlObj.searchParams.set('password', devPasswordVal);
             
             let res = await fetch(urlObj.toString(), options);
             if (res.status === 401) {
-                devPassword = prompt("Invalid developer password. Enter developer password:");
-                if (devPassword) {
-                    localStorage.setItem('devPassword', devPassword);
-                    urlObj.searchParams.set('password', devPassword);
+                devPasswordVal = prompt("Invalid developer password. Enter developer password:");
+                if (devPasswordVal) {
+                    devPassword = devPasswordVal;
+                    urlObj.searchParams.set('password', devPasswordVal);
                     res = await fetch(urlObj.toString(), options);
                 }
             }
@@ -1531,7 +1509,7 @@
         }
 
         // Camera Preview
-        function openPreviewModal() {
+        async function openPreviewModal() {
             if (streamingActive) {
                 alert("Live mode active — stop live before previewing raw camera");
                 return;
@@ -1540,6 +1518,21 @@
             const expInput = document.getElementById('dev-preview-exp-input');
             const mainExp = document.getElementById('exposure-input');
             expInput.value = mainExp.value;
+            
+            const statusEl = document.getElementById('dev-preview-status');
+            statusEl.innerText = "Loading camera source...";
+            
+            try {
+                const res = await fetch('/api/dev/preview/start', { method: 'POST' });
+                if (!res.ok) {
+                    const detail = (await res.json()).detail || "Failed to start preview";
+                    statusEl.innerText = `Error: ${detail}`;
+                    return;
+                }
+            } catch (err) {
+                statusEl.innerText = `Error: ${err.message}`;
+                return;
+            }
             
             startPreviewFeed();
         }
@@ -1553,7 +1546,7 @@
         function startPreviewFeed() {
             if (previewInterval) clearInterval(previewInterval);
             updatePreviewFrame();
-            previewInterval = setInterval(updatePreviewFrame, 200); // 5 FPS
+            previewInterval = setInterval(updatePreviewFrame, 150); // 150ms
         }
 
         function stopPreviewFeed() {
@@ -1733,9 +1726,12 @@
             fetch('/api/dev/preview/stop', { method: 'POST' }).catch(() => {});
         }
 
+        function openCalibModal() {
+            alert("Calibration feature coming soon!");
+        }
+
         // Dark/Flat capture handlers
         document.getElementById('dev-dark-btn').addEventListener('click', async () => {
-            const statusEl = document.getElementById('dev-hardware-status');
             if (streamingActive) {
                 alert("Live mode active — stop live before capturing dark frame");
                 return;
@@ -1743,39 +1739,36 @@
             if (!confirm("Cover the lens completely to block all light, then click OK to capture dark frame.")) {
                 return;
             }
-            statusEl.innerText = "Capturing dark frame...";
             try {
                 const res = await fetchDev('/api/dev/dark', { method: 'POST' });
                 const data = await res.json();
                 if (res.ok) {
-                    statusEl.innerText = data.message;
+                    alert(data.message);
                     fetchStatus();
                 } else {
-                    statusEl.innerText = `Error: ${data.detail}`;
+                    alert(`Error: ${data.detail}`);
                 }
             } catch (err) {
-                statusEl.innerText = `Connection error: ${err.message}`;
+                alert(`Connection error: ${err.message}`);
             }
         });
 
         document.getElementById('dev-flat-btn').addEventListener('click', async () => {
-            const statusEl = document.getElementById('dev-hardware-status');
             if (streamingActive) {
                 alert("Live mode active — stop live before capturing flat field");
                 return;
             }
-            statusEl.innerText = "Capturing flat field...";
             try {
                 const res = await fetchDev('/api/dev/flat', { method: 'POST' });
                 const data = await res.json();
                 if (res.ok) {
-                    statusEl.innerText = data.message;
+                    alert(data.message);
                     fetchStatus();
                 } else {
-                    statusEl.innerText = `Error: ${data.detail}`;
+                    alert(`Error: ${data.detail}`);
                 }
             } catch (err) {
-                statusEl.innerText = `Connection error: ${err.message}`;
+                alert(`Connection error: ${err.message}`);
             }
         });
 
@@ -2014,7 +2007,6 @@
                 
                 if (res.ok) {
                     devPassword = pwd;
-                    localStorage.setItem('devPassword', pwd);
                     closePasswordModal();
                     openControlModal();
                 } else {
@@ -2035,7 +2027,11 @@
                     e.preventDefault();
                     const modal = document.getElementById('dev-control-modal');
                     if (modal.classList.contains('hidden')) {
-                        openPasswordModal();
+                        if (devPassword) {
+                            openControlModal();
+                        } else {
+                            openPasswordModal();
+                        }
                     } else {
                         closeControlModal();
                     }

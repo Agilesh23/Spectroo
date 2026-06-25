@@ -54,7 +54,7 @@ warmup_seconds = 30
 
 [hotspot]
 ssid = "Spectroo"
-password = "changeme"
+password = "laserquant"
 channel = 6
 gateway_ip = "192.168.4.1"
 dhcp_range_start = "192.168.4.10"
@@ -64,7 +64,7 @@ mdns_hostname = "spectroo.local"
 [web]
 internal_port = 8000
 public_port = 80
-dev_password = "changeme"
+dev_password = "laserquant"
 
 [history]
 db_path = "data/spectroo.db"
