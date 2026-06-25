@@ -473,6 +473,72 @@
         </div>
     </div>
 
+    <!-- Wavelength Calibration Modal -->
+    <div id="dev-calib-modal" class="dev-modal-overlay hidden"
+         style="z-index: 1005;">
+        <div class="dev-modal-content" style="width: 900px; max-width: 95vw;
+             max-height: 90vh; overflow-y: auto;">
+            <div class="dev-modal-header">
+                <span>Wavelength Calibration</span>
+                <span class="close-icon" onclick="closeCalibModal()">&times;</span>
+            </div>
+            <div class="dev-modal-body" style="display: flex; gap: 16px;
+                 padding: 16px;">
+
+                <!-- LEFT: spectrum canvas -->
+                <div style="flex: 0 0 60%; display: flex; flex-direction: column;
+                     gap: 8px;">
+                    <canvas id="calib-spectrum-canvas" style="width: 100%;
+                        height: 300px; border: 1px solid #ddd; background: #fff;">
+                    </canvas>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 12px;">Exposure (µs):</span>
+                        <input type="number" id="calib-exp-input"
+                               style="width: 100px; padding: 4px;" value="20000">
+                        <button class="dev-btn" id="calib-exp-apply"
+                                style="padding: 4px 12px;">Apply</button>
+                        <button class="dev-btn" id="calib-reset-zoom"
+                                style="padding: 4px 12px;">Reset Zoom</button>
+                    </div>
+                </div>
+
+                <!-- RIGHT: calibration points -->
+                <div style="flex: 0 0 40%; display: flex; flex-direction: column;
+                     gap: 8px;">
+                    <div style="font-weight: 600; font-size: 13px;">
+                        Calibration Points</div>
+                    <table style="width: 100%; border-collapse: collapse;
+                           font-size: 12px;" id="calib-points-table">
+                        <thead>
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 4px; text-align: left;">#</th>
+                                <th style="padding: 4px; text-align: left;">Pixel</th>
+                                <th style="padding: 4px; text-align: left;">λ (nm)</th>
+                                <th style="padding: 4px; text-align: left;">Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="calib-points-tbody"></tbody>
+                    </table>
+                    <button class="dev-btn" onclick="calibAddRow()"
+                            style="font-size: 12px;">+ Add Point</button>
+                    <div id="calib-fit-result" style="font-size: 12px;
+                         display: none; padding: 8px; background: #f9fafb;
+                         border: 1px solid #e5e7eb; border-radius: 4px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: auto;">
+                        <button class="dev-btn primary" onclick="calibRunFit()"
+                                style="flex: 1;">Run Fit</button>
+                        <button class="dev-btn" onclick="calibUndoLast()"
+                                style="flex: 1;">Undo Last</button>
+                        <button class="dev-btn" onclick="calibApplyClose()"
+                                style="flex: 1; background: #16a34a; color: white;">
+                            Apply & Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // State Variables
         let currentWavelengths = null;
@@ -483,6 +549,10 @@
         let lastRecordId = null;
         let selectedMode = 'single';
         let streamingActive = false;
+        
+        let calibPairs = [{pixel: 0, wavelength: 0}, {pixel: 0, wavelength: 0}];
+        let calibFitResult = null;
+        let calibFitPairs = null;
         
         let ws = null;
         let frameCount = 0;
@@ -1624,32 +1694,44 @@
             }
         });
 
-        function startCalibPoll() {
-            if (calibPollInterval) clearInterval(calibPollInterval);
-            updateCalibSpectrum();
-            calibPollInterval = setInterval(updateCalibSpectrum, 500);
+        let calibSpectrumInterval = null;
+
+        function startCalibSpectrumPoll() {
+            if (calibSpectrumInterval)
+                clearInterval(calibSpectrumInterval);
+            updateCalibSpectrumNew();
+            calibSpectrumInterval = setInterval(
+                updateCalibSpectrumNew, 500);
         }
 
-        function stopCalibPoll() {
-            if (calibPollInterval) {
-                clearInterval(calibPollInterval);
-                calibPollInterval = null;
+        function stopCalibSpectrumPoll() {
+            if (calibSpectrumInterval) {
+                clearInterval(calibSpectrumInterval);
+                calibSpectrumInterval = null;
             }
         }
 
-        async function updateCalibSpectrum() {
+        async function updateCalibSpectrumNew() {
             try {
                 const res = await fetch('/api/current_frame');
                 if (!res.ok) return;
                 const data = await res.json();
-                drawCalibSpectrum(data.intensities);
+                window._lastCalibFrame = data;
+                calibRedraw();
             } catch (err) {
-                console.error("Error polling calib spectrum:", err);
+                console.error('Calib spectrum poll error:', err);
             }
         }
 
-        function drawCalibSpectrum(intensities) {
-            const canvas = document.getElementById('dev-calib-canvas');
+        function calibRedraw() {
+            const canvas = document.getElementById('calib-spectrum-canvas');
+            if (!canvas) return;
+            const frame = window._lastCalibFrame;
+            drawCalibSpectrumFull(canvas, frame ? frame.intensities : [],
+                                  calibPairs, calibFitResult);
+        }
+
+        function drawCalibSpectrumFull(canvas, intensities, pairs, fitResult) {
             if (!canvas) return;
             
             const dpr = window.devicePixelRatio || 1;
@@ -1663,16 +1745,7 @@
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, width, height);
             
-            if (!intensities || intensities.length === 0) {
-                ctx.fillStyle = '#333333';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('Awaiting live data...', width / 2, height / 2);
-                return;
-            }
-            
-            const margin = { left: 40, right: 10, top: 10, bottom: 20 };
+            const margin = { left: 50, right: 50, top: 15, bottom: 30 };
             const plotW = width - margin.left - margin.right;
             const plotH = height - margin.top - margin.bottom;
             
@@ -1682,13 +1755,69 @@
             ctx.lineWidth = 1;
             ctx.strokeRect(margin.left, margin.top, plotW, plotH);
             
-            const yMax = Math.max(1.0, Math.max(...intensities)) * 1.15;
-            const len = intensities.length;
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 9px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText('Pixel Index', margin.left + plotW / 2, height - margin.bottom + 16);
             
-            ctx.strokeStyle = '#333333';
+            ctx.save();
+            ctx.translate(margin.left - 35, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Intensity', 0, 0);
+            ctx.restore();
+            
+            if (fitResult) {
+                ctx.save();
+                ctx.translate(width - margin.right + 35, margin.top + plotH / 2);
+                ctx.rotate(Math.PI / 2);
+                ctx.textBaseline = 'middle';
+                ctx.fillText('λ (nm)', 0, 0);
+                ctx.restore();
+            }
+
+            if (!intensities || intensities.length === 0) {
+                ctx.fillStyle = '#666666';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Awaiting live data...', margin.left + plotW / 2, margin.top + plotH / 2);
+                return;
+            }
+            
+            const len = intensities.length;
+            const yMax = Math.max(1.0, ...intensities) * 1.15;
+            
+            ctx.fillStyle = '#333333';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            const yTicks = [0, yMax / 2, yMax];
+            yTicks.forEach(yVal => {
+                const py = margin.top + plotH - (yVal / yMax) * plotH;
+                ctx.fillText(Math.round(yVal).toString(), margin.left - 5, py);
+                ctx.beginPath();
+                ctx.moveTo(margin.left - 3, py);
+                ctx.lineTo(margin.left, py);
+                ctx.stroke();
+            });
+            
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            const xTicks = [0, Math.floor((len - 1) / 2), len - 1];
+            xTicks.forEach(xVal => {
+                const px = margin.left + (xVal / (len - 1)) * plotW;
+                ctx.fillText(xVal.toString(), px, margin.top + plotH + 4);
+                ctx.beginPath();
+                ctx.moveTo(px, margin.top + plotH);
+                ctx.lineTo(px, margin.top + plotH + 3);
+                ctx.stroke();
+            });
+            
+            ctx.strokeStyle = '#000000';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            
             for (let i = 0; i < len; i++) {
                 const px = margin.left + (i / (len - 1)) * plotW;
                 const py = margin.top + plotH - (intensities[i] / yMax) * plotH;
@@ -1700,34 +1829,93 @@
             }
             ctx.stroke();
             
-            ctx.fillStyle = '#333333';
-            ctx.font = '8px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText('0', margin.left, margin.top + plotH + 3);
-            ctx.fillText((len - 1).toString(), margin.left + plotW, margin.top + plotH + 3);
+            pairs.forEach(p => {
+                const pxVal = parseInt(p.pixel);
+                if (!isNaN(pxVal) && pxVal >= 0 && pxVal < len) {
+                    const px = margin.left + (pxVal / (len - 1)) * plotW;
+                    
+                    ctx.strokeStyle = 'rgba(37, 99, 235, 0.7)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, margin.top);
+                    ctx.lineTo(px, margin.top + plotH);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    ctx.fillStyle = '#2563eb';
+                    ctx.font = '8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText('Px ' + pxVal, px, margin.top - 2);
+                }
+            });
             
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(Math.round(yMax).toString(), margin.left - 5, margin.top);
-            ctx.fillText('0', margin.left - 5, margin.top + plotH);
+            if (fitResult && fitResult.coefficients && fitResult.coefficients.length > 0) {
+                const coefs = fitResult.coefficients;
+                
+                function polyval(c, x) {
+                    return c.reduce((acc, val) => acc * x + val, 0);
+                }
+                
+                const wl0 = polyval(coefs, 0);
+                const wlLast = polyval(coefs, len - 1);
+                const wlMin = Math.min(wl0, wlLast);
+                const wlMax = Math.max(wl0, wlLast);
+                const rangeWl = wlMax - wlMin;
+                
+                ctx.fillStyle = '#cc0000';
+                ctx.strokeStyle = '#cc0000';
+                ctx.font = '8px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                
+                const wlTicks = [wlMin, wlMin + 0.5 * rangeWl, wlMax];
+                wlTicks.forEach(wlVal => {
+                    const py = rangeWl > 0 ? margin.top + plotH - ((wlVal - wlMin) / rangeWl) * plotH : margin.top + plotH / 2;
+                    ctx.fillText(wlVal.toFixed(1), width - margin.right + 5, py);
+                    ctx.beginPath();
+                    ctx.moveTo(width - margin.right, py);
+                    ctx.lineTo(width - margin.right + 3, py);
+                    ctx.stroke();
+                });
+                
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < len; i++) {
+                    const px = margin.left + (i / (len - 1)) * plotW;
+                    const wl = polyval(coefs, i);
+                    const py = rangeWl > 0 ? margin.top + plotH - ((wl - wlMin) / rangeWl) * plotH : margin.top + plotH / 2;
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+                ctx.stroke();
+            }
         }
 
         // Developer Control Modal
         function openControlModal() {
             document.getElementById('dev-control-modal').classList.remove('hidden');
-            initCalibTable();
-            startCalibPoll();
         }
 
         function closeControlModal() {
             document.getElementById('dev-control-modal').classList.add('hidden');
-            stopCalibPoll();
             fetch('/api/dev/preview/stop', { method: 'POST' }).catch(() => {});
         }
 
         function openCalibModal() {
-            alert("Calibration feature coming soon!");
+            document.getElementById('dev-calib-modal').classList.remove('hidden');
+            calibRenderTable();
+            startCalibSpectrumPoll();
+        }
+
+        function closeCalibModal() {
+            document.getElementById('dev-calib-modal').classList.add('hidden');
+            stopCalibSpectrumPoll();
         }
 
         // Dark/Flat capture handlers
@@ -1773,205 +1961,115 @@
         });
 
         // Wavelength Calibration UI
-        const defaultPairs = [
-            { pixel: 500, wavelength: 435.8 },
-            { pixel: 1000, wavelength: 546.1 }
-        ];
-
-        function initCalibTable() {
-            const tbody = document.getElementById('dev-calib-tbody');
+        function calibRenderTable() {
+            const tbody = document.getElementById('calib-points-tbody');
             tbody.innerHTML = '';
-            let saved = localStorage.getItem('calib_pairs');
-            let pairs = saved ? JSON.parse(saved) : defaultPairs;
-
-            // Get current fit result and check if it's stale
-            let savedFitPairsStr = localStorage.getItem('calib_fit_pairs');
-            let savedFit = localStorage.getItem('calib_fit_result');
-            let isStale = false;
-            let fitResult = null;
-            if (savedFit) {
-                fitResult = JSON.parse(savedFit);
-                if (!savedFitPairsStr) {
-                    isStale = true;
-                } else {
-                    const fitPairs = JSON.parse(savedFitPairsStr);
-                    if (fitPairs.length !== pairs.length) {
-                        isStale = true;
-                    } else {
-                        for (let i = 0; i < pairs.length; i++) {
-                            if (pairs[i].pixel !== fitPairs[i].pixel || 
-                                pairs[i].wavelength !== fitPairs[i].wavelength) {
-                                isStale = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            pairs.forEach((p, idx) => {
-                let residual = '-';
-                if (fitResult && !isStale && fitResult.residuals_nm && idx < fitResult.residuals_nm.length) {
-                    residual = fitResult.residuals_nm[idx].toFixed(4);
-                }
-                tbody.appendChild(createCalibRowHtml(p.pixel, p.wavelength, residual));
+            calibPairs.forEach((p, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding:4px;">${i + 1}</td>
+                    <td><input type="number" class="calib-px"
+                        value="${p.pixel}" style="width:70px; padding:2px;"
+                        onchange="calibPairs[${i}].pixel=parseInt(this.value)||0;
+                                  calibRedraw();"></td>
+                    <td><input type="number" class="calib-wl"
+                        value="${p.wavelength}" step="0.1"
+                        style="width:70px; padding:2px;"
+                        onchange="calibPairs[${i}].wavelength=
+                                  parseFloat(this.value)||0;"></td>
+                    <td><button onclick="calibDeleteRow(${i})"
+                        style="color:white; background:#dc2626; border:none;
+                               padding:2px 8px; border-radius:3px; cursor:pointer;">
+                        Delete</button></td>`;
+                tbody.appendChild(tr);
             });
-
-            if (fitResult) {
-                displayFitResult(fitResult, isStale);
-            } else {
-                document.getElementById('dev-calib-status').innerText = "Enter at least 2 mapping pairs and click Fit.";
-                document.getElementById('dev-calib-status').style.opacity = "1";
-            }
         }
 
-        function createCalibRowHtml(pixel, wavelength, residual) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input type="number" class="calib-pixel" value="${pixel}" min="0" max="3000" style="width: 80px;"></td>
-                <td><input type="number" class="calib-wavelength" value="${wavelength}" step="0.1" style="width: 100px;"></td>
-                <td class="calib-residual">${residual}</td>
-                <td><button class="dev-btn danger" onclick="this.closest('tr').remove(); savePairsToLocal(); checkStale();">Remove</button></td>
-            `;
-            tr.querySelectorAll('input').forEach(input => {
-                input.addEventListener('change', () => {
-                    savePairsToLocal();
-                    checkStale();
-                });
-            });
-            return tr;
+        function calibAddRow() {
+            calibPairs.push({pixel: 0, wavelength: 0});
+            calibFitResult = null;
+            calibRenderTable();
+            calibRedraw();
         }
 
-        function addCalibRow() {
-            const tbody = document.getElementById('dev-calib-tbody');
-            tbody.appendChild(createCalibRowHtml(0, 0, '-'));
-            savePairsToLocal();
-            checkStale();
+        function calibDeleteRow(i) {
+            calibPairs.splice(i, 1);
+            calibFitResult = null;
+            calibRenderTable();
+            calibRedraw();
         }
 
-        function savePairsToLocal() {
-            const tbody = document.getElementById('dev-calib-tbody');
-            const pairs = [];
-            tbody.querySelectorAll('tr').forEach(tr => {
-                const px = parseInt(tr.querySelector('.calib-pixel').value);
-                const wl = parseFloat(tr.querySelector('.calib-wavelength').value);
-                if (!isNaN(px) && !isNaN(wl)) {
-                    pairs.push({ pixel: px, wavelength: wl });
-                }
-            });
-            localStorage.setItem('calib_pairs', JSON.stringify(pairs));
-        }
-
-        function checkStale() {
-            const tbody = document.getElementById('dev-calib-tbody');
-            const currentPairs = [];
-            tbody.querySelectorAll('tr').forEach(tr => {
-                const px = parseInt(tr.querySelector('.calib-pixel').value);
-                const wl = parseFloat(tr.querySelector('.calib-wavelength').value);
-                currentPairs.push({ pixel: px, wavelength: wl });
-            });
-
-            const savedFitPairsStr = localStorage.getItem('calib_fit_pairs');
-            let isStale = false;
-            if (!savedFitPairsStr) {
-                isStale = true;
-            } else {
-                const fitPairs = JSON.parse(savedFitPairsStr);
-                if (fitPairs.length !== currentPairs.length) {
-                    isStale = true;
-                } else {
-                    for (let i = 0; i < currentPairs.length; i++) {
-                        if (currentPairs[i].pixel !== fitPairs[i].pixel || 
-                            currentPairs[i].wavelength !== fitPairs[i].wavelength) {
-                            isStale = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            const savedFit = localStorage.getItem('calib_fit_result');
-            if (savedFit) {
-                const fitResult = JSON.parse(savedFit);
-                displayFitResult(fitResult, isStale);
-            } else {
-                document.getElementById('dev-calib-status').innerText = "Enter at least 2 mapping pairs and click Fit.";
-                document.getElementById('dev-calib-status').style.opacity = "1";
+        function calibUndoLast() {
+            if (calibPairs.length > 0) {
+                calibPairs.pop();
+                calibFitResult = null;
+                calibRenderTable();
+                calibRedraw();
             }
         }
 
-        function displayFitResult(fitResult, isStale) {
-            const statusEl = document.getElementById('dev-calib-status');
-            const tbody = document.getElementById('dev-calib-tbody');
-
-            // Update table rows' residuals
-            tbody.querySelectorAll('tr').forEach((tr, idx) => {
-                const resTd = tr.querySelector('.calib-residual');
-                if (resTd) {
-                    if (!isStale && fitResult.residuals_nm && idx < fitResult.residuals_nm.length) {
-                        resTd.innerText = fitResult.residuals_nm[idx].toFixed(4);
-                    } else {
-                        resTd.innerText = '-';
-                    }
-                }
-            });
-
-            let prefix = "";
-            if (isStale) {
-                prefix = "Stale — pairs changed since last fit:\n";
-                statusEl.style.opacity = "0.6";
-            } else {
-                statusEl.style.opacity = "1";
-            }
-
-            statusEl.innerText = `${prefix}Fit Succeeded!\nDegree: ${fitResult.degree}\nRMS: ${fitResult.rms_nm.toFixed(4)} nm\nCoefficients: ${JSON.stringify(fitResult.coefficients)}`;
-        }
-
-        document.getElementById('dev-calib-fit-btn').addEventListener('click', async () => {
-            savePairsToLocal();
-            const statusEl = document.getElementById('dev-calib-status');
-            const tbody = document.getElementById('dev-calib-tbody');
-            const pairs = [];
-            tbody.querySelectorAll('tr').forEach(tr => {
-                const px = parseInt(tr.querySelector('.calib-pixel').value);
-                const wl = parseFloat(tr.querySelector('.calib-wavelength').value);
-                if (!isNaN(px) && !isNaN(wl)) {
-                    pairs.push({ pixel: px, wavelength: wl });
-                }
-            });
-
+        async function calibRunFit() {
+            const resultEl = document.getElementById('calib-fit-result');
+            resultEl.style.display = 'block';
+            resultEl.innerHTML = 'Fitting...';
+            const pairs = calibPairs.filter(
+                p => p.pixel > 0 || p.wavelength > 0);
             if (pairs.length < 2) {
-                statusEl.innerText = "Error: At least 2 calibration points are required.";
+                resultEl.innerHTML =
+                    '<span style="color:#dc2626;">Need at least 2 points.</span>';
                 return;
             }
-
-            statusEl.innerText = "Calculating fit and applying coefficients...";
             try {
                 const res = await fetchDev('/api/dev/calibrate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pairs })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({pairs})
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    const fitResult = {
-                        degree: data.degree,
-                        rms_nm: data.rms_nm,
-                        coefficients: data.coefficients,
-                        residuals_nm: data.residuals_nm
-                    };
-                    localStorage.setItem('calib_fit_result', JSON.stringify(fitResult));
-                    localStorage.setItem('calib_fit_pairs', JSON.stringify(pairs));
-                    
-                    displayFitResult(fitResult, false);
+                    calibFitResult = data;
+                    calibFitPairs = JSON.parse(JSON.stringify(pairs));
+                    resultEl.innerHTML = `
+                        <span style="color:#16a34a; font-weight:600;">
+                            Fit Succeeded!</span><br>
+                        Degree: ${data.degree}<br>
+                        RMS: ${data.rms_nm.toFixed(4)} nm<br>
+                        Coefficients: [${data.coefficients
+                            .map(c => c.toExponential(4)).join(', ')}]`;
+                    calibRenderTable();
+                    calibRedraw();
                     fetchStatus();
                 } else {
-                    statusEl.innerText = `Fit Failed: ${data.detail}`;
+                    resultEl.innerHTML =
+                        '<span style="color:#dc2626;">Fit Failed: ' +
+                        data.detail + '</span>';
                 }
             } catch (err) {
-                statusEl.innerText = `Connection error: ${err.message}`;
+                resultEl.innerHTML =
+                    '<span style="color:#dc2626;">Error: ' +
+                    err.message + '</span>';
             }
+        }
+
+        function calibApplyClose() {
+            closeCalibModal();
+        }
+
+        document.getElementById('calib-exp-apply').addEventListener(
+            'click', async () => {
+            const val = parseInt(
+                document.getElementById('calib-exp-input').value);
+            try {
+                await fetch('/api/exposure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({exposure_us: val})
+                });
+            } catch(e) { console.error(e); }
         });
+
+        document.getElementById('calib-reset-zoom').addEventListener(
+            'click', () => { calibRedraw(); });
 
         // Password Modal Handlers
         let devPassword = '';

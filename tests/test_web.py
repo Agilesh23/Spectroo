@@ -359,6 +359,32 @@ async def test_current_frame_with_data(app):
     assert data["peaks"] == [1]
 
 
+@pytest.mark.asyncio
+async def test_dev_calibrate_returns_residuals(app):
+    from unittest.mock import patch, MagicMock
+    mock_calib = MagicMock()
+    mock_calib.coefficients = [1.0, 0.0]
+    mock_calib.degree = 1
+    mock_calib.rms_nm = 0.5
+    with patch("spectroo.web.routes_dev.fit_calibration",
+               return_value=mock_calib):
+        async with get_client(app) as client:
+            response = await client.post(
+                "/api/dev/calibrate",
+                json={"pairs": [
+                    {"pixel": 100, "wavelength": 450.0},
+                    {"pixel": 500, "wavelength": 550.0}
+                ]},
+                params={"password": "changeme"}
+            )
+    assert response.status_code == 200
+    data = response.json()
+    assert "residuals_nm" in data
+    assert "rms_nm" in data
+    assert len(data["residuals_nm"]) == 2
+
+
+
 
 
 
