@@ -33,6 +33,7 @@ class StatusBar(QWidget):
         self.dark_label = QLabel("Dark Frame: Not Loaded", self)
         self.flat_label = QLabel("Flat Field: Not Loaded", self)
         self.peaks_label = QLabel("Peaks: None", self)
+        self.temp_label = QLabel("CPU Temp: --°C", self)
         self.message_label = QLabel("", self)
         self.message_label.setStyleSheet("color: #0066cc; font-weight: bold;")
 
@@ -41,6 +42,7 @@ class StatusBar(QWidget):
         layout.addWidget(self.dark_label)
         layout.addWidget(self.flat_label)
         layout.addWidget(self.peaks_label)
+        layout.addWidget(self.temp_label)
         layout.addStretch()
         layout.addWidget(self.message_label)
 
@@ -76,6 +78,13 @@ class StatusBar(QWidget):
                 self.peaks_label.setText(f"Peaks: {', '.join(peak_strs)}")
             else:
                 self.peaks_label.setText("Peaks: None")
+
+        if "cpu_temp" in data:
+            temp = data["cpu_temp"]
+            if temp is not None:
+                self.temp_label.setText(f"CPU Temp: {temp:.1f}°C")
+            else:
+                self.temp_label.setText("CPU Temp: --°C")
 
         if "message" in data:
             self.message_label.setText(data["message"])

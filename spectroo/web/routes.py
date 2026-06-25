@@ -16,6 +16,7 @@ from spectroo.core.calibration import PolynomialCalibration, apply_calibration
 from spectroo.core.models import HistoryRecord, Peak
 from spectroo.storage.db import save_record as save_spectrum, get_record, list_records
 from spectroo.storage.export import export_csv, export_json
+from spectroo.system.temp import get_cpu_temp_c
 
 router = APIRouter()
 
@@ -70,7 +71,8 @@ def get_status(request: Request):
     return {
         "live_active": live_active,
         "calibrated": calibrated,
-        "dark_loaded": dark_loaded
+        "dark_loaded": dark_loaded,
+        "cpu_temp": get_cpu_temp_c()
     }
 
 

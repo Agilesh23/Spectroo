@@ -1,7 +1,8 @@
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QFileDialog
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 import logging
+from spectroo.system.temp import get_cpu_temp_c
 
 logger = logging.getLogger("spectroo")
 
@@ -88,6 +89,12 @@ class SpectrooMainWindow(QMainWindow):
             "dark_loaded": bool(dark_path and __import__("os").path.exists(dark_path)),
             "flat_loaded": bool(flat_path and __import__("os").path.exists(flat_path))
         })
+
+        # Setup CPU temperature monitoring timer
+        self.temp_timer = QTimer(self)
+        self.temp_timer.timeout.connect(self._update_cpu_temp)
+        self.temp_timer.start(5000)
+        self._update_cpu_temp()
 
     def _connect_signals(self) -> None:
         self.control_panel.mode_changed.connect(self._on_mode_changed)
@@ -388,3 +395,7 @@ class SpectrooMainWindow(QMainWindow):
         self.save_spectrum()
         if self.history_panel:
             self.history_panel.refresh()
+
+    def _update_cpu_temp(self) -> None:
+        temp = get_cpu_temp_c()
+        self.status_bar.update_status({"cpu_temp": temp})

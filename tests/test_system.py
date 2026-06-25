@@ -2,8 +2,9 @@ import sys
 import os
 import logging
 import subprocess
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import pytest
+
 
 from spectroo.system.boot_detect import detect_boot_mode, setup_logging
 from spectroo.system.shutdown import request_shutdown
@@ -91,3 +92,71 @@ def test_run_desktop_and_run_web_exist():
     assert callable(main_module.run_desktop)
     assert hasattr(main_module, "run_web")
     assert callable(main_module.run_web)
+
+
+# 9. test_get_cpu_temp_sysfs_success
+@patch("os.path.exists", return_value=True)
+@patch("builtins.open", new_callable=mock_open, read_data="45200\n")
+def test_get_cpu_temp_sysfs_success(mock_file, mock_exists):
+    from spectroo.system.temp import get_cpu_temp_c
+    temp = get_cpu_temp_c(bypass_cache=True)
+    assert temp == 45.2
+    mock_exists.assert_called_once_with("/sys/class/thermal/thermal_zone0/temp")
+    mock_file.assert_called_once_with("/sys/class/thermal/thermal_zone0/temp", "r", encoding="utf-8")
+
+
+# 10. test_get_cpu_temp_sysfs_missing_falls_to_vcgencmd
+@patch("os.path.exists", return_value=False)
+@patch("subprocess.run")
+def test_get_cpu_temp_sysfs_missing_falls_to_vcgencmd(mock_run, mock_exists):
+    from spectroo.system.temp import get_cpu_temp_c
+    mock_completed = MagicMock()
+    mock_completed.returncode = 0
+    mock_completed.stdout = "temp=48.5'C\n"
+    mock_run.return_value = mock_completed
+
+    temp = get_cpu_temp_c(bypass_cache=True)
+    assert temp == 48.5
+    mock_exists.assert_called_once()
+    mock_run.assert_called_once_with(["vcgencmd", "measure_temp"], capture_output=True, text=True, check=True)
+
+
+# 11. test_get_cpu_temp_sysfs_oserror_falls_to_vcgencmd
+@patch("os.path.exists", return_value=True)
+@patch("builtins.open", side_effect=OSError("Read error"))
+@patch("subprocess.run")
+def test_get_cpu_temp_sysfs_oserror_falls_to_vcgencmd(mock_run, mock_file, mock_exists):
+    from spectroo.system.temp import get_cpu_temp_c
+    mock_completed = MagicMock()
+    mock_completed.returncode = 0
+    mock_completed.stdout = "temp=52.1'C\n"
+    mock_run.return_value = mock_completed
+
+    temp = get_cpu_temp_c(bypass_cache=True)
+    assert temp == 52.1
+    mock_exists.assert_called_once()
+    mock_run.assert_called_once_with(["vcgencmd", "measure_temp"], capture_output=True, text=True, check=True)
+
+
+# 12. test_get_cpu_temp_both_fail
+@patch("os.path.exists", return_value=False)
+@patch("subprocess.run", side_effect=FileNotFoundError)
+def test_get_cpu_temp_both_fail(mock_run, mock_exists):
+    from spectroo.system.temp import get_cpu_temp_c
+    temp = get_cpu_temp_c(bypass_cache=True)
+    assert temp is None
+
+
+# 13. test_get_cpu_temp_vcgencmd_malformed
+@patch("os.path.exists", return_value=False)
+@patch("subprocess.run")
+def test_get_cpu_temp_vcgencmd_malformed(mock_run, mock_exists):
+    from spectroo.system.temp import get_cpu_temp_c
+    mock_completed = MagicMock()
+    mock_completed.returncode = 0
+    mock_completed.stdout = "malformed output 12345\n"
+    mock_run.return_value = mock_completed
+
+    temp = get_cpu_temp_c(bypass_cache=True)
+    assert temp is None
+

@@ -6,6 +6,7 @@ from spectroo.core.exceptions import CameraNotFoundError
 from spectroo.dsp.pipeline import run_pipeline
 from spectroo.core.calibration import apply_calibration, PolynomialCalibration
 from spectroo.dsp.peaks import find_spectrum_peaks
+from spectroo.system.temp import get_cpu_temp_c
 
 router = APIRouter()
 
@@ -91,7 +92,8 @@ async def live_stream(websocket: WebSocket):
             websocket.app.state.current_frame = {
                 "wavelengths": wavelengths.tolist(),
                 "intensities": intensities.tolist(),
-                "peaks": peaks
+                "peaks": peaks,
+                "cpu_temp": get_cpu_temp_c()
             }
 
             await websocket.send_json(websocket.app.state.current_frame)

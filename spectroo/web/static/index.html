@@ -241,6 +241,7 @@
         <span id="calib-status" class="status-field">Calibration: Uncalibrated</span>
         <span id="dark-status" class="status-field">Dark Frame: Not Loaded</span>
         <span id="peaks-status" class="status-field">Peaks: None</span>
+        <span id="temp-status" class="status-field">CPU Temp: --°C</span>
         <span class="status-stretch"></span>
     </div>
 
@@ -864,6 +865,14 @@
             if (status.dark_loaded !== undefined) {
                 document.getElementById('dark-status').innerText = `Dark Frame: ${status.dark_loaded ? 'Loaded' : 'Not Loaded'}`;
             }
+            if (status.cpu_temp !== undefined) {
+                const tempEl = document.getElementById('temp-status');
+                if (status.cpu_temp !== null) {
+                    tempEl.innerText = `CPU Temp: ${status.cpu_temp.toFixed(1)}°C`;
+                } else {
+                    tempEl.innerText = 'CPU Temp: --°C';
+                }
+            }
         }
 
         function updatePeaksStatus(peaks, calibrated) {
@@ -1034,6 +1043,16 @@
                 // Check calibration status and update peaks label
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
                 updatePeaksStatus(data.peaks, isCalibrated);
+
+                // Update CPU Temp from WebSocket live frame
+                if (data.cpu_temp !== undefined) {
+                    const tempEl = document.getElementById('temp-status');
+                    if (data.cpu_temp !== null) {
+                        tempEl.innerText = `CPU Temp: ${data.cpu_temp.toFixed(1)}°C`;
+                    } else {
+                        tempEl.innerText = 'CPU Temp: --°C';
+                    }
+                }
             };
             
             ws.onclose = () => {
@@ -1149,6 +1168,13 @@
         exportCsvBtn.addEventListener('click', () => {
             window.location.href = `/api/export/current?format=csv`;
         });
+
+        // Periodic polling for status when not streaming
+        setInterval(() => {
+            if (!streamingActive) {
+                fetchStatus();
+            }
+        }, 5000);
 
     </script>
 </body>
