@@ -45,6 +45,11 @@ The Spectroo v3 application is organized into modular directories separating the
   Persistent storage and serialization.
   - **`db.py`**: Interacts with the SQLite database, handling connection creation, schema initialization, inserting records, retrieving historical data, and enforcing a maximum FIFO database size limit.
   - **`export.py`**: Exports records to raw JSON formats or tab-delimited CSV formats.
+- **`spectroo/system/`**
+  System utilities for deployment diagnostics and operations.
+  - **`boot_detect.py`**: Runs hardware boot mode detection checking for DSI and HDMI screens.
+  - **`shutdown.py`**: Requests a safe system shutdown using `sudo shutdown -h now`.
+  - **`temp.py`**: Provides `get_cpu_temp_c()`, reading CPU temperature from `/sys/class/thermal/thermal_zone0/temp` with fallback to `vcgencmd measure_temp`. Results cached for 2 seconds to avoid overhead during high-frequency polling (e.g. live WebSocket streaming).
 - **`spectroo/ui/`**
   The desktop graphical interface.
   - **`main_window.py`**: The parent PyQt5 window that holds the graph and control panels, manages multi-threaded worker creation, and routes UI actions to the pipeline.
@@ -62,9 +67,9 @@ The Spectroo v3 application is organized into modular directories separating the
 - **`spectroo/web/`**
   Hosts the standalone hotspot interface.
   - **`app.py`**: Initializes the FastAPI server.
-  - **`routes.py`**: Serves static HTML pages (dashboard, history, dev tools).
+  - **`routes.py`**: Serves static HTML pages, dashboard, history, dev tools, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout).
   - **`routes_dev.py`**: Unimplemented placeholder for developer REST actions.
-  - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs to browser clients.
+  - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs and dynamic stats (including `cpu_temp`) to browser clients.
   - **`static/`**: Houses CSS styling, Javascript logic, and raw HTML templates for browser rendering.
 
 ---
@@ -441,7 +446,7 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **130 automated tests** inside the `tests/` directory.
+The test suite contains **135 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -465,8 +470,8 @@ The test suite contains **130 automated tests** inside the `tests/` directory.
   Tests boot calibration loading and config parameter checks.
 - **`test_storage.py` (14 tests)**
   Tests SQLite database creations, record insertions/queries, and CSV/JSON exports.
-- **`test_system.py` (8 tests)**
-  Tests platform detection and hardware diagnostic scripts.
+- **`test_system.py` (13 tests)**
+  Tests platform detection, hardware diagnostic scripts, and CPU temperature reading fallbacks.
 - **`test_ui_widgets.py` (14 tests)**
   Verifies button behaviors, layout spacing, and control panel logging functions.
 - **`test_web.py` (11 tests)**
