@@ -252,7 +252,8 @@
         let fillMode = 'color'; // 'color' | 'plain'
         let showPeaks = true;
         let lastRecordId = null;
-        let liveMode = false;
+        let selectedMode = 'single';
+        let streamingActive = false;
         
         let ws = null;
         let frameCount = 0;
@@ -893,10 +894,12 @@
                 const data = await res.json();
                 updateStatusBar(data);
                 if (data.live_active) {
-                    setLiveUI(true);
+                    setSelectedMode('live');
+                    setStreamingState(true);
                     connectWebSocket();
                 } else {
-                    setLiveUI(false);
+                    setSelectedMode('single');
+                    setStreamingState(false);
                 }
             } catch (err) {
                 console.error("Error fetching status:", err);
@@ -915,39 +918,60 @@
         const exportJsonBtn = document.getElementById('export-json-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
 
-        function setLiveUI(active) {
-            liveMode = active;
-            if (active) {
+        function setSelectedMode(mode) {
+            selectedMode = mode;
+            if (mode === 'live') {
                 modeSingleBtn.classList.remove('active');
                 modeLiveBtn.classList.add('active');
-                captureBtn.disabled = true;
-                stopBtn.disabled = false;
+                captureBtn.innerText = 'Start';
+                captureBtn.disabled = streamingActive;
+                stopBtn.disabled = !streamingActive;
             } else {
                 modeSingleBtn.classList.add('active');
                 modeLiveBtn.classList.remove('active');
-                captureBtn.disabled = false;
+                captureBtn.innerText = 'Capture';
+                captureBtn.disabled = streamingActive;
                 stopBtn.disabled = true;
             }
         }
 
+        function setStreamingState(active) {
+            streamingActive = active;
+            if (selectedMode === 'live') {
+                captureBtn.disabled = active;
+                stopBtn.disabled = !active;
+            } else {
+                captureBtn.disabled = active;
+                stopBtn.disabled = true;
+            }
+            if (!active) {
+                document.getElementById('fps-status').innerText = 'FPS: 0.0';
+            }
+        }
+
         modeSingleBtn.addEventListener('click', async () => {
-            if (liveMode) {
+            if (selectedMode === 'single') return;
+            if (streamingActive) {
                 await stopLive();
             }
-            setLiveUI(false);
+            setSelectedMode('single');
         });
 
         modeLiveBtn.addEventListener('click', async () => {
-            if (!liveMode) {
-                setLiveUI(true);
-                await startLive();
+            if (selectedMode === 'live') return;
+            if (streamingActive) {
+                await stopLive();
             }
+            setSelectedMode('live');
         });
 
         async function startLive() {
             try {
                 const res = await fetch('/api/live/start', { method: 'POST' });
-                connectWebSocket();
+                if (res.ok) {
+                    setStreamingState(true);
+                    connectWebSocket();
+                }
             } catch (err) {
                 console.error("Error starting live mode:", err);
             }
@@ -960,8 +984,7 @@
                     ws = null;
                 }
                 await fetch('/api/live/stop', { method: 'POST' });
-                document.getElementById('fps-status').innerText = 'FPS: 0.0';
-                setLiveUI(false);
+                setStreamingState(false);
             } catch (err) {
                 console.error("Error stopping live mode:", err);
             }
@@ -1015,7 +1038,7 @@
             
             ws.onclose = () => {
                 ws = null;
-                setLiveUI(false);
+                setStreamingState(false);
             };
             
             ws.onerror = (err) => {
@@ -1026,6 +1049,10 @@
 
         // Single capture
         captureBtn.addEventListener('click', async () => {
+            if (selectedMode === 'live') {
+                await startLive();
+                return;
+            }
             captureBtn.disabled = true;
             captureBtn.innerText = 'Capturing...';
             try {
