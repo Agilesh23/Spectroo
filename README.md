@@ -69,7 +69,7 @@ When developer mode is active (default is enabled, use `--no-dev` to disable), d
 - `Ctrl+Shift+Q`: Captures a **Dark-frame Reference** profile, saving it to `data/dark_frame.npy` (or path configured in `config.toml`).
 
 ### Headless Web Interface
-- `Ctrl+Shift+D`: Prompts for the developer password to access the **Developer Tools & Calibration** modal. Hitting "Calibration" opens a dedicated two-panel wavelength calibration modal (`#dev-calib-modal`) with a live spectrum canvas on the left and point mapping inputs on the right. Point configurations are held in-memory during the session (no localStorage persistence), and running a successful fit applies the calibration instantly to `config.toml` on the backend. See `docs/ARCHITECTURE_DETAILED.md` Section 3 for details.
+- `Ctrl+Shift+Alt+D`: Prompts for the developer password to access the **Developer Tools & Calibration** modal. Hitting "Calibration" opens a dedicated two-panel wavelength calibration modal (`#dev-calib-modal`) with a live spectrum canvas on the left and point mapping inputs on the right. Point configurations are held in-memory during the session (no localStorage persistence), and running a successful fit applies the calibration instantly to `config.toml` on the backend. See `docs/ARCHITECTURE_DETAILED.md` Section 3 for details.
   *Note: To prevent hotkey collision and ensure clean resource releasing in browser environments, other actions (Camera Preview, Dark/Flat capture) are accessed via dedicated buttons inside the modal rather than keyboard shortcuts.*
 
 ## ⚙️ Configuration Reference (`config.toml`)

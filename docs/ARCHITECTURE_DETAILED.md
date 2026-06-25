@@ -324,10 +324,10 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 - **Web Inspection Tooltip Relocation**: The plot canvas hover inspector tooltip was moved from the bottom-right to a static position in the top-left of the chart area (`margin.left + 8`, `margin.top + 8`). The entire inspection box has been scaled $30\%$ bigger, including box coordinates, text padding, and font-size (`12px Arial`).
 - **Web System Controls**: The sidebar `.control-panel` hosts a `SYSTEM` controls section containing a `Shutdown` button (`POST /api/shutdown`) and a `Restart System` button (`POST /api/restart`). The restart button resets the application state (`live_active`, `ws_client_connected`, `current_frame`) and closes any active developer preview cameras, bringing the server back to a clean startup condition.
 - **Live-to-Single Poll Sync**: The web frontend periodic status polling matches current streaming state, preventing polling intervals from reverting the mode selector away from a pending selection.
-- **Developer Password Gate & Authentication**: The standalone web frontend gates developer entry under a session validation flow. Hitting `Ctrl+Shift+D` invokes a password overlay prompt. The frontend validates the password against `/api/dev/auth` and caches the authenticated state in the session variable `devPassword` before displaying the developer calibration modal.
+- **Developer Password Gate & Authentication**: The standalone web frontend gates developer entry under a session validation flow. Hitting `Ctrl+Shift+Alt+D` invokes a password overlay prompt. The frontend validates the password against `/api/dev/auth` and caches the authenticated state in the session variable `devPassword` before displaying the developer calibration modal.
 - **Color Preview Diagnostic Modal**: The camera preview diagnostic window fetches color RGB frame arrays directly from the endpoint `/api/dev/preview` (`channels: 3`). The client-side renderer maps these channels onto `dev-preview-canvas` via HTML5 `ImageData` RGBA values, ensuring a full-color alignment preview.
 - **Live Calibration Modal Spectrum Canvas**: Moved out of the main developer tools modal into a dedicated wavelength calibration modal (`#dev-calib-modal`), displaying a live spectrum canvas polling `/api/current_frame` at 500ms alongside point-mapping tables. See Section 3 for workflow details.
-- **Web Shortcut Refactoring**: Web shortcuts are simplified to reduce overlap. All keyboard hotkeys except `Ctrl+Shift+D` are removed. Other dev commands (such as Raw Camera Preview, Dark Frame Capture, Flat Field Capture) are initiated through explicit UI buttons within the developer dashboard views.
+- **Web Shortcut Refactoring**: Web shortcuts are simplified to reduce overlap. All keyboard hotkeys except `Ctrl+Shift+Alt+D` are removed. Other dev commands (such as Raw Camera Preview, Dark Frame Capture, Flat Field Capture) are initiated through explicit UI buttons within the developer dashboard views.
 
 ---
 
@@ -456,7 +456,7 @@ In `main.py`, CLI parsing decides the runtime flow:
 - `--mode auto` (default): Runs display interface detection to select `"desktop"` or `"web"` mode dynamically.
 - `--mode desktop`: Forces PyQt5 GUI instantiation and execution.
 - `--mode web`: Forces FastAPI/Uvicorn server binding.
-- `--dev` / `--no-dev`: Enables or disables developer mode (default: True). Enables developer keyboard shortcuts (`Ctrl+Shift+D` calibration, `Ctrl+Shift+Q` dark frame, `Ctrl+Shift+F` flat field).
+- `--dev` / `--no-dev`: Enables or disables developer mode (default: True). Enables developer keyboard shortcuts (`Ctrl+Shift+Alt+D` web / `Ctrl+Shift+D` desktop calibration, `Ctrl+Shift+Q` dark frame, `Ctrl+Shift+F` flat field).
 
 ---
 

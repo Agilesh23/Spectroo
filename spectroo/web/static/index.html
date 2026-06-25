@@ -2119,7 +2119,7 @@
 
         // Global key event shortcuts
         window.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey) {
+            if (e.ctrlKey && e.shiftKey && e.altKey) {
                 const key = e.key.toUpperCase();
                 if (key === 'D') {
                     e.preventDefault();
