@@ -75,10 +75,10 @@ thumbnail_storage = "file_path"     # ASSUMPTION — vs "blob"
 shutdown_pin = 3                    # TBD — confirm during build
 
 [calibration]
-coefficients = []
-degree = 3
-n_points = 0
 
+coefficients = [-1.467703e-18, 2.500000e-01, 3.750000e+02]
+degree = 2
+n_points = 3
 [storage]
 dark_frame_path = "data/dark_frame.npy"
 flat_field_path = "data/response_flat.json"

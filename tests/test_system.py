@@ -160,3 +160,19 @@ def test_get_cpu_temp_vcgencmd_malformed(mock_run, mock_exists):
     temp = get_cpu_temp_c(bypass_cache=True)
     assert temp is None
 
+
+def test_cpu_temp_warning_boundary_cases():
+    """
+    Verifies is_cpu_temp_warning with boundary cases:
+    - exactly 80.0 (True)
+    - just below 79.9 (False)
+    - just above 80.1 (True)
+    - None (False)
+    """
+    from spectroo.system.temp import is_cpu_temp_warning
+    
+    assert is_cpu_temp_warning(80.0) is True
+    assert is_cpu_temp_warning(79.9) is False
+    assert is_cpu_temp_warning(80.1) is True
+    assert is_cpu_temp_warning(None) is False
+

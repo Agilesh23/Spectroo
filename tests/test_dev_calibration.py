@@ -16,6 +16,23 @@ if app is None:
     app = QApplication([])
 
 
+@pytest.fixture(autouse=True)
+def isolate_calibration_state(tmp_path):
+    orig_init = CalibrationWindow.__init__
+    temp_file = tmp_path / "calibration_state.json"
+    
+    def patched_init(self, *args, **kwargs):
+        orig_init(self, *args, **kwargs)
+        if "storage" not in self._config or "calibration_state_path" not in self._config["storage"]:
+            self._state_path = str(temp_file)
+            self._load_state()
+            self.update_status_label()
+            
+    CalibrationWindow.__init__ = patched_init
+    yield
+    CalibrationWindow.__init__ = orig_init
+
+
 @pytest.fixture
 def cal_window():
     config = {
@@ -277,3 +294,143 @@ def test_update_spectrum_2d_dark_with_nonzero_tilt(tmp_path):
     assert np.mean(win._current_intensities) < np.mean(win_no_dark._current_intensities), (
         "2D dark subtraction with nonzero tilt should lower mean intensity"
     )
+
+
+def test_calibration_window_persistence(tmp_path):
+    """
+    Verifies that points and fit result are persisted to JSON and restored upon reopen.
+    """
+    state_file = tmp_path / "calibration_state.json"
+    
+    config = {
+        "optics": {"center_y": 100, "band_half_height": 25, "flip_spectrum": False},
+        "calibration": {"min_points": 2, "degree_low": 2, "degree_high": 3, "degree_threshold_points": 4},
+        "storage": {"calibration_state_path": str(state_file)}
+    }
+    
+    fs = MockFrameSource()
+    win1 = CalibrationWindow(config, fs)
+    win1.timer.stop()
+    
+    # Add points
+    pt1 = CalibrationPoint(100, 450.0)
+    pt1.pixel = 100
+    pt1.wavelength = 450.0
+    pt2 = CalibrationPoint(200, 550.0)
+    pt2.pixel = 200
+    pt2.wavelength = 550.0
+    
+    win1._points = [pt1, pt2]
+    win1.canvas.set_calibration_points(win1._points)
+    win1.table.clear_points()
+    win1.table.add_point(pt1)
+    win1.table.add_point(pt2)
+    
+    # Run fit
+    win1._on_run_fit()
+    
+    assert win1._fit_result is not None
+    assert win1._check_stale() is False
+    
+    # Open window 2 with same config and state path
+    win2 = CalibrationWindow(config, fs)
+    win2.timer.stop()
+    
+    assert len(win2._points) == 2
+    assert win2._points[0].pixel == 100
+    assert win2._points[0].wavelength == 450.0
+    assert win2._points[1].pixel == 200
+    assert win2._points[1].wavelength == 550.0
+    
+    assert win2._fit_result is not None
+    assert len(win2._fit_result.coefficients) == 2
+    assert win2._fit_result.rms_nm == win1._fit_result.rms_nm
+    assert win2._check_stale() is False
+    assert "Stale" not in win2.status_label.text()
+
+
+def test_calibration_window_stale_fit(tmp_path):
+    """
+    Verifies that changing points after a fit marks the fit as stale.
+    """
+    state_file = tmp_path / "calibration_state.json"
+    
+    config = {
+        "optics": {"center_y": 100, "band_half_height": 25, "flip_spectrum": False},
+        "calibration": {"min_points": 2, "degree_low": 2, "degree_high": 3, "degree_threshold_points": 4},
+        "storage": {"calibration_state_path": str(state_file)}
+    }
+    
+    fs = MockFrameSource()
+    win = CalibrationWindow(config, fs)
+    win.timer.stop()
+    
+    # Add points and fit
+    pt1 = CalibrationPoint(100, 450.0)
+    pt1.pixel = 100
+    pt1.wavelength = 450.0
+    pt2 = CalibrationPoint(200, 550.0)
+    pt2.pixel = 200
+    pt2.wavelength = 550.0
+    
+    win._points = [pt1, pt2]
+    win._on_run_fit()
+    
+    assert win._check_stale() is False
+    assert "Stale" not in win.status_label.text()
+    
+    # Add a third point
+    pt3 = CalibrationPoint(300, 650.0)
+    pt3.pixel = 300
+    pt3.wavelength = 650.0
+    win._points.append(pt3)
+    
+    win.update_status_label()
+    assert win._check_stale() is True
+    assert "Stale" in win.status_label.text()
+    
+    # Remove the third point to restore the original state
+    win._points.pop()
+    win.update_status_label()
+    assert win._check_stale() is False
+    assert "Stale" not in win.status_label.text()
+
+
+def test_apply_blocked_when_stale(monkeypatch, cal_window):
+    """
+    Verifies that calling _on_apply() when the fit is stale shows a warning dialog,
+    does not write to the config, and does not accept the dialog.
+    """
+    # Mock warning box
+    called_warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda parent, title, text: called_warnings.append(text))
+
+    # Add points and run fit
+    pt1 = CalibrationPoint(100, 450.0)
+    pt1.pixel = 100
+    pt1.wavelength = 450.0
+    pt2 = CalibrationPoint(200, 550.0)
+    pt2.pixel = 200
+    pt2.wavelength = 550.0
+    
+    cal_window._points = [pt1, pt2]
+    cal_window._on_run_fit()
+    
+    assert cal_window._check_stale() is False
+    
+    # Add a point to make it stale
+    pt3 = CalibrationPoint(300, 650.0)
+    pt3.pixel = 300
+    pt3.wavelength = 650.0
+    cal_window._points.append(pt3)
+    
+    assert cal_window._check_stale() is True
+
+    # Try applying
+    cal_window._on_apply()
+
+    # Verify warning was called and it blocked the write path
+    assert len(called_warnings) == 1
+    assert "stale" in called_warnings[0].lower()
+
+

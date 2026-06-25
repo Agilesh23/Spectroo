@@ -169,10 +169,6 @@ def test_control_panel_buttons_logging(caplog):
         assert any("Button clicked: Save Chart" in r.message for r in caplog.records)
         caplog.clear()
 
-        # 9. History
-        panel.history_btn.click()
-        assert any("Button clicked: History" in r.message for r in caplog.records)
-        caplog.clear()
 
         # 10. Shutdown
         panel.shutdown_btn.click()

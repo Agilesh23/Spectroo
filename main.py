@@ -41,7 +41,7 @@ def run_web(config: dict, dev: bool = False) -> None:
     """Launch the FastAPI web server."""
     import uvicorn
     from spectroo.web.app import create_app
-    web_app = create_app(config)
+    web_app = create_app(config, config_path=CONFIG_PATH)
     host = config.get("web", {}).get("host", "0.0.0.0")
     port = config.get("web", {}).get("port", 8000)
     logger.info(f"Starting web server on {host}:{port}")

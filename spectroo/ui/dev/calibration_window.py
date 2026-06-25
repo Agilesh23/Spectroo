@@ -461,6 +461,11 @@ class CalibrationWindow(QDialog):
         self.table.point_deleted.connect(self._delete_point)
         right_layout.addWidget(self.table, stretch=1)
 
+        self.status_label = QLabel(self)
+        self.status_label.setWordWrap(True)
+        self.status_label.setStyleSheet("font-size: 12px; color: #4b5563; font-weight: bold;")
+        right_layout.addWidget(self.status_label)
+
         # Control button block
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(8)
@@ -497,6 +502,23 @@ class CalibrationWindow(QDialog):
 
         right_layout.addLayout(btn_layout)
         main_layout.addLayout(right_layout, stretch=1)
+
+        # Locate config.toml's directory and resolve the calibration_state_path
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+        config_dir = base_dir
+        for _ in range(5):
+            if os.path.exists(os.path.join(config_dir, "config.toml")):
+                break
+            config_dir = os.path.dirname(config_dir)
+        storage_cfg = self._config.get("storage", {})
+        rel_path = storage_cfg.get("calibration_state_path", "data/calibration_state.json")
+        self._state_path = os.path.join(config_dir, rel_path)
+
+        # Load last state if exists
+        self._load_state()
+
+        # Update label initial status
+        self.update_status_label()
 
         # Refresh timer driving _update_spectrum
         self.timer = QTimer(self)
@@ -573,10 +595,24 @@ class CalibrationWindow(QDialog):
 
             self._current_intensities = intensities
             self.canvas.set_spectrum(intensities)
+            if self._fit_result is not None:
+                n_pixels = len(intensities)
+                pixel_indices = np.arange(n_pixels)
+                w_fit = np.polyval(self._fit_result.coefficients, pixel_indices)
+                self.canvas.set_fit_curve(w_fit)
+            else:
+                self.canvas.set_fit_curve(None)
         except Exception:
             mock_data = self._mock_spectrum()
             self._current_intensities = mock_data
             self.canvas.set_spectrum(mock_data)
+            if self._fit_result is not None:
+                n_pixels = len(mock_data)
+                pixel_indices = np.arange(n_pixels)
+                w_fit = np.polyval(self._fit_result.coefficients, pixel_indices)
+                self.canvas.set_fit_curve(w_fit)
+            else:
+                self.canvas.set_fit_curve(None)
 
     def _mock_spectrum(self) -> np.ndarray:
         x = np.arange(512)
@@ -587,6 +623,159 @@ class CalibrationWindow(QDialog):
         noise = np.random.normal(0, 10, 512)
         intensity = p1 + p2 + p3 + p4 + noise + 100.0
         return np.clip(intensity, 0, 4095)
+
+    def _save_state(self) -> None:
+        import json
+        import os
+        try:
+            os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
+            points_data = [
+                {
+                    "pixel": int(getattr(p, "pixel_index", getattr(p, "pixel", 0))),
+                    "wavelength": float(getattr(p, "known_wavelength_nm", getattr(p, "wavelength", 0.0)))
+                }
+                for p in self._points
+            ]
+            fit_result_data = None
+            fit_points_data = None
+            if self._fit_result is not None:
+                fit_result_data = {
+                    "degree": int(self._fit_result.degree),
+                    "rms_nm": float(self._fit_result.rms_nm),
+                    "coefficients": [float(c) for c in self._fit_result.coefficients],
+                    "residuals_nm": getattr(self._fit_result, "residuals_nm", None)
+                }
+                fitted_points = getattr(self._fit_result, "fitted_points", self._points)
+                fit_points_data = [
+                    {
+                        "pixel": int(getattr(p, "pixel_index", getattr(p, "pixel", 0))),
+                        "wavelength": float(getattr(p, "known_wavelength_nm", getattr(p, "wavelength", 0.0)))
+                    }
+                    for p in fitted_points
+                ]
+            state = {
+                "points": points_data,
+                "fit_result": fit_result_data,
+                "fit_points": fit_points_data
+            }
+            with open(self._state_path, "w", encoding="utf-8") as f:
+                json.dump(state, f, indent=2)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("spectroo")
+            logger.error(f"Failed to save calibration state: {e}")
+
+    def _load_state(self) -> None:
+        import json
+        import os
+        # Fall back to empty state
+        self._points = []
+        self._fit_result = None
+        self.canvas.set_calibration_points([])
+        self.table.clear_points()
+        self.canvas.set_fit_curve(None)
+
+        if not os.path.exists(self._state_path):
+            return
+
+        try:
+            with open(self._state_path, "r", encoding="utf-8") as f:
+                state = json.load(f)
+
+            # Restore points
+            points_data = state.get("points", [])
+            for p in points_data:
+                pt = CalibrationPoint(pixel_index=p["pixel"], known_wavelength_nm=p["wavelength"])
+                pt.pixel = p["pixel"]
+                pt.wavelength = p["wavelength"]
+                self._points.append(pt)
+
+            self.canvas.set_calibration_points(self._points)
+            self.table.clear_points()
+            for pt in self._points:
+                self.table.add_point(pt)
+
+            # Restore fit result
+            fit_result_data = state.get("fit_result")
+            fit_points_data = state.get("fit_points")
+
+            if fit_result_data is not None:
+                from spectroo.core.calibration import PolynomialCalibration
+                fitted_points = []
+                if fit_points_data is not None:
+                    for p in fit_points_data:
+                        pt = CalibrationPoint(pixel_index=p["pixel"], known_wavelength_nm=p["wavelength"])
+                        pt.pixel = p["pixel"]
+                        pt.wavelength = p["wavelength"]
+                        fitted_points.append(pt)
+
+                self._fit_result = PolynomialCalibration(
+                    coefficients=fit_result_data["coefficients"],
+                    degree=fit_result_data["degree"],
+                    rms_nm=fit_result_data["rms_nm"]
+                )
+                self._fit_result.residuals_nm = fit_result_data.get("residuals_nm")
+                self._fit_result.fitted_points = fitted_points
+
+                n_pixels = len(self._current_intensities) if self._current_intensities is not None else 512
+                pixel_indices = np.arange(n_pixels)
+                w_fit = np.polyval(self._fit_result.coefficients, pixel_indices)
+                self.canvas.set_fit_curve(w_fit)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("spectroo")
+            logger.error(f"Failed to load calibration state, falling back to empty: {e}")
+            # Ensure state is clean
+            self._points = []
+            self._fit_result = None
+            self.canvas.set_calibration_points([])
+            self.table.clear_points()
+            self.canvas.set_fit_curve(None)
+
+    def _check_stale(self) -> bool:
+        if self._fit_result is None:
+            return True
+        fitted_points = getattr(self._fit_result, "fitted_points", None)
+        if fitted_points is None:
+            return True
+        if len(self._points) != len(fitted_points):
+            return True
+        for p1, p2 in zip(self._points, fitted_points):
+            px1 = getattr(p1, "pixel_index", getattr(p1, "pixel", 0))
+            wl1 = getattr(p1, "known_wavelength_nm", getattr(p1, "wavelength", 0.0))
+            px2 = getattr(p2, "pixel_index", getattr(p2, "pixel", 0))
+            wl2 = getattr(p2, "known_wavelength_nm", getattr(p2, "wavelength", 0.0))
+            if px1 != px2 or not math.isclose(wl1, wl2, abs_tol=1e-5):
+                return True
+        return False
+
+    def update_status_label(self) -> None:
+        if self._fit_result is None:
+            self.status_label.setText("Enter at least 2 mapping pairs and click Fit.")
+            self.status_label.setStyleSheet("font-size: 12px; color: #4b5563; font-weight: bold;")
+            return
+
+        is_stale = self._check_stale()
+        prefix = "Stale — pairs changed since last fit:\n" if is_stale else ""
+        
+        degree = getattr(self._fit_result, "degree", 0)
+        rms = getattr(self._fit_result, "rms_nm", 0.0)
+        coefs = getattr(self._fit_result, "coefficients", [])
+        
+        coefs_str = ", ".join(f"{c:.4e}" for c in coefs)
+        
+        status_text = (
+            f"{prefix}Fit Succeeded!\n"
+            f"Degree: {degree}\n"
+            f"RMS: {rms:.4f} nm\n"
+            f"Coefficients: [{coefs_str}]"
+        )
+        self.status_label.setText(status_text)
+        
+        if is_stale:
+            self.status_label.setStyleSheet("font-size: 12px; color: #b91c1c; font-weight: bold;")
+        else:
+            self.status_label.setStyleSheet("font-size: 12px; color: #16a34a; font-weight: bold;")
 
     def _on_canvas_click(self, pixel: int) -> None:
         value, ok = QInputDialog.getDouble(
@@ -606,9 +795,8 @@ class CalibrationWindow(QDialog):
             self.canvas.set_calibration_points(self._points)
             self.table.add_point(point)
 
-            # Invalidate any stored fit
-            self._fit_result = None
-            self.canvas.set_fit_curve(None)
+            self._save_state()
+            self.update_status_label()
 
     def _on_run_fit(self) -> None:
         try:
@@ -632,8 +820,18 @@ class CalibrationWindow(QDialog):
             w_fit = np.polyval(result.coefficients, pixel_indices)
             result.wavelengths = w_fit
 
+            import copy
+            result.fitted_points = copy.deepcopy(self._points)
+            result.residuals_nm = [
+                float(np.polyval(result.coefficients, getattr(p, "pixel_index", getattr(p, "pixel", 0))) - getattr(p, "known_wavelength_nm", getattr(p, "wavelength", 0.0)))
+                for p in self._points
+            ]
+
             self._fit_result = result
             self.canvas.set_fit_curve(result.wavelengths)
+
+            self._save_state()
+            self.update_status_label()
         except CalibrationError as e:
             QMessageBox.warning(self, "Calibration Warning", str(e))
         except Exception as e:
@@ -645,13 +843,16 @@ class CalibrationWindow(QDialog):
             self.canvas.set_calibration_points(self._points)
             self.table.remove_last()
 
-            # Invalidate current fit
-            self._fit_result = None
-            self.canvas.set_fit_curve(None)
+            self._save_state()
+            self.update_status_label()
 
     def _on_apply(self) -> None:
         if self._fit_result is None:
             QMessageBox.warning(self, "No Fit Active", "A valid fitting polynomial must be generated before applying.")
+            return
+
+        if self._check_stale():
+            QMessageBox.warning(self, "Stale Fit Warning", "The current fit is stale (calibration points have changed since last fit). Please run fit again.")
             return
 
         # Reversed coefficients from high-to-low to low-to-high order
@@ -749,9 +950,8 @@ class CalibrationWindow(QDialog):
         for pt in self._points:
             self.table.add_point(pt)
 
-        # Invalidate current fit
-        self._fit_result = None
-        self.canvas.set_fit_curve(None)
+        self._save_state()
+        self.update_status_label()
 
     def accept(self) -> None:
         self.timer.stop()

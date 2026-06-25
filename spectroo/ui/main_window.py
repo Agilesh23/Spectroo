@@ -106,7 +106,6 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.export_requested.connect(self._on_export)
         self.control_panel.save_chart_requested.connect(self._on_save_chart)
         self.control_panel.shutdown_requested.connect(self._on_shutdown)
-        self.control_panel.history_toggled.connect(self._on_history_toggled)
 
     def _on_mode_changed(self, mode: str) -> None:
         self.current_mode = mode
@@ -205,10 +204,6 @@ class SpectrooMainWindow(QMainWindow):
         self._on_stop()
         subprocess.run(["sudo", "shutdown", "-h", "now"])
 
-    def _on_history_toggled(self) -> None:
-        logger.info("Button clicked: History")
-        if self.history_panel:
-            self.history_panel._on_toggle()
 
     def closeEvent(self, event) -> None:
         self._on_stop()

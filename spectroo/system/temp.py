@@ -7,6 +7,17 @@ from typing import Optional
 _last_temp: Optional[float] = None
 _last_read_time: float = 0.0
 _cache_duration: float = 2.0  # seconds
+CPU_TEMP_WARN_THRESHOLD: float = 80.0
+
+
+def is_cpu_temp_warning(temp: Optional[float]) -> bool:
+    """
+    Returns True if the temperature is equal to or greater than the warning threshold,
+    False otherwise (or if temp is None).
+    """
+    if temp is None:
+        return False
+    return temp >= CPU_TEMP_WARN_THRESHOLD
 
 
 def get_cpu_temp_c(bypass_cache: bool = False) -> Optional[float]:

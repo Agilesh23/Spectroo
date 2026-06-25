@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel
 from spectroo.ui.theme import STATUS_BAR_HEIGHT
+from spectroo.system.temp import is_cpu_temp_warning
 
 
 class StatusBar(QWidget):
@@ -82,8 +83,15 @@ class StatusBar(QWidget):
         if "cpu_temp" in data:
             temp = data["cpu_temp"]
             if temp is not None:
-                self.temp_label.setText(f"CPU Temp: {temp:.1f}°C")
+                text = f"CPU Temp: {temp:.1f}°C"
+                if is_cpu_temp_warning(temp):
+                    text += " (WARNING: OVERHEAT)"
+                    self.temp_label.setStyleSheet("color: #cc0000; font-weight: bold;")
+                else:
+                    self.temp_label.setStyleSheet("")
+                self.temp_label.setText(text)
             else:
+                self.temp_label.setStyleSheet("")
                 self.temp_label.setText("CPU Temp: --°C")
 
         if "message" in data:

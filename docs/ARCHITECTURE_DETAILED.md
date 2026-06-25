@@ -49,14 +49,14 @@ The Spectroo v3 application is organized into modular directories separating the
   System utilities for deployment diagnostics and operations.
   - **`boot_detect.py`**: Runs hardware boot mode detection checking for DSI and HDMI screens.
   - **`shutdown.py`**: Requests a safe system shutdown using `sudo shutdown -h now`.
-  - **`temp.py`**: Provides `get_cpu_temp_c()`, reading CPU temperature from `/sys/class/thermal/thermal_zone0/temp` with fallback to `vcgencmd measure_temp`. Results cached for 2 seconds to avoid overhead during high-frequency polling (e.g. live WebSocket streaming).
-- **`spectroo/ui/`**
+  - **`temp.py`**: Provides `get_cpu_temp_c()`, reading CPU temperature from `/sys/class/thermal/thermal_zone0/temp` with fallback to `vcgencmd measure_temp` (results cached for 2 seconds). Also provides `is_cpu_temp_warning()` to check if the temperature exceeds the $80.0^\circ\text{C}$ safe operation threshold.
+- **`spectroo/ui/`****
   The desktop graphical interface.
   - **`main_window.py`**: The parent PyQt5 window that holds the graph and control panels, manages multi-threaded worker creation, and routes UI actions to the pipeline.
   - **`plot_widget.py`**: The custom QPainter-based visualization widget that draws the spectrum curve, gradient fill, peak tags, crosshairs, zoom/pan states, and secondary calibration axes without external plotting libraries.
   - **`control_panel.py`**: Holds controls for start/stop, live/single modes, exposure timing, baseline toggles, and shortcuts to dev utilities.
   - **`status_bar.py`**: Displays system state alerts (e.g., whether a dark frame is loaded or calibration is active) and highlights detected peak wavelengths.
-  - **`history_panel.py`**: Displays a sidebar lists of saved spectrum records for immediate loading and rendering.
+  - **`history_panel.py`**: (Note: The History button and layout have been removed in this version, disabling history sidebar functionality in desktop mode).
   - **`workers.py`**: Implements QThreads (`LivePipelineWorker`, `SingleAcquisitionWorker`, `DarkFrameWorker`, and `FlatFieldWorker`) to prevent blocking the GUI thread during long exposure runs, heavy DSP operations, or flat-field calibration captures.
   - **`theme.py`**: Standardizes fonts, color variables, borders, and paddings across all widgets.
 - **`spectroo/ui/dev/`**
@@ -68,8 +68,8 @@ The Spectroo v3 application is organized into modular directories separating the
   Hosts the standalone hotspot interface.
   - **`app.py`**: Initializes the FastAPI server.
   - **`routes.py`**: Serves static HTML pages, dashboard, history, dev tools, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout).
-  - **`routes_dev.py`**: Unimplemented placeholder for developer REST actions.
-  - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs and dynamic stats (including `cpu_temp`) to browser clients.
+  - **`routes_dev.py`**: Houses developer REST endpoints (raw camera preview, dark frame capture, flat field reference capture, least-squares calibration fitting). All endpoints require authentication via `Depends(verify_dev_password)`.
+  - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs and dynamic stats (including `cpu_temp` and `cpu_temp_warn`) to browser clients.
   - **`static/`**: Houses CSS styling, Javascript logic, and raw HTML templates for browser rendering.
 
 ---
@@ -233,12 +233,6 @@ coefs_low_to_high = list(self._fit_result.coefficients)
 
 ### Calibration UI Workflow
 ```
-[User clicks peaks in CalibrationCanvas] 
-                   │
-                   ▼
-[QInputDialog prompts for wavelength in nm]
-                   │
-                   ▼
 [Point added to CalibrationPointsTable list]
                    │
                    ▼
@@ -246,6 +240,11 @@ coefs_low_to_high = list(self._fit_result.coefficients)
                    │
                    ▼
 [Click "Apply & Close" -> Overwrites config.toml]
+
+### Persistence & Fit State Integrity
+- **Calibration State Cache**: Current mapping points and fit calculations are persisted to local storage at the path defined by `[storage].calibration_state_path` in `config.toml` (defaulting to `data/calibration_state.json`). Reopening the calibration dialog automatically restores the visual canvas, tables, and last successful RMS/coefficients.
+- **Stale Fit Checks**: The UI dynamically tracks modification state. If points are added, deleted, or undone in memory since the last fit execution, the dialog flags the fit as `"Stale"` (rendering in bold red) and disables application to config. Reverting the points clears the stale warning.
+- **Individual Point Deletion**: The developer can delete any coordinate pair inside the point list table individually, rather than being restricted to undoing the most recent point. Deletion immediately triggers a state cache write and recalculates fit staleness.
 ```
 
 ---
@@ -303,9 +302,15 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 
 ### Developer Views
 - **`CalibrationWindow`**
-  Allows live data plotting alongside an interactive points builder. Displays live pixel intensities, lets developers double-click peaks to input wavelengths, and runs `fit_calibration`. The live display (`_update_spectrum`, called every 200 ms via `QTimer`) now applies dark subtraction (via `load_dark_frame()` helper, with 2D→1D collapse using `apply_tilt_correction` for non-zero tilt) and baseline subtraction (gated on `dsp.baseline_enabled`, using the same `baseline_method/window/polyorder` config values as `run_pipeline`). Flat-field correction and Savitzky-Golay smoothing are intentionally omitted — calibration depends on unsmoothed raw peak positions for accurate pixel-to-wavelength clicks.
+  Allows live data plotting alongside an interactive points builder. Displays live pixel intensities, lets developers double-click peaks to input wavelengths, and runs `fit_calibration` (displaying dynamic RMS error and fit coefficients, and checking for stale state). The live display (`_update_spectrum`, called every 200 ms via `QTimer`) now applies dark subtraction (via `load_dark_frame()` helper, with 2D→1D collapse using `apply_tilt_correction` for non-zero tilt) and baseline subtraction (gated on `dsp.baseline_enabled`, using the same `baseline_method/window/polyorder` config values as `run_pipeline`). Flat-field correction and Savitzky-Golay smoothing are intentionally omitted — calibration depends on unsmoothed raw peak positions for accurate pixel-to-wavelength clicks.
 - **`CameraPreviewWindow`**
   Displays raw 2D frames at 10 FPS. Provides physical lens alignment validation. Includes an **Apply** button which commits exposure times to both the loaded memory config and the active `FrameSource`.
+
+### System Safeguards & Layout Polish
+- **Overheat Safety Alerts**: CPU temperature status fields render in bold red accompanied by `(WARNING: OVERHEAT)` on both desktop and web clients (standard JSON status poll and live WebSocket packets) when the Pi exceeds $80.0^\circ\text{C}$.
+- **Web Inspection Tooltip Relocation**: The plot canvas hover inspector tooltip was moved from the bottom-right to a static position in the top-left of the chart area (`margin.left + 8`, `margin.top + 8`). The entire inspection box has been scaled $30\%$ bigger, including box coordinates, text padding, and font-size (`12px Arial`).
+- **Web System Controls**: The sidebar `.control-panel` hosts a `SYSTEM` controls section containing a `Shutdown` button (`POST /api/shutdown`) and a `Restart System` button (`POST /api/restart`). The restart button resets the application state (`live_active`, `ws_client_connected`, `current_frame`) and closes any active developer preview cameras, bringing the server back to a clean startup condition.
+- **Live-to-Single Poll Sync**: The web frontend periodic status polling matches current streaming state, preventing polling intervals from reverting the mode selector away from a pending selection.
 
 ---
 
@@ -446,7 +451,7 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **135 automated tests** inside the `tests/` directory.
+The test suite contains **148 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -454,8 +459,8 @@ The test suite contains **135 automated tests** inside the `tests/` directory.
   Tests polynomial fitting logic, least-squares calculations, RMS error tracking, and wavelength conversions.
 - **`test_camera.py` (5 tests)**
   Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.
-- **`test_dev_calibration.py` (13 tests)**
-  Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions. Includes tests for `_update_spectrum` dark subtraction (1D and 2D dark with nonzero tilt), baseline gating, and missing-file fallback.
+- **`test_dev_calibration.py` (16 tests)**
+  Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions. Includes tests for `_update_spectrum` dark subtraction (1D and 2D dark with nonzero tilt), baseline gating, missing-file fallback, fit state JSON caching/persistence, and stale checks.
 - **`test_dsp.py` (15 tests)**
   Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, tilt corrections, and the `baseline_enabled` gate in `run_pipeline`.
 - **`test_flat_field.py` (5 tests)**
@@ -470,9 +475,9 @@ The test suite contains **135 automated tests** inside the `tests/` directory.
   Tests boot calibration loading and config parameter checks.
 - **`test_storage.py` (14 tests)**
   Tests SQLite database creations, record insertions/queries, and CSV/JSON exports.
-- **`test_system.py` (13 tests)**
-  Tests platform detection, hardware diagnostic scripts, and CPU temperature reading fallbacks.
+- **`test_system.py` (14 tests)**
+  Tests platform detection, hardware diagnostic scripts, CPU temperature reading fallbacks, and boundary checks for the safe operating temperature warnings.
 - **`test_ui_widgets.py` (14 tests)**
   Verifies button behaviors, layout spacing, and control panel logging functions.
-- **`test_web.py` (11 tests)**
-  Tests the FastAPI router endpoints, WebSocket feeds, and data endpoints.
+- **`test_web.py` (20 tests)**
+  Tests the FastAPI router endpoints, WebSocket feeds, dev-mode routes, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, and restart pipeline state resets.

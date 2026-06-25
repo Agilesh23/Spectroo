@@ -6,7 +6,7 @@ from spectroo.core.exceptions import CameraNotFoundError
 from spectroo.dsp.pipeline import run_pipeline
 from spectroo.core.calibration import apply_calibration, PolynomialCalibration
 from spectroo.dsp.peaks import find_spectrum_peaks
-from spectroo.system.temp import get_cpu_temp_c
+from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
 
 router = APIRouter()
 
@@ -45,8 +45,9 @@ async def live_stream(websocket: WebSocket):
         frame_fn = source.get_frame if hasattr(source, "get_frame") else source.capture_frame
         
         while websocket.app.state.live_active:
+            config = websocket.app.state.config
             # Check exposure update from config dynamically
-            source.set_exposure_us(websocket.app.state.config.get("camera", {}).get("exposure_us", 200000))
+            source.set_exposure_us(config.get("camera", {}).get("exposure_us", 200000))
             
             frame = await loop.run_in_executor(None, frame_fn)
             
@@ -89,11 +90,13 @@ async def live_stream(websocket: WebSocket):
             )
             peaks = [p.pixel_index for p in peaks_list]
 
+            temp = get_cpu_temp_c()
             websocket.app.state.current_frame = {
                 "wavelengths": wavelengths.tolist(),
                 "intensities": intensities.tolist(),
                 "peaks": peaks,
-                "cpu_temp": get_cpu_temp_c()
+                "cpu_temp": temp,
+                "cpu_temp_warn": is_cpu_temp_warning(temp)
             }
 
             await websocket.send_json(websocket.app.state.current_frame)

@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 from datetime import datetime, timezone
 from typing import Optional
 import numpy as np
@@ -16,7 +17,8 @@ from spectroo.core.calibration import PolynomialCalibration, apply_calibration
 from spectroo.core.models import HistoryRecord, Peak
 from spectroo.storage.db import save_record as save_spectrum, get_record, list_records
 from spectroo.storage.export import export_csv, export_json
-from spectroo.system.temp import get_cpu_temp_c
+from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
+from spectroo.system.shutdown import request_shutdown
 
 router = APIRouter()
 
@@ -31,6 +33,10 @@ class SaveRequest(BaseModel):
 
 class ExposureRequest(BaseModel):
     exposure_us: int
+
+
+class BaselineRequest(BaseModel):
+    enabled: bool
 
 
 def get_history(config: dict) -> list[HistoryRecord]:
@@ -58,6 +64,17 @@ def get_status(request: Request):
     config = request.app.state.config
     live_active = request.app.state.live_active
 
+    # Check idle timeout for preview source (30s)
+    source = getattr(request.app.state, "dev_preview_source", None)
+    if source is not None:
+        last_poll = getattr(request.app.state, "dev_preview_last_poll", 0.0)
+        if time.time() - last_poll > 30.0:
+            try:
+                source.close()
+            except Exception:
+                pass
+            request.app.state.dev_preview_source = None
+
     calibrated = False
     cal_section = config.get("calibration", {})
     if cal_section and cal_section.get("coefficients"):
@@ -68,11 +85,14 @@ def get_status(request: Request):
     if dark_path and os.path.exists(dark_path):
         dark_loaded = True
 
+    temp = get_cpu_temp_c()
     return {
         "live_active": live_active,
         "calibrated": calibrated,
         "dark_loaded": dark_loaded,
-        "cpu_temp": get_cpu_temp_c()
+        "cpu_temp": temp,
+        "cpu_temp_warn": is_cpu_temp_warning(temp),
+        "baseline_enabled": config.get("dsp", {}).get("baseline_enabled", True)
     }
 
 
@@ -159,6 +179,15 @@ def post_capture(body: CaptureRequest, request: Request):
 
 @router.post("/api/live/start")
 def post_live_start(request: Request):
+    # Release preview camera if active to prevent collision
+    source = getattr(request.app.state, "dev_preview_source", None)
+    if source is not None:
+        try:
+            source.close()
+        except Exception:
+            pass
+        request.app.state.dev_preview_source = None
+
     request.app.state.live_active = True
     return {"status": "live started"}
 
@@ -329,3 +358,32 @@ def post_exposure(body: ExposureRequest, request: Request):
     config.setdefault("camera", {})["exposure_us"] = clamped_value
 
     return {"exposure_us": clamped_value}
+
+
+@router.post("/api/baseline")
+def post_baseline(body: BaselineRequest, request: Request):
+    config = request.app.state.config
+    config.setdefault("dsp", {})["baseline_enabled"] = body.enabled
+    return {"baseline_enabled": body.enabled}
+
+
+@router.post("/api/shutdown")
+async def shutdown():
+    request_shutdown()
+    return {"ok": True}
+
+
+@router.post("/api/restart")
+async def restart_pipeline(request: Request):
+    request.app.state.live_active = False
+    request.app.state.ws_client_connected = False
+    request.app.state.current_frame = None
+    source = getattr(request.app.state, "dev_preview_source", None)
+    if source is not None:
+        try:
+            source.close()
+        except Exception:
+            pass
+        request.app.state.dev_preview_source = None
+    return {"ok": True}
+

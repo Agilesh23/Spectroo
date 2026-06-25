@@ -198,6 +198,158 @@
         .history-item.selected {
             background-color: #e6e6e6;
         }
+
+        /* Dev Modals style */
+        .dev-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .dev-modal-overlay.hidden {
+            display: none;
+        }
+        .dev-modal-content {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 750px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            display: flex;
+            flex-grow: 0;
+            flex-direction: column;
+            border: 1px solid #cccccc;
+            font-family: Arial, sans-serif;
+            color: #333333;
+        }
+        .dev-modal-header {
+            padding: 12px 16px;
+            background-color: #f3f4f6;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dev-modal-header .close-icon {
+            cursor: pointer;
+            font-size: 18px;
+            color: #666666;
+        }
+        .dev-modal-body {
+            padding: 16px;
+            flex-grow: 1;
+            font-size: 13px;
+        }
+        .dev-modal-footer {
+            padding: 12px 16px;
+            background-color: #f3f4f6;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .dev-btn {
+            background-color: #374151;
+            color: #ffffff;
+            border: none;
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .dev-btn:hover {
+            background-color: #1f2937;
+        }
+        .dev-btn.primary {
+            background-color: #2563eb;
+        }
+        .dev-btn.primary:hover {
+            background-color: #1d4ed8;
+        }
+        .dev-btn.danger {
+            background-color: #ef4444;
+            padding: 3px 8px;
+        }
+        .dev-btn.danger:hover {
+            background-color: #dc2626;
+        }
+        .dev-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .dev-input-row input {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            width: 120px;
+        }
+        .dev-canvas-container {
+            background-color: #e5e7eb;
+            border: 1px solid #dcdcdc;
+            border-radius: 4px;
+            width: 100%;
+            height: 120px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #dev-preview-canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .dev-section-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 4px;
+            color: #111111;
+        }
+        .dev-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+        .dev-table th, .dev-table td {
+            border: 1px solid #e5e7eb;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .dev-table th {
+            background-color: #f9fafb;
+            font-weight: bold;
+        }
+        .dev-status-box {
+            padding: 8px 12px;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 80px;
+            overflow-y: auto;
+            margin-top: 8px;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -233,6 +385,13 @@
             <div class="section-header">DATA</div>
             <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
             <button id="export-csv-btn" disabled>Export CSV</button>
+            
+            <div class="separator"></div>
+            <div class="section-header">SYSTEM</div>
+            <button id="shutdown-btn">Shutdown</button>
+            <span id="shutdown-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
+            <button id="restart-btn" style="margin-top: 6px;">Restart System</button>
+            <span id="restart-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
         </div>
     </div>
     
@@ -243,6 +402,71 @@
         <span id="peaks-status" class="status-field">Peaks: None</span>
         <span id="temp-status" class="status-field">CPU Temp: --°C</span>
         <span class="status-stretch"></span>
+    </div>
+
+    <!-- 2D Camera Preview Modal -->
+    <div id="dev-preview-modal" class="dev-modal-overlay hidden">
+        <div class="dev-modal-content">
+            <div class="dev-modal-header">
+                <span>Live Camera Preview (2D Alignment)</span>
+                <span class="close-icon" onclick="closePreviewModal()">&times;</span>
+            </div>
+            <div class="dev-modal-body">
+                <div class="dev-canvas-container">
+                    <canvas id="dev-preview-canvas"></canvas>
+                </div>
+                <div class="dev-input-row">
+                    <span>Exposure (µs):</span>
+                    <input type="number" id="dev-preview-exp-input" min="110" max="3066979" value="200000">
+                    <button class="dev-btn primary" id="dev-preview-exp-apply">Apply</button>
+                </div>
+                <div id="dev-preview-status" class="dev-status-box">Awaiting image frame...</div>
+            </div>
+            <div class="dev-modal-footer">
+                <button class="dev-btn" onclick="closePreviewModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Developer & Calibration Control Modal -->
+    <div id="dev-control-modal" class="dev-modal-overlay hidden">
+        <div class="dev-modal-content">
+            <div class="dev-modal-header">
+                <span>Developer Tools & Calibration</span>
+                <span class="close-icon" onclick="closeControlModal()">&times;</span>
+            </div>
+            <div class="dev-modal-body">
+                <div class="dev-section-title">Hardware Actions</div>
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <button class="dev-btn" id="dev-dark-btn">Capture Dark Frame</button>
+                    <button class="dev-btn" id="dev-flat-btn">Capture Flat Field</button>
+                </div>
+                <div id="dev-hardware-status" class="dev-status-box">Ready for action.</div>
+
+                <div class="dev-section-title">Wavelength Calibration Mapping</div>
+                <table class="dev-table" id="dev-calib-table">
+                    <thead>
+                        <tr>
+                            <th>Pixel Index</th>
+                            <th>Wavelength (nm)</th>
+                            <th>Residual (nm)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dev-calib-tbody">
+                        <!-- Dynamic rows here -->
+                    </tbody>
+                </table>
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <button class="dev-btn" onclick="addCalibRow()">+ Add Point</button>
+                    <button class="dev-btn primary" id="dev-calib-fit-btn">Fit & Apply Calibration</button>
+                </div>
+                <div id="dev-calib-status" class="dev-status-box">Enter at least 2 mapping pairs and click Fit.</div>
+            </div>
+            <div class="dev-modal-footer">
+                <button class="dev-btn" onclick="closeControlModal()">Close</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -647,16 +871,16 @@
 
             ctx.restore();
 
-            // Readout box in bottom-right corner of chart area
+            // Readout box in top-left corner of chart area
             if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
                 const inspectW = wavelengths[inspectIdx];
                 const inspectY = intensities[inspectIdx];
                 const isCalibrated = (fullMax - fullMin) > 200;
 
-                const boxW = 120;
-                const boxH = 50;
-                const boxX = canvas.width - margin.right - boxW - 8;
-                const boxY = canvas.height - margin.bottom - boxH - 8;
+                const boxW = 156;
+                const boxH = 65;
+                const boxX = margin.left + 8;
+                const boxY = margin.top + 8;
 
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.strokeStyle = '#cccccc';
@@ -671,17 +895,17 @@
                 ctx.stroke();
 
                 ctx.fillStyle = colors.text;
-                ctx.font = '9px Arial';
+                ctx.font = '12px Arial';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
 
-                ctx.fillText(`Pixel: ${inspectIdx}`, boxX + 8, boxY + 6);
+                ctx.fillText(`Pixel: ${inspectIdx}`, boxX + 10, boxY + 8);
                 if (isCalibrated) {
-                    ctx.fillText(`Wavelength: ${inspectW.toFixed(1)} nm`, boxX + 8, boxY + 18);
+                    ctx.fillText(`Wavelength: ${inspectW.toFixed(1)} nm`, boxX + 10, boxY + 24);
                 } else {
-                    ctx.fillText(`Pixel: ${inspectW.toFixed(0)}`, boxX + 8, boxY + 18);
+                    ctx.fillText(`Pixel: ${inspectW.toFixed(0)}`, boxX + 10, boxY + 24);
                 }
-                ctx.fillText(`Intensity: ${inspectY.toFixed(1)}`, boxX + 8, boxY + 30);
+                ctx.fillText(`Intensity: ${inspectY.toFixed(1)}`, boxX + 10, boxY + 40);
             }
         }
 
@@ -857,6 +1081,28 @@
             }
         });
 
+        function updateCpuTemp(temp, warn) {
+            const tempEl = document.getElementById('temp-status');
+            if (tempEl) {
+                if (temp !== null && temp !== undefined) {
+                    let text = `CPU Temp: ${temp.toFixed(1)}°C`;
+                    if (warn) {
+                        text += ' (WARNING: OVERHEAT)';
+                        tempEl.style.color = '#cc0000';
+                        tempEl.style.fontWeight = 'bold';
+                    } else {
+                        tempEl.style.color = '';
+                        tempEl.style.fontWeight = '';
+                    }
+                    tempEl.innerText = text;
+                } else {
+                    tempEl.style.color = '';
+                    tempEl.style.fontWeight = '';
+                    tempEl.innerText = 'CPU Temp: --°C';
+                }
+            }
+        }
+
         // Status Updater
         function updateStatusBar(status) {
             if (status.calibrated !== undefined) {
@@ -866,11 +1112,14 @@
                 document.getElementById('dark-status').innerText = `Dark Frame: ${status.dark_loaded ? 'Loaded' : 'Not Loaded'}`;
             }
             if (status.cpu_temp !== undefined) {
-                const tempEl = document.getElementById('temp-status');
-                if (status.cpu_temp !== null) {
-                    tempEl.innerText = `CPU Temp: ${status.cpu_temp.toFixed(1)}°C`;
+                updateCpuTemp(status.cpu_temp, status.cpu_temp_warn);
+            }
+            if (status.baseline_enabled !== undefined) {
+                const baselineBtn = document.getElementById('baseline-btn');
+                if (status.baseline_enabled) {
+                    baselineBtn.classList.add('active');
                 } else {
-                    tempEl.innerText = 'CPU Temp: --°C';
+                    baselineBtn.classList.remove('active');
                 }
             }
         }
@@ -903,12 +1152,16 @@
                 const data = await res.json();
                 updateStatusBar(data);
                 if (data.live_active) {
-                    setSelectedMode('live');
-                    setStreamingState(true);
-                    connectWebSocket();
+                    if (!streamingActive) {
+                        setSelectedMode('live');
+                        setStreamingState(true);
+                        connectWebSocket();
+                    }
                 } else {
-                    setSelectedMode('single');
-                    setStreamingState(false);
+                    if (streamingActive) {
+                        setSelectedMode('single');
+                        setStreamingState(false);
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching status:", err);
@@ -926,6 +1179,8 @@
         const baselineBtn = document.getElementById('baseline-btn');
         const exportJsonBtn = document.getElementById('export-json-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
+        const shutdownBtn = document.getElementById('shutdown-btn');
+        const restartBtn = document.getElementById('restart-btn');
 
         function setSelectedMode(mode) {
             selectedMode = mode;
@@ -1046,12 +1301,7 @@
 
                 // Update CPU Temp from WebSocket live frame
                 if (data.cpu_temp !== undefined) {
-                    const tempEl = document.getElementById('temp-status');
-                    if (data.cpu_temp !== null) {
-                        tempEl.innerText = `CPU Temp: ${data.cpu_temp.toFixed(1)}°C`;
-                    } else {
-                        tempEl.innerText = 'CPU Temp: --°C';
-                    }
+                    updateCpuTemp(data.cpu_temp, data.cpu_temp_warn);
                 }
             };
             
@@ -1155,9 +1405,25 @@
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
         });
 
-        baselineBtn.addEventListener('click', () => {
-            baselineBtn.classList.toggle('active');
-            // Baseline Corr toggle is state only in front-end for visual feedback
+        baselineBtn.addEventListener('click', async () => {
+            const currentActive = baselineBtn.classList.contains('active');
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/baseline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                if (data.baseline_enabled) {
+                    baselineBtn.classList.add('active');
+                } else {
+                    baselineBtn.classList.remove('active');
+                }
+            } catch (err) {
+                console.error("Error toggling baseline:", err);
+            }
         });
 
         // Export handlers
@@ -1169,12 +1435,448 @@
             window.location.href = `/api/export/current?format=csv`;
         });
 
+        shutdownBtn.addEventListener('click', async () => {
+            const statusEl = document.getElementById('shutdown-status');
+            shutdownBtn.disabled = true;
+            statusEl.innerText = 'Shutting down...';
+            try {
+                const res = await fetch('/api/shutdown', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    statusEl.innerText = 'Shutdown initiated.';
+                } else {
+                    statusEl.innerText = 'Shutdown failed.';
+                    shutdownBtn.disabled = false;
+                }
+            } catch (err) {
+                statusEl.innerText = `Error: ${err.message}`;
+                shutdownBtn.disabled = false;
+            }
+        });
+
+        restartBtn.addEventListener('click', async () => {
+            const statusEl = document.getElementById('restart-status');
+            restartBtn.disabled = true;
+            statusEl.innerText = 'Restarting pipeline...';
+            try {
+                const res = await fetch('/api/restart', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    statusEl.innerText = 'Pipeline restarted.';
+                    restartBtn.disabled = false;
+                } else {
+                    statusEl.innerText = 'Restart failed.';
+                    restartBtn.disabled = false;
+                }
+            } catch (err) {
+                statusEl.innerText = `Error: ${err.message}`;
+                restartBtn.disabled = false;
+            }
+        });
+
         // Periodic polling for status when not streaming
         setInterval(() => {
             if (!streamingActive) {
                 fetchStatus();
             }
         }, 5000);
+
+        // Dev Mode Logic
+        let previewInterval = null;
+
+        async function fetchDev(url, options = {}) {
+            let devPassword = localStorage.getItem('devPassword') || 'changeme';
+            if (!options.headers) options.headers = {};
+            
+            const urlObj = new URL(url, window.location.origin);
+            urlObj.searchParams.set('password', devPassword);
+            
+            let res = await fetch(urlObj.toString(), options);
+            if (res.status === 401) {
+                devPassword = prompt("Invalid developer password. Enter developer password:");
+                if (devPassword) {
+                    localStorage.setItem('devPassword', devPassword);
+                    urlObj.searchParams.set('password', devPassword);
+                    res = await fetch(urlObj.toString(), options);
+                }
+            }
+            return res;
+        }
+
+        // Camera Preview
+        function openPreviewModal() {
+            if (streamingActive) {
+                alert("Live mode active — stop live before previewing raw camera");
+                return;
+            }
+            document.getElementById('dev-preview-modal').classList.remove('hidden');
+            const expInput = document.getElementById('dev-preview-exp-input');
+            const mainExp = document.getElementById('exposure-input');
+            expInput.value = mainExp.value;
+            
+            startPreviewFeed();
+        }
+
+        function closePreviewModal() {
+            document.getElementById('dev-preview-modal').classList.add('hidden');
+            stopPreviewFeed();
+            fetchDev('/api/dev/preview/stop', { method: 'POST' }).catch(err => console.error(err));
+        }
+
+        function startPreviewFeed() {
+            if (previewInterval) clearInterval(previewInterval);
+            updatePreviewFrame();
+            previewInterval = setInterval(updatePreviewFrame, 200); // 5 FPS
+        }
+
+        function stopPreviewFeed() {
+            if (previewInterval) {
+                clearInterval(previewInterval);
+                previewInterval = null;
+            }
+        }
+
+        async function updatePreviewFrame() {
+            const statusEl = document.getElementById('dev-preview-status');
+            try {
+                const res = await fetchDev('/api/dev/preview');
+                if (res.status === 409) {
+                    statusEl.innerText = "Conflict: " + (await res.json()).detail;
+                    closePreviewModal();
+                    return;
+                }
+                if (!res.ok) {
+                    const detail = (await res.json()).detail || "Error";
+                    statusEl.innerText = `Error: ${detail}`;
+                    return;
+                }
+                const data = await res.json();
+                statusEl.innerText = `Frame: ${data.width}x${data.height} pixels | normalized to 8-bit scale`;
+                
+                const canvas = document.getElementById('dev-preview-canvas');
+                canvas.width = data.width;
+                canvas.height = data.height;
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.createImageData(data.width, data.height);
+                
+                const pixels = data.data;
+                for (let i = 0; i < pixels.length; i++) {
+                    const val = pixels[i];
+                    const offset = i * 4;
+                    imgData.data[offset] = val;
+                    imgData.data[offset+1] = val;
+                    imgData.data[offset+2] = val;
+                    imgData.data[offset+3] = 255;
+                }
+                ctx.putImageData(imgData, 0, 0);
+            } catch (err) {
+                statusEl.innerText = `Connection error: ${err.message}`;
+            }
+        }
+
+        document.getElementById('dev-preview-exp-apply').addEventListener('click', async () => {
+            const expInput = document.getElementById('dev-preview-exp-input');
+            const clamped = parseInt(expInput.value);
+            try {
+                const res = await fetch('/api/exposure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exposure_us: clamped })
+                });
+                const data = await res.json();
+                expInput.value = data.exposure_us;
+                document.getElementById('exposure-input').value = data.exposure_us;
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Developer Control Modal
+        function openControlModal() {
+            document.getElementById('dev-control-modal').classList.remove('hidden');
+            initCalibTable();
+        }
+
+        function closeControlModal() {
+            document.getElementById('dev-control-modal').classList.add('hidden');
+        }
+
+        // Dark/Flat capture handlers
+        document.getElementById('dev-dark-btn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('dev-hardware-status');
+            if (streamingActive) {
+                alert("Live mode active — stop live before capturing dark frame");
+                return;
+            }
+            if (!confirm("Cover the lens completely to block all light, then click OK to capture dark frame.")) {
+                return;
+            }
+            statusEl.innerText = "Capturing dark frame...";
+            try {
+                const res = await fetchDev('/api/dev/dark', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusEl.innerText = data.message;
+                    fetchStatus();
+                } else {
+                    statusEl.innerText = `Error: ${data.detail}`;
+                }
+            } catch (err) {
+                statusEl.innerText = `Connection error: ${err.message}`;
+            }
+        });
+
+        document.getElementById('dev-flat-btn').addEventListener('click', async () => {
+            const statusEl = document.getElementById('dev-hardware-status');
+            if (streamingActive) {
+                alert("Live mode active — stop live before capturing flat field");
+                return;
+            }
+            statusEl.innerText = "Capturing flat field...";
+            try {
+                const res = await fetchDev('/api/dev/flat', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusEl.innerText = data.message;
+                    fetchStatus();
+                } else {
+                    statusEl.innerText = `Error: ${data.detail}`;
+                }
+            } catch (err) {
+                statusEl.innerText = `Connection error: ${err.message}`;
+            }
+        });
+
+        // Wavelength Calibration UI
+        const defaultPairs = [
+            { pixel: 500, wavelength: 435.8 },
+            { pixel: 1000, wavelength: 546.1 }
+        ];
+
+        function initCalibTable() {
+            const tbody = document.getElementById('dev-calib-tbody');
+            tbody.innerHTML = '';
+            let saved = localStorage.getItem('calib_pairs');
+            let pairs = saved ? JSON.parse(saved) : defaultPairs;
+
+            // Get current fit result and check if it's stale
+            let savedFitPairsStr = localStorage.getItem('calib_fit_pairs');
+            let savedFit = localStorage.getItem('calib_fit_result');
+            let isStale = false;
+            let fitResult = null;
+            if (savedFit) {
+                fitResult = JSON.parse(savedFit);
+                if (!savedFitPairsStr) {
+                    isStale = true;
+                } else {
+                    const fitPairs = JSON.parse(savedFitPairsStr);
+                    if (fitPairs.length !== pairs.length) {
+                        isStale = true;
+                    } else {
+                        for (let i = 0; i < pairs.length; i++) {
+                            if (pairs[i].pixel !== fitPairs[i].pixel || 
+                                pairs[i].wavelength !== fitPairs[i].wavelength) {
+                                isStale = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            pairs.forEach((p, idx) => {
+                let residual = '-';
+                if (fitResult && !isStale && fitResult.residuals_nm && idx < fitResult.residuals_nm.length) {
+                    residual = fitResult.residuals_nm[idx].toFixed(4);
+                }
+                tbody.appendChild(createCalibRowHtml(p.pixel, p.wavelength, residual));
+            });
+
+            if (fitResult) {
+                displayFitResult(fitResult, isStale);
+            } else {
+                document.getElementById('dev-calib-status').innerText = "Enter at least 2 mapping pairs and click Fit.";
+                document.getElementById('dev-calib-status').style.opacity = "1";
+            }
+        }
+
+        function createCalibRowHtml(pixel, wavelength, residual) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="number" class="calib-pixel" value="${pixel}" min="0" max="3000" style="width: 80px;"></td>
+                <td><input type="number" class="calib-wavelength" value="${wavelength}" step="0.1" style="width: 100px;"></td>
+                <td class="calib-residual">${residual}</td>
+                <td><button class="dev-btn danger" onclick="this.closest('tr').remove(); savePairsToLocal(); checkStale();">Remove</button></td>
+            `;
+            tr.querySelectorAll('input').forEach(input => {
+                input.addEventListener('change', () => {
+                    savePairsToLocal();
+                    checkStale();
+                });
+            });
+            return tr;
+        }
+
+        function addCalibRow() {
+            const tbody = document.getElementById('dev-calib-tbody');
+            tbody.appendChild(createCalibRowHtml(0, 0, '-'));
+            savePairsToLocal();
+            checkStale();
+        }
+
+        function savePairsToLocal() {
+            const tbody = document.getElementById('dev-calib-tbody');
+            const pairs = [];
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const px = parseInt(tr.querySelector('.calib-pixel').value);
+                const wl = parseFloat(tr.querySelector('.calib-wavelength').value);
+                if (!isNaN(px) && !isNaN(wl)) {
+                    pairs.push({ pixel: px, wavelength: wl });
+                }
+            });
+            localStorage.setItem('calib_pairs', JSON.stringify(pairs));
+        }
+
+        function checkStale() {
+            const tbody = document.getElementById('dev-calib-tbody');
+            const currentPairs = [];
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const px = parseInt(tr.querySelector('.calib-pixel').value);
+                const wl = parseFloat(tr.querySelector('.calib-wavelength').value);
+                currentPairs.push({ pixel: px, wavelength: wl });
+            });
+
+            const savedFitPairsStr = localStorage.getItem('calib_fit_pairs');
+            let isStale = false;
+            if (!savedFitPairsStr) {
+                isStale = true;
+            } else {
+                const fitPairs = JSON.parse(savedFitPairsStr);
+                if (fitPairs.length !== currentPairs.length) {
+                    isStale = true;
+                } else {
+                    for (let i = 0; i < currentPairs.length; i++) {
+                        if (currentPairs[i].pixel !== fitPairs[i].pixel || 
+                            currentPairs[i].wavelength !== fitPairs[i].wavelength) {
+                            isStale = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const savedFit = localStorage.getItem('calib_fit_result');
+            if (savedFit) {
+                const fitResult = JSON.parse(savedFit);
+                displayFitResult(fitResult, isStale);
+            } else {
+                document.getElementById('dev-calib-status').innerText = "Enter at least 2 mapping pairs and click Fit.";
+                document.getElementById('dev-calib-status').style.opacity = "1";
+            }
+        }
+
+        function displayFitResult(fitResult, isStale) {
+            const statusEl = document.getElementById('dev-calib-status');
+            const tbody = document.getElementById('dev-calib-tbody');
+
+            // Update table rows' residuals
+            tbody.querySelectorAll('tr').forEach((tr, idx) => {
+                const resTd = tr.querySelector('.calib-residual');
+                if (resTd) {
+                    if (!isStale && fitResult.residuals_nm && idx < fitResult.residuals_nm.length) {
+                        resTd.innerText = fitResult.residuals_nm[idx].toFixed(4);
+                    } else {
+                        resTd.innerText = '-';
+                    }
+                }
+            });
+
+            let prefix = "";
+            if (isStale) {
+                prefix = "Stale — pairs changed since last fit:\n";
+                statusEl.style.opacity = "0.6";
+            } else {
+                statusEl.style.opacity = "1";
+            }
+
+            statusEl.innerText = `${prefix}Fit Succeeded!\nDegree: ${fitResult.degree}\nRMS: ${fitResult.rms_nm.toFixed(4)} nm\nCoefficients: ${JSON.stringify(fitResult.coefficients)}`;
+        }
+
+        document.getElementById('dev-calib-fit-btn').addEventListener('click', async () => {
+            savePairsToLocal();
+            const statusEl = document.getElementById('dev-calib-status');
+            const tbody = document.getElementById('dev-calib-tbody');
+            const pairs = [];
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const px = parseInt(tr.querySelector('.calib-pixel').value);
+                const wl = parseFloat(tr.querySelector('.calib-wavelength').value);
+                if (!isNaN(px) && !isNaN(wl)) {
+                    pairs.push({ pixel: px, wavelength: wl });
+                }
+            });
+
+            if (pairs.length < 2) {
+                statusEl.innerText = "Error: At least 2 calibration points are required.";
+                return;
+            }
+
+            statusEl.innerText = "Calculating fit and applying coefficients...";
+            try {
+                const res = await fetchDev('/api/dev/calibrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pairs })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    const fitResult = {
+                        degree: data.degree,
+                        rms_nm: data.rms_nm,
+                        coefficients: data.coefficients,
+                        residuals_nm: data.residuals_nm
+                    };
+                    localStorage.setItem('calib_fit_result', JSON.stringify(fitResult));
+                    localStorage.setItem('calib_fit_pairs', JSON.stringify(pairs));
+                    
+                    displayFitResult(fitResult, false);
+                    fetchStatus();
+                } else {
+                    statusEl.innerText = `Fit Failed: ${data.detail}`;
+                }
+            } catch (err) {
+                statusEl.innerText = `Connection error: ${err.message}`;
+            }
+        });
+
+        // Global key event shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey) {
+                const key = e.key.toUpperCase();
+                if (key === 'C') {
+                    e.preventDefault();
+                    const modal = document.getElementById('dev-preview-modal');
+                    if (modal.classList.contains('hidden')) {
+                        openPreviewModal();
+                    } else {
+                        closePreviewModal();
+                    }
+                } else if (key === 'D') {
+                    e.preventDefault();
+                    const modal = document.getElementById('dev-control-modal');
+                    if (modal.classList.contains('hidden')) {
+                        openControlModal();
+                    } else {
+                        closeControlModal();
+                    }
+                } else if (key === 'Q') {
+                    e.preventDefault();
+                    document.getElementById('dev-dark-btn').click();
+                } else if (key === 'F') {
+                    e.preventDefault();
+                    document.getElementById('dev-flat-btn').click();
+                }
+            }
+        });
 
     </script>
 </body>

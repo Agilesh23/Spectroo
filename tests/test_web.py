@@ -21,9 +21,13 @@ MINIMAL_CONFIG = {
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
+    # Create a temporary config.toml file for testing
+    temp_config = tmp_path / "config.toml"
+    temp_config.write_text("[calibration]\ncoefficients = []\ndegree = 3\nn_points = 0\n", encoding="utf-8")
+    
     # Fresh app instance
-    application = create_app(MINIMAL_CONFIG)
+    application = create_app(MINIMAL_CONFIG, config_path=str(temp_config))
     application.state.live_active = False
     application.state.current_frame = None
     application.state.current_peaks = None
@@ -176,4 +180,159 @@ async def test_export_current_no_frame_returns_400(app):
     async with get_client(app) as client:
         response = await client.get("/api/export/current")
         assert response.status_code == 400
+
+
+# 13. test_baseline_toggle
+async def test_baseline_toggle(app):
+    async with get_client(app) as client:
+        # Toggle False
+        response = await client.post("/api/baseline", json={"enabled": False})
+        assert response.status_code == 200
+        assert response.json()["baseline_enabled"] is False
+        assert app.state.config["dsp"]["baseline_enabled"] is False
+
+        # Toggle True
+        response = await client.post("/api/baseline", json={"enabled": True})
+        assert response.status_code == 200
+        assert response.json()["baseline_enabled"] is True
+        assert app.state.config["dsp"]["baseline_enabled"] is True
+
+
+# 14. test_dev_auth_required
+async def test_dev_auth_required(app):
+    async with get_client(app) as client:
+        # No password
+        response = await client.get("/api/dev/preview")
+        assert response.status_code == 401
+
+        # Wrong password
+        response = await client.get("/api/dev/preview?password=wrong")
+        assert response.status_code == 401
+
+        # Correct password via query param
+        response = await client.get("/api/dev/preview?password=changeme")
+        assert response.status_code == 503  # falls to camera not available
+
+        # Correct password via header
+        response = await client.get("/api/dev/preview", headers={"X-Dev-Password": "changeme"})
+        assert response.status_code == 503
+
+
+# 15. test_dev_endpoints_live_conflict
+async def test_dev_endpoints_live_conflict(app):
+    app.state.live_active = True
+    async with get_client(app) as client:
+        # Preview
+        response = await client.get("/api/dev/preview?password=changeme")
+        assert response.status_code == 409
+        assert "Stop live mode" in response.json()["detail"]
+
+        # Dark
+        response = await client.post("/api/dev/dark?password=changeme")
+        assert response.status_code == 409
+        assert "Stop live mode" in response.json()["detail"]
+
+        # Flat
+        response = await client.post("/api/dev/flat?password=changeme")
+        assert response.status_code == 409
+        assert "Stop live mode" in response.json()["detail"]
+
+
+# 16. test_dev_endpoints_no_camera_503
+async def test_dev_endpoints_no_camera_503(app):
+    app.state.live_active = False
+    async with get_client(app) as client:
+        # Dark
+        response = await client.post("/api/dev/dark?password=changeme")
+        assert response.status_code == 503
+
+        # Flat
+        response = await client.post("/api/dev/flat?password=changeme")
+        assert response.status_code == 503
+
+
+# 17. test_dev_calibrate_success
+async def test_dev_calibrate_success(app):
+    payload = {
+        "pairs": [
+            {"pixel": 100, "wavelength": 400.0},
+            {"pixel": 500, "wavelength": 500.0},
+            {"pixel": 900, "wavelength": 600.0}
+        ]
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/dev/calibrate?password=changeme", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert len(data["coefficients"]) == 3
+        assert "rms_nm" in data
+        assert "residuals_nm" in data
+        assert len(data["residuals_nm"]) == 3
+        assert isinstance(data["residuals_nm"][0], float)
+        
+        # Verify and print exact values
+        rms_nm = data["rms_nm"]
+        residuals = data["residuals_nm"]
+        rms_calc = (sum(r**2 for r in residuals) / len(residuals))**0.5
+        print(f"\n[VERIFICATION] rms_nm={rms_nm}")
+        print(f"[VERIFICATION] residuals_nm={residuals}")
+        print(f"[VERIFICATION] sqrt(mean(residuals**2))={rms_calc}")
+        assert abs(rms_nm - rms_calc) < 1e-12
+        
+        assert app.state.config["calibration"]["coefficients"] == data["coefficients"]
+
+
+# 18. test_dev_calibrate_insufficient_points
+async def test_dev_calibrate_insufficient_points(app):
+    payload = {
+        "pairs": [
+            {"pixel": 100, "wavelength": 400.0}
+        ]
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/dev/calibrate?password=changeme", json=payload)
+        assert response.status_code == 400
+        assert "Fewer than 2 calibration points" in response.json()["detail"]
+
+
+# 19. test_shutdown_endpoint
+@pytest.mark.asyncio
+async def test_shutdown_endpoint(app):
+    from unittest.mock import patch
+    async with get_client(app) as client:
+        with patch("spectroo.web.routes.request_shutdown") as mock_sd:
+            response = await client.post("/api/shutdown")
+        assert response.status_code == 200
+        assert response.json() == {"ok": True}
+        mock_sd.assert_called_once()
+
+
+# 20. test_restart_pipeline_idle
+@pytest.mark.asyncio
+async def test_restart_pipeline_idle(app):
+    async with get_client(app) as client:
+        response = await client.post("/api/restart")
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+    assert app.state.live_active is False
+    assert app.state.current_frame is None
+    assert app.state.ws_client_connected is False
+
+
+# 21. test_restart_pipeline_closes_dev_preview
+@pytest.mark.asyncio
+async def test_restart_pipeline_closes_dev_preview(app):
+    from unittest.mock import MagicMock
+    mock_source = MagicMock()
+    app.state.dev_preview_source = mock_source
+    async with get_client(app) as client:
+        response = await client.post("/api/restart")
+    assert response.status_code == 200
+    mock_source.close.assert_called_once()
+    assert app.state.dev_preview_source is None
+
+
+
+
 

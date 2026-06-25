@@ -20,7 +20,6 @@ class ControlPanel(QWidget):
     export_requested    = pyqtSignal()
     save_chart_requested = pyqtSignal()
     shutdown_requested  = pyqtSignal()      # NEW — not in v1
-    history_toggled     = pyqtSignal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -137,9 +136,6 @@ class ControlPanel(QWidget):
 
         # 5. SYSTEM
         self._add_header("SYSTEM")
-        self.history_btn = QPushButton("History")
-        self.history_btn.clicked.connect(self._on_history_clicked)
-        self.layout.addWidget(self.history_btn)
         self.shutdown_btn = QPushButton("Shutdown")
         self.shutdown_btn.clicked.connect(self.shutdown_requested.emit)
         self.layout.addWidget(self.shutdown_btn)
@@ -191,9 +187,6 @@ class ControlPanel(QWidget):
             self.plot_mode_btn.setText("Plain Spectrum")
             self.plot_mode_changed.emit("plain")
 
-    def _on_history_clicked(self) -> None:
-        logger.info("Button clicked: History")
-        self.history_toggled.emit()
 
     def set_mode(self, mode: str) -> None:
         if mode == "single":

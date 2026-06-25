@@ -64,6 +64,7 @@ When developer mode is active (default is enabled, use `--no-dev` to disable), t
 - `Ctrl+Shift+D`: Opens the **Developer Calibration Window** for manually adding wavelength points and executing polynomial fits.
 - `Ctrl+Shift+C`: Opens the **Live Camera Feed Preview** to display raw camera imagery, adjust exposure times, and align optical components.
 - `Ctrl+Shift+F`: Captures a **Flat-field Reference** profile, saving it to `data/response_flat.json`.
+- `Ctrl+Shift+Q`: Captures a **Dark-frame Reference** profile, saving it to `data/dark_frame.npy` (or path configured in `config.toml`).
 
 ## ⚙️ Configuration Reference (`config.toml`)
 
@@ -76,9 +77,10 @@ Key sections in `config.toml`:
 - `[history]`: Defines the SQLite database file path and maximum record counts.
 - `[web]`: Configures server ports and developer route authentication passwords.
 - `[hotspot]`: Manages standalone Access Point SSID, password, channel, and gateway IP.
+- `[storage]`: Holds file path configuration for dark frame binary arrays, flat-field JSON coefficients, and persistent calibration UI states.
 
 ## ⚠️ Known Limitations
 
 - **Platform-dependent Camera Driver:** `picamera2` is only supported on Linux/Raspberry Pi. On Windows, macOS, or generic Linux setups lacking `libcamera`, the application automatically falls back to `MockFrameSource` generating synthetic spectrum patterns.
-- **Plain HTTP Web Auth:** Dev routes on the Web API (`/dev`) are protected by a password over plain HTTP, which is suitable for local hotspot use but not secure on public networks without SSL/TLS termination.
+- **Plain HTTP Web Auth:** Dev routes on the Web API (`/api/dev/*`) are protected by a password over plain HTTP, which is suitable for local hotspot use but not secure on public networks without SSL/TLS termination.
 - **CLI Signal Handling:** Pressing `Ctrl+C` in the CLI during active VNC desktop runs does not always immediately terminate the PyQt event loop, requiring manual process termination in some headless setups.
