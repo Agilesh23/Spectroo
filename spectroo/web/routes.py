@@ -177,6 +177,14 @@ def post_capture(body: CaptureRequest, request: Request):
     return JSONResponse(content=request.app.state.current_frame)
 
 
+@router.get("/api/current_frame")
+def get_current_frame(request: Request):
+    frame = request.app.state.current_frame
+    if frame is None:
+        return JSONResponse(content={"intensities": [], "wavelengths": [], "peaks": []})
+    return JSONResponse(content=frame)
+
+
 @router.post("/api/live/start")
 def post_live_start(request: Request):
     # Release preview camera if active to prevent collision

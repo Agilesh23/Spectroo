@@ -333,6 +333,32 @@ async def test_restart_pipeline_closes_dev_preview(app):
     assert app.state.dev_preview_source is None
 
 
+@pytest.mark.asyncio
+async def test_current_frame_empty(app):
+    async with get_client(app) as client:
+        response = await client.get("/api/current_frame")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intensities"] == []
+    assert data["wavelengths"] == []
+    assert data["peaks"] == []
+
+
+@pytest.mark.asyncio
+async def test_current_frame_with_data(app):
+    app.state.current_frame = {
+        "intensities": [1.0, 2.0, 3.0],
+        "wavelengths": [400.0, 450.0, 500.0],
+        "peaks": [1]
+    }
+    async with get_client(app) as client:
+        response = await client.get("/api/current_frame")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intensities"] == [1.0, 2.0, 3.0]
+    assert data["peaks"] == [1]
+
+
 
 
 

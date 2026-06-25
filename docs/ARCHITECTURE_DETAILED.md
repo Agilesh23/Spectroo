@@ -67,8 +67,8 @@ The Spectroo v3 application is organized into modular directories separating the
 - **`spectroo/web/`**
   Hosts the standalone hotspot interface.
   - **`app.py`**: Initializes the FastAPI server.
-  - **`routes.py`**: Serves static HTML pages, dashboard, history, dev tools, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout).
-  - **`routes_dev.py`**: Houses developer REST endpoints (raw camera preview, dark frame capture, flat field reference capture, least-squares calibration fitting). All endpoints require authentication via `Depends(verify_dev_password)`.
+  - **`routes.py`**: Serves static HTML pages, dashboard, history, dev tools, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout). Also provides `/api/current_frame` to return the last captured frame data without querying the camera hardware.
+  - **`routes_dev.py`**: Houses developer REST endpoints (raw camera preview, dark frame capture, flat field reference capture, least-squares calibration fitting). All endpoints require authentication via `Depends(verify_dev_password)` except `/api/dev/preview/stop` which is unauthenticated and idempotent to allow reliable client-side cleanup. Includes `/api/dev/auth` for lightweight credential checking.
   - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs and dynamic stats (including `cpu_temp` and `cpu_temp_warn`) to browser clients.
   - **`static/`**: Houses CSS styling, Javascript logic, and raw HTML templates for browser rendering.
 
@@ -311,6 +311,10 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 - **Web Inspection Tooltip Relocation**: The plot canvas hover inspector tooltip was moved from the bottom-right to a static position in the top-left of the chart area (`margin.left + 8`, `margin.top + 8`). The entire inspection box has been scaled $30\%$ bigger, including box coordinates, text padding, and font-size (`12px Arial`).
 - **Web System Controls**: The sidebar `.control-panel` hosts a `SYSTEM` controls section containing a `Shutdown` button (`POST /api/shutdown`) and a `Restart System` button (`POST /api/restart`). The restart button resets the application state (`live_active`, `ws_client_connected`, `current_frame`) and closes any active developer preview cameras, bringing the server back to a clean startup condition.
 - **Live-to-Single Poll Sync**: The web frontend periodic status polling matches current streaming state, preventing polling intervals from reverting the mode selector away from a pending selection.
+- **Developer Password Gate & Authentication**: The standalone web frontend gates developer entry under a session validation flow. Hitting `Ctrl+Shift+D` invokes a password overlay prompt. The frontend validates the password against `/api/dev/auth` and caches the authenticated state in the session variable `devPassword` before displaying the developer calibration modal.
+- **Color Preview Diagnostic Modal**: The camera preview diagnostic window fetches color RGB frame arrays directly from the endpoint `/api/dev/preview` (`channels: 3`). The client-side renderer maps these channels onto `dev-preview-canvas` via HTML5 `ImageData` RGBA values, ensuring a full-color alignment preview.
+- **Live Calibration Modal Spectrum Canvas**: Inside the developer control modal, a live spectrum canvas draws pixel intensities (0 to 2592) directly. To avoid camera access conflicts, this canvas polls `/api/current_frame` every 500ms and draws the raw spectrum curve, cleanly stopping the poll upon closing the modal.
+- **Web Shortcut Refactoring**: Web shortcuts are simplified to reduce overlap. All keyboard hotkeys except `Ctrl+Shift+D` are removed. Other dev commands (such as Raw Camera Preview, Dark Frame Capture, Flat Field Capture) are initiated through explicit UI buttons within the developer dashboard views.
 
 ---
 
@@ -451,7 +455,7 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **148 automated tests** inside the `tests/` directory.
+The test suite contains **150 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -479,5 +483,5 @@ The test suite contains **148 automated tests** inside the `tests/` directory.
   Tests platform detection, hardware diagnostic scripts, CPU temperature reading fallbacks, and boundary checks for the safe operating temperature warnings.
 - **`test_ui_widgets.py` (14 tests)**
   Verifies button behaviors, layout spacing, and control panel logging functions.
-- **`test_web.py` (20 tests)**
-  Tests the FastAPI router endpoints, WebSocket feeds, dev-mode routes, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, and restart pipeline state resets.
+- **`test_web.py` (22 tests)**
+  Tests the FastAPI router endpoints, WebSocket feeds, dev-mode routes, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, restart pipeline state resets, and `/api/current_frame` endpoints.

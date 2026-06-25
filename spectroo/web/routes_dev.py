@@ -40,6 +40,11 @@ def verify_dev_password(
         )
 
 
+@router.get("/api/dev/auth")
+def verify_dev_auth(password: str = Depends(verify_dev_password)):
+    return {"ok": True}
+
+
 @router.get("/api/dev/preview")
 def get_dev_preview(request: Request, password: str = Depends(verify_dev_password)):
     if request.app.state.live_active:
@@ -73,12 +78,18 @@ def get_dev_preview(request: Request, password: str = Depends(verify_dev_passwor
         optics = config.get("optics", {})
         tilt_angle = optics.get("tilt_angle_deg", 0.0)
 
-        # Apply same 2D processing as QDialog does: greyscale + rotate
-        grey = to_greyscale(frame)
+        # Apply same 2D processing as QDialog does: rotate RGB frame directly
         if abs(tilt_angle) > 1e-5:
-            tilted = apply_tilt_correction(grey, tilt_angle)
+            import scipy.ndimage
+            if frame.ndim == 3:
+                tilted = scipy.ndimage.rotate(frame, angle=tilt_angle, reshape=False, order=1, axes=(0, 1))
+            else:
+                tilted = apply_tilt_correction(frame, tilt_angle)
         else:
-            tilted = grey
+            tilted = frame
+
+        if tilted.ndim == 2:
+            tilted = np.stack([tilted, tilted, tilted], axis=-1)
 
         # Normalize to 0-255 range for image data drawing on client side
         min_val = tilted.min()
@@ -86,10 +97,11 @@ def get_dev_preview(request: Request, password: str = Depends(verify_dev_passwor
         range_val = max(max_val - min_val, 1)
         norm = ((tilted - min_val) / range_val * 255).astype(np.uint8)
 
-        h, w = norm.shape
+        h, w, c = norm.shape
         return {
             "width": w,
             "height": h,
+            "channels": 3,
             "data": norm.flatten().tolist()
         }
     except Exception as e:
@@ -100,7 +112,7 @@ def get_dev_preview(request: Request, password: str = Depends(verify_dev_passwor
 
 
 @router.post("/api/dev/preview/stop")
-def post_dev_preview_stop(request: Request, password: str = Depends(verify_dev_password)):
+def post_dev_preview_stop(request: Request):
     _close_preview_source(request)
     return {"status": "success", "message": "Preview camera source closed"}
 

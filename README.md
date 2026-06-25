@@ -60,11 +60,17 @@ Spectroo v3 operates in dual-mode (Desktop GUI or Web/Hotspot API) based on hard
 
 ## ⌨️ Dev Mode Keyboard Shortcuts
 
-When developer mode is active (default is enabled, use `--no-dev` to disable), the following shortcuts become active on the main window:
+When developer mode is active (default is enabled, use `--no-dev` to disable), developer shortcuts are available depending on the runtime interface:
+
+### PyQt5 Desktop GUI Shortcuts (Main Window)
 - `Ctrl+Shift+D`: Opens the **Developer Calibration Window** for manually adding wavelength points and executing polynomial fits.
 - `Ctrl+Shift+C`: Opens the **Live Camera Feed Preview** to display raw camera imagery, adjust exposure times, and align optical components.
 - `Ctrl+Shift+F`: Captures a **Flat-field Reference** profile, saving it to `data/response_flat.json`.
 - `Ctrl+Shift+Q`: Captures a **Dark-frame Reference** profile, saving it to `data/dark_frame.npy` (or path configured in `config.toml`).
+
+### Headless Web Interface
+- `Ctrl+Shift+D`: Prompts for the developer password to access the **Developer Tools & Calibration** modal.
+  *Note: To prevent hotkey collision and ensure clean resource releasing in browser environments, other actions (Camera Preview, Dark/Flat capture) are accessed via dedicated buttons inside the modal rather than keyboard shortcuts.*
 
 ## ⚙️ Configuration Reference (`config.toml`)
 

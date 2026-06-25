@@ -428,6 +428,26 @@
         </div>
     </div>
 
+    <!-- Developer Password Modal -->
+    <div id="dev-password-modal" class="dev-modal-overlay hidden">
+        <div class="dev-modal-content" style="width: 320px;">
+            <div class="dev-modal-header">
+                <span>Developer Authentication</span>
+            </div>
+            <div class="dev-modal-body">
+                <div class="dev-input-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                    <label for="dev-password-input" style="font-size: 12px;">Enter Developer Password:</label>
+                    <input type="password" id="dev-password-input" style="width: 100%; padding: 6px; box-sizing: border-box; font-size: 13px;">
+                    <span id="dev-password-error" style="color: #ff4444; font-size: 11px; display: none;">Incorrect password.</span>
+                </div>
+            </div>
+            <div class="dev-modal-footer">
+                <button class="dev-btn" id="dev-password-cancel">Cancel</button>
+                <button class="dev-btn primary" id="dev-password-submit">Submit</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Developer & Calibration Control Modal -->
     <div id="dev-control-modal" class="dev-modal-overlay hidden">
         <div class="dev-modal-content">
@@ -440,8 +460,14 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                     <button class="dev-btn" id="dev-dark-btn">Capture Dark Frame</button>
                     <button class="dev-btn" id="dev-flat-btn">Capture Flat Field</button>
+                    <button class="dev-btn" id="dev-preview-btn" onclick="openPreviewModal()">Camera Preview</button>
                 </div>
                 <div id="dev-hardware-status" class="dev-status-box">Ready for action.</div>
+
+                <div class="dev-section-title">Live Pixel Spectrum</div>
+                <div class="dev-canvas-container">
+                    <canvas id="dev-calib-canvas"></canvas>
+                </div>
 
                 <div class="dev-section-title">Wavelength Calibration Mapping</div>
                 <table class="dev-table" id="dev-calib-table">
@@ -1483,6 +1509,7 @@
 
         // Dev Mode Logic
         let previewInterval = null;
+        let calibPollInterval = null;
 
         async function fetchDev(url, options = {}) {
             let devPassword = localStorage.getItem('devPassword') || 'changeme';
@@ -1520,7 +1547,7 @@
         function closePreviewModal() {
             document.getElementById('dev-preview-modal').classList.add('hidden');
             stopPreviewFeed();
-            fetchDev('/api/dev/preview/stop', { method: 'POST' }).catch(err => console.error(err));
+            fetch('/api/dev/preview/stop', { method: 'POST' }).catch(err => console.error(err));
         }
 
         function startPreviewFeed() {
@@ -1560,13 +1587,26 @@
                 const imgData = ctx.createImageData(data.width, data.height);
                 
                 const pixels = data.data;
-                for (let i = 0; i < pixels.length; i++) {
-                    const val = pixels[i];
-                    const offset = i * 4;
-                    imgData.data[offset] = val;
-                    imgData.data[offset+1] = val;
-                    imgData.data[offset+2] = val;
-                    imgData.data[offset+3] = 255;
+                const channels = data.channels || 1;
+                
+                if (channels === 3) {
+                    for (let i = 0; i < pixels.length / 3; i++) {
+                        const offset = i * 4;
+                        const srcOffset = i * 3;
+                        imgData.data[offset] = pixels[srcOffset];
+                        imgData.data[offset+1] = pixels[srcOffset+1];
+                        imgData.data[offset+2] = pixels[srcOffset+2];
+                        imgData.data[offset+3] = 255;
+                    }
+                } else {
+                    for (let i = 0; i < pixels.length; i++) {
+                        const val = pixels[i];
+                        const offset = i * 4;
+                        imgData.data[offset] = val;
+                        imgData.data[offset+1] = val;
+                        imgData.data[offset+2] = val;
+                        imgData.data[offset+3] = 255;
+                    }
                 }
                 ctx.putImageData(imgData, 0, 0);
             } catch (err) {
@@ -1591,14 +1631,106 @@
             }
         });
 
+        function startCalibPoll() {
+            if (calibPollInterval) clearInterval(calibPollInterval);
+            updateCalibSpectrum();
+            calibPollInterval = setInterval(updateCalibSpectrum, 500);
+        }
+
+        function stopCalibPoll() {
+            if (calibPollInterval) {
+                clearInterval(calibPollInterval);
+                calibPollInterval = null;
+            }
+        }
+
+        async function updateCalibSpectrum() {
+            try {
+                const res = await fetch('/api/current_frame');
+                if (!res.ok) return;
+                const data = await res.json();
+                drawCalibSpectrum(data.intensities);
+            } catch (err) {
+                console.error("Error polling calib spectrum:", err);
+            }
+        }
+
+        function drawCalibSpectrum(intensities) {
+            const canvas = document.getElementById('dev-calib-canvas');
+            if (!canvas) return;
+            
+            const dpr = window.devicePixelRatio || 1;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            if (!intensities || intensities.length === 0) {
+                ctx.fillStyle = '#333333';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Awaiting live data...', width / 2, height / 2);
+                return;
+            }
+            
+            const margin = { left: 40, right: 10, top: 10, bottom: 20 };
+            const plotW = width - margin.left - margin.right;
+            const plotH = height - margin.top - margin.bottom;
+            
+            if (plotW <= 0 || plotH <= 0) return;
+            
+            ctx.strokeStyle = '#555555';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+            
+            const yMax = Math.max(1.0, Math.max(...intensities)) * 1.15;
+            const len = intensities.length;
+            
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            
+            for (let i = 0; i < len; i++) {
+                const px = margin.left + (i / (len - 1)) * plotW;
+                const py = margin.top + plotH - (intensities[i] / yMax) * plotH;
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.stroke();
+            
+            ctx.fillStyle = '#333333';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText('0', margin.left, margin.top + plotH + 3);
+            ctx.fillText((len - 1).toString(), margin.left + plotW, margin.top + plotH + 3);
+            
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(Math.round(yMax).toString(), margin.left - 5, margin.top);
+            ctx.fillText('0', margin.left - 5, margin.top + plotH);
+        }
+
         // Developer Control Modal
         function openControlModal() {
             document.getElementById('dev-control-modal').classList.remove('hidden');
             initCalibTable();
+            startCalibPoll();
         }
 
         function closeControlModal() {
             document.getElementById('dev-control-modal').classList.add('hidden');
+            stopCalibPoll();
+            fetch('/api/dev/preview/stop', { method: 'POST' }).catch(() => {});
         }
 
         // Dark/Flat capture handlers
@@ -1848,32 +1980,65 @@
             }
         });
 
+        // Password Modal Handlers
+        let devPassword = '';
+
+        function openPasswordModal() {
+            document.getElementById('dev-password-input').value = '';
+            document.getElementById('dev-password-error').style.display = 'none';
+            document.getElementById('dev-password-modal').classList.remove('hidden');
+            document.getElementById('dev-password-input').focus();
+        }
+
+        function closePasswordModal() {
+            document.getElementById('dev-password-modal').classList.add('hidden');
+        }
+
+        document.getElementById('dev-password-cancel').addEventListener('click', closePasswordModal);
+        
+        document.getElementById('dev-password-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('dev-password-submit').click();
+            }
+        });
+
+        document.getElementById('dev-password-submit').addEventListener('click', async () => {
+            const pwd = document.getElementById('dev-password-input').value;
+            const errorEl = document.getElementById('dev-password-error');
+            errorEl.style.display = 'none';
+            
+            try {
+                const urlObj = new URL('/api/dev/auth', window.location.origin);
+                urlObj.searchParams.set('password', pwd);
+                const res = await fetch(urlObj.toString());
+                
+                if (res.ok) {
+                    devPassword = pwd;
+                    localStorage.setItem('devPassword', pwd);
+                    closePasswordModal();
+                    openControlModal();
+                } else {
+                    errorEl.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Auth check failed:", err);
+                errorEl.innerText = "Connection error: " + err.message;
+                errorEl.style.display = 'block';
+            }
+        });
+
         // Global key event shortcuts
         window.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.shiftKey) {
                 const key = e.key.toUpperCase();
-                if (key === 'C') {
-                    e.preventDefault();
-                    const modal = document.getElementById('dev-preview-modal');
-                    if (modal.classList.contains('hidden')) {
-                        openPreviewModal();
-                    } else {
-                        closePreviewModal();
-                    }
-                } else if (key === 'D') {
+                if (key === 'D') {
                     e.preventDefault();
                     const modal = document.getElementById('dev-control-modal');
                     if (modal.classList.contains('hidden')) {
-                        openControlModal();
+                        openPasswordModal();
                     } else {
                         closeControlModal();
                     }
-                } else if (key === 'Q') {
-                    e.preventDefault();
-                    document.getElementById('dev-dark-btn').click();
-                } else if (key === 'F') {
-                    e.preventDefault();
-                    document.getElementById('dev-flat-btn').click();
                 }
             }
         });
