@@ -435,10 +435,7 @@ In `main.py`, CLI parsing decides the runtime flow:
 
 ## SECTION 9 — Known Bugs and Workarounds
 
-### 1. SIGINT/Ctrl+C Does Not Terminate GUI
-- **Status:** **Open**.
-- **Description:** When launching the PyQt application from the terminal, pressing `Ctrl+C` doesn't always exit immediately because python signal handlers can't interrupt the Qt event loop.
-- **Workaround:** Close the UI window directly or send `SIGKILL` (kill -9) from another terminal.
+No known open bugs at this time.
 
 ---
 
