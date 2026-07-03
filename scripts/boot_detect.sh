@@ -26,7 +26,7 @@ if [[ "$BOOT_MODE" == "desktop" ]]; then
     echo "[spectroo] Starting X11 kiosk session..."
     # NOTE: "$@" is intentionally NOT passed after -- since everything after
     # -- goes to Xorg server as flags, not to the client script.
-    exec startx "$XINITRC" -- -nocursor
+    exec startx "$XINITRC" --
 else
     echo "[spectroo] Starting web server..."
     exec python "$MAIN" --mode web
