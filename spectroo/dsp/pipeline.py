@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import numpy as np
 import scipy.ndimage
 
-from spectroo.core.models import Spectrum, Peak
+from spectroo.core.models import Spectrum
 from spectroo.core.calibration import PolynomialCalibration, apply_calibration
 from spectroo.dsp.collapse import extract_band, apply_flip
 from spectroo.dsp.corrections import subtract_dark, apply_flat_field

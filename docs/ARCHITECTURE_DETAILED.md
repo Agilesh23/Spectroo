@@ -456,11 +456,11 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **127 automated tests** inside the `tests/` directory.
+The test suite contains **126 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
-- **`test_calibration.py` (6 tests)**
+- **`test_calibration.py` (5 tests)**
   Tests polynomial fitting logic, least-squares calculations, RMS error tracking, and wavelength conversions.
 - **`test_camera.py` (5 tests)**
   Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.

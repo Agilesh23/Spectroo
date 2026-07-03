@@ -1,5 +1,4 @@
 import os
-import sys
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 import pytest

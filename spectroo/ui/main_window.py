@@ -1,6 +1,6 @@
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QFileDialog
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import QTimer
 import logging
 from spectroo.system.temp import get_cpu_temp_c
 
@@ -12,7 +12,6 @@ from spectroo.ui.status_bar import StatusBar
 from spectroo.ui.workers import LivePipelineWorker, SingleAcquisitionWorker, DarkFrameWorker, FlatFieldWorker
 from spectroo.storage.export import export_csv, export_json
 from spectroo.core.models import HistoryRecord, Peak
-from spectroo.ui.history_panel import HistoryPanel
 from spectroo.storage.db import get_record
 
 

@@ -1,7 +1,6 @@
 import sys
 import os
 import logging
-import subprocess
 from unittest.mock import patch, MagicMock, mock_open
 import pytest
 

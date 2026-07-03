@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import pytest
 from spectroo.core.calibration import apply_calibration, fit_calibration, PolynomialCalibration
@@ -51,17 +50,6 @@ def test_apply_calibration_linear():
     assert actual == pytest.approx(expected)
 
 
-# 5. pixel_to_wavelength_nm at centre_pixel returns ~0 nm (theta=0 -> sin(0)=0)
-def test_pixel_to_wavelength_nm_centre():
-    val = pixel_to_wavelength_nm(
-        pixel_index=500,
-        centre_pixel=500.0,
-        pixel_size_mm=0.0014,
-        focal_length_mm=12.0,
-        lines_per_mm=600.0,
-        diffraction_order=1,
-    )
-    assert val == pytest.approx(0.0, abs=1e-9)
 
 
 

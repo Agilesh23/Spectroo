@@ -6,9 +6,9 @@ from PyQt5.QtCore import Qt, QPointF, QRectF, pyqtSignal, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QDialog, QTableWidget, QTableWidgetItem, QPushButton,
     QVBoxLayout, QHBoxLayout, QMessageBox, QInputDialog, QHeaderView, QLabel,
-    QSpinBox, QLineEdit
+    QLineEdit
 )
-from PyQt5.QtGui import QColor, QPainter, QPen, QBrush, QPolygonF, QFont
+from PyQt5.QtGui import QColor, QPainter, QPen, QPolygonF, QFont
 
 from spectroo.core.models import CalibrationPoint
 from spectroo.core.calibration import fit_calibration
