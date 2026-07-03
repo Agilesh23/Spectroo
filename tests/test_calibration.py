@@ -4,7 +4,6 @@ import pytest
 from spectroo.core.calibration import apply_calibration, fit_calibration, PolynomialCalibration
 from spectroo.core.config import load_config
 from spectroo.core.exceptions import CalibrationError, ConfigError
-from spectroo.core.grating_model import build_grating_lut, pixel_to_wavelength_nm
 from spectroo.core.models import CalibrationPoint
 
 
@@ -64,22 +63,6 @@ def test_pixel_to_wavelength_nm_centre():
     )
     assert val == pytest.approx(0.0, abs=1e-9)
 
-
-# 6. build_grating_lut returns array of correct length and is monotonic
-def test_build_grating_lut_monotonic():
-    lut = build_grating_lut(
-        n_pixels=1000,
-        centre_pixel=500.0,
-        pixel_size_mm=0.0014,
-        focal_length_mm=12.0,
-        lines_per_mm=600.0,
-        diffraction_order=1,
-    )
-    assert len(lut) == 1000
-
-    # Monotonic check: all differences are positive or all are negative
-    diffs = np.diff(lut)
-    assert np.all(diffs > 0) or np.all(diffs < 0)
 
 
 # 7. load_config: write a temp TOML, load it, assert access; write malformed TOML, assert ConfigError

@@ -28,12 +28,10 @@ The Spectroo v3 application is organized into modular directories separating the
   - **`config.py`**: Handles loading, parsing, and structured reading of the configuration values using standard python libraries.
   - **`models.py`**: Defines structured dataclasses used throughout the data pipeline, such as `CalibrationPoint`, `Peak`, `Spectrum`, and `HistoryRecord`.
   - **`calibration.py`**: Hosts the mathematics for fitting calibration polynomial curves using least-squares regressions.
-  - **`grating_model.py`**: Provides lookup table (LUT) mathematical models mapping pixel indices to wavelengths using the grating diffraction equation. (Used exclusively in tests).
   - **`exceptions.py`**: Defines standard custom exceptions like `CameraNotFoundError` and `CalibrationError` to catch expected errors gracefully.
 - **`spectroo/camera/`**
   Handles sensor interfacing.
   - **`source.py`**: Defines the `FrameSource` abstract base class, `PiCameraFrameSource` (the hardware controller implementing dynamic `picamera2` integration), and `MockFrameSource` (the synthetic frame generator which generates simulated bands for off-hardware testing).
-  - **`startup_calibration.py`**: Runs auto-alignment and calibration procedures (tilt, center row, and spectral flip detection) during hardware initialization (used in tests).
 - **`spectroo/dsp/`**
   The digital signal processing core.
   - **`pipeline.py`**: Integrates all frame-level and spectrum-level filtering steps into a single logical execution flow.
@@ -458,11 +456,11 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **144 automated tests** inside the `tests/` directory.
+The test suite contains **127 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
-- **`test_calibration.py` (7 tests)**
+- **`test_calibration.py` (6 tests)**
   Tests polynomial fitting logic, least-squares calculations, RMS error tracking, and wavelength conversions.
 - **`test_camera.py` (5 tests)**
   Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.
@@ -472,14 +470,10 @@ The test suite contains **144 automated tests** inside the `tests/` directory.
   Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, tilt corrections, and the `baseline_enabled` gate in `run_pipeline`.
 - **`test_flat_field.py` (5 tests)**
   Tests `FlatFieldWorker` capture sequence, missing dark frame fallbacks, divide-by-zero guards, clamping thresholds, and dev-mode gating of the shortcut.
-- **`test_history_panel.py` (8 tests)**
-  Tests loading, rendering, and selecting items in the UI history sidebar.
 - **`test_main_window.py` (12 tests)**
   Tests window startup, signal routes, and thread worker creation.
 - **`test_plot_widget.py` (10 tests)**
   Verifies coordinate scaling, gridlines, zoom/pan bounds, and cursor placements.
-- **`test_startup_calibration.py` (8 tests)**
-  Tests boot calibration loading and config parameter checks.
 - **`test_storage.py` (14 tests)**
   Tests SQLite database creations, record insertions/queries, and CSV/JSON exports.
 - **`test_system.py` (14 tests)**
