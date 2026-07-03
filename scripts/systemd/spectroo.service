@@ -1,6 +1,7 @@
 [Unit]
 Description=Spectroo v3 Spectrometer Application
-After=network.target
+After=network.target getty@tty1.service
+Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
@@ -13,6 +14,9 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 Environment=PYTHONUNBUFFERED=1
+TTYPath=/dev/tty1
+StandardInput=tty
+PAMName=login
 
 [Install]
 WantedBy=multi-user.target

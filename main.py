@@ -62,7 +62,19 @@ def main() -> None:
         default=True,
         help="Enable developer mode (use --no-dev to disable)",
     )
+    parser.add_argument(
+        "--detect-mode",
+        action="store_true",
+        help="Detect boot mode, print to stdout, and exit"
+    )
     args = parser.parse_args()
+
+    if args.detect_mode:
+        if args.mode == "auto":
+            print(detect_boot_mode())
+        else:
+            print(args.mode)
+        sys.exit(0)
 
     # Set up logging before anything else
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
