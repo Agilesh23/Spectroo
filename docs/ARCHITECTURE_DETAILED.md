@@ -2,7 +2,7 @@
 
 This document provides a comprehensive technical guide to the architecture, design patterns, codebase organization, data pipeline, and system integration of the Spectroo v3 spectrometer application.
 
-For physical hardware specifications, component descriptions, and the manual hardware integration test plan (T1–T11), see the [System Specification (SAD)](file:///c:/Users/PC/Downloads/Spectroo%20v3/spectroo_v3/docs/SYSTEM_SPECIFICATION.md).
+For physical hardware specifications, component descriptions, and the manual hardware integration test plan (T1–T11), see the [System Specification (SAD)](SYSTEM_SPECIFICATION.md).
 
 ---
 
