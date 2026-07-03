@@ -29,5 +29,6 @@ if [[ "$BOOT_MODE" == "desktop" ]]; then
     exec startx "$XINITRC" --
 else
     echo "[spectroo] Starting web server..."
+    "$SCRIPT_DIR/start_hotspot.sh" || echo "[spectroo] WARNING: hotspot failed to start, continuing anyway"
     exec python "$MAIN" --mode web
 fi
