@@ -456,29 +456,4 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **126 automated tests** inside the `tests/` directory.
-
-### Test Files and Coverage
-
-- **`test_calibration.py` (5 tests)**
-  Tests polynomial fitting logic, least-squares calculations, RMS error tracking, and wavelength conversions.
-- **`test_camera.py` (5 tests)**
-  Verifies that `MockFrameSource` generates valid arrays and handles exposure adjustments correctly.
-- **`test_dev_calibration.py` (16 tests)**
-  Validates `CalibrationWindow` actions, adding/deleting coordinates, and fitting functions. Includes tests for `_update_spectrum` dark subtraction (1D and 2D dark with nonzero tilt), baseline gating, missing-file fallback, fit state JSON caching/persistence, and stale checks.
-- **`test_dsp.py` (15 tests)**
-  Tests each DSP pipeline step including Savitzky-Golay filters, baseline calculations, tilt corrections, and the `baseline_enabled` gate in `run_pipeline`.
-- **`test_flat_field.py` (5 tests)**
-  Tests `FlatFieldWorker` capture sequence, missing dark frame fallbacks, divide-by-zero guards, clamping thresholds, and dev-mode gating of the shortcut.
-- **`test_main_window.py` (12 tests)**
-  Tests window startup, signal routes, and thread worker creation.
-- **`test_plot_widget.py` (10 tests)**
-  Verifies coordinate scaling, gridlines, zoom/pan bounds, and cursor placements.
-- **`test_storage.py` (14 tests)**
-  Tests SQLite database creations, record insertions/queries, and CSV/JSON exports.
-- **`test_system.py` (14 tests)**
-  Tests platform detection, hardware diagnostic scripts, CPU temperature reading fallbacks, and boundary checks for the safe operating temperature warnings.
-- **`test_ui_widgets.py` (14 tests)**
-  Verifies button behaviors, layout spacing, and control panel logging functions.
-- **`test_web.py` (9 tests)**
-  Tests the FastAPI router endpoints, WebSocket feeds, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, restart pipeline state resets, and `/api/current_frame` endpoints.
+The unit test suite has been removed to streamline the codebase. The repository maintains only the hardware-level integration tests (T7 through T11 integration scripts) in the root directory, designed for manual execution on physical Raspberry Pi hardware.
