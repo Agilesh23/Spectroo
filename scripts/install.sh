@@ -113,24 +113,26 @@ if [ "$ENABLE_BOOT" == "true" ]; then
     fi
     
     if [ -n "$SUDO" ] || [ "$EUID" -eq 0 ]; then
+        # Dynamically determine the non-root user who invoked the install script
+        INVOKING_USER=${SUDO_USER:-$(whoami)}
+        echo "Generating dynamic service file for user '$INVOKING_USER' and path '$PROJECT_ROOT'..."
+        
+        # Create a temporary file with substituted values
+        TEMP_SERVICE=$(mktemp)
+        sed -e "s|User=spectroo|User=$INVOKING_USER|g" \
+            -e "s|WorkingDirectory=/home/spectroo/spectroo_v3|WorkingDirectory=$PROJECT_ROOT|g" \
+            -e "s|ExecStart=/home/spectroo/spectroo_v3/scripts/boot_detect.sh|ExecStart=$PROJECT_ROOT/scripts/boot_detect.sh|g" \
+            "$SERVICE_SOURCE" > "$TEMP_SERVICE"
+            
         echo "Copying service file to $SERVICE_DEST..."
-        $SUDO cp "$SERVICE_SOURCE" "$SERVICE_DEST"
+        $SUDO cp "$TEMP_SERVICE" "$SERVICE_DEST"
+        rm "$TEMP_SERVICE"
         
         # Reload daemon and enable service
         echo "Registering systemd service..."
         $SUDO systemctl daemon-reload
         $SUDO systemctl enable spectroo.service
-        echo "Systemd service 'spectroo.service' enabled successfully."
-        
-        # Check matching username / path
-        CURRENT_USER=$(whoami)
-        if [ "$CURRENT_USER" != "spectroo" ] || [ "$PROJECT_ROOT" != "/home/spectroo/spectroo_v3" ]; then
-            echo "------------------------------------------------------------------"
-            echo "WARNING: Current user is '$CURRENT_USER' and install path is '$PROJECT_ROOT'."
-            echo "The systemd service defaults assume user 'spectroo' and path '/home/spectroo/spectroo_v3'."
-            echo "Please manually edit $SERVICE_DEST if you need to adjust these."
-            echo "------------------------------------------------------------------"
-        fi
+        echo "Systemd service 'spectroo.service' enabled successfully for user '$INVOKING_USER'."
     else
         echo "ERROR: Root privileges (sudo) required to enable systemd boot service." >&2
         exit 1
