@@ -90,3 +90,8 @@ Key sections in `config.toml`:
 
 - **Platform-dependent Camera Driver:** `picamera2` is only supported on Linux/Raspberry Pi. On Windows, macOS, or generic Linux setups lacking `libcamera`, the application automatically falls back to `MockFrameSource` generating synthetic spectrum patterns.
 - **CLI Signal Handling:** Pressing `Ctrl+C` in the CLI during active VNC desktop runs does not always immediately terminate the PyQt event loop, requiring manual process termination in some headless setups.
+
+## 📚 Documentation
+
+- [Detailed Architecture Reference](file:///c:/Users/PC/Downloads/Spectroo%20v3/spectroo_v3/docs/ARCHITECTURE_DETAILED.md) — Technical description of the codebase, data pipelines, database schema, and test strategies.
+- [System Specification (SAD)](file:///c:/Users/PC/Downloads/Spectroo%20v3/spectroo_v3/docs/SYSTEM_SPECIFICATION.md) — Original hardware requirements, physical optics setup, and the T1–T11 hardware integration test plan.
