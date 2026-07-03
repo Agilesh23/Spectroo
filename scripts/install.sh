@@ -52,6 +52,8 @@ elif command -v apt-get &> /dev/null; then
         "python3-pip"
         "python3-venv"
         "python3-dev"
+        "python3-pyqt5"
+        "python3-picamera2"
         
         # Desktop kiosk dependencies (Openbox/X11)
         "xserver-xorg"
@@ -84,7 +86,7 @@ fi
 VENV_DIR="$PROJECT_ROOT/.venv"
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creating virtual environment at $VENV_DIR..."
-    python3 -m venv "$VENV_DIR"
+    python3 -m venv --system-site-packages "$VENV_DIR"
 else
     echo "Virtual environment already exists at $VENV_DIR."
 fi

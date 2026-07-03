@@ -14,10 +14,14 @@ Spectroo v3 is a Raspberry Pi-powered optical spectrometer application that turn
 * **Development Mode (Fallback):** Generates synthetic spectrum bands when run on Windows, macOS, or generic Linux setups lacking physical camera drivers.
 
 ### System Package Dependencies
-For full startup orchestration on Raspberry Pi OS, the following system packages must be installed:
-* **For Desktop Kiosk Mode (Openbox/X11):**
+For full startup orchestration and to bypass slow, fragile compilation of `PyQt5` and `picamera2` from source on Linux, the following system packages must be installed:
+* **For Core Python Environment & Display:**
   ```bash
   sudo apt-get update
+  sudo apt-get install -y python3-pip python3-venv python3-dev python3-pyqt5 python3-picamera2
+  ```
+* **For Desktop Kiosk Mode (Openbox/X11):**
+  ```bash
   sudo apt-get install -y xserver-xorg xinit openbox unclutter-xfixes
   ```
 * **For Web Mode (Access Point Hotspot):**
@@ -59,6 +63,9 @@ From a clean clone, execute the following commands in order to set up the virtua
 cd Spectroo
 
 # 2. Create a virtual environment
+# On Linux (allows the venv to access the system PyQt5/picamera2 apt packages):
+python3 -m venv --system-site-packages .venv
+# On Windows/macOS:
 python -m venv .venv
 
 # 3. Activate the virtual environment

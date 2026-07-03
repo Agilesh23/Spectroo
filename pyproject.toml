@@ -8,8 +8,7 @@ version = "3.0.0"
 description = "Spectroo v3 spectrometer application"
 requires-python = ">=3.11"
 dependencies = [
-    "picamera2>=0.1.0; sys_platform == 'linux'",
-    "PyQt5>=5.15.0",
+    "PyQt5>=5.15.0; sys_platform != 'linux'",
     "fastapi>=0.100.0",
     "uvicorn>=0.22.0",
     "numpy>=1.24.0",
