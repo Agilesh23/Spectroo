@@ -57,6 +57,10 @@ Spectroo v3 operates in dual-mode (Desktop GUI or Web/Hotspot API) based on hard
   ```bash
   python main.py --no-dev
   ```
+- **Query Boot Mode only (Lightweight):**
+  ```bash
+  python main.py --detect-mode
+  ```
 
 ## ⌨️ Dev Mode Keyboard Shortcuts
 
@@ -78,12 +82,11 @@ Key sections in `config.toml`:
 - `[calibration]`: Stores the polynomial coefficients, locked polynomial degree, and minimum data points required for fitting.
 - `[peaks]`: Configures prominence thresholds and search constraints for peak identification.
 - `[history]`: Defines the SQLite database file path and maximum record counts.
-- `[web]`: Configures server ports and developer route authentication passwords.
-- `[hotspot]`: Manages standalone Access Point SSID, password, channel, and gateway IP.
+- `[web]`: Configures server ports.
+- `[hotspot]`: Manages standalone Access Point SSID, password, and the network interface (e.g., `wlan0`) for NetworkManager auto-start.
 - `[storage]`: Holds file path configuration for dark frame binary arrays, flat-field JSON coefficients, and persistent calibration UI states.
 
 ## ⚠️ Known Limitations
 
 - **Platform-dependent Camera Driver:** `picamera2` is only supported on Linux/Raspberry Pi. On Windows, macOS, or generic Linux setups lacking `libcamera`, the application automatically falls back to `MockFrameSource` generating synthetic spectrum patterns.
-- **Plain HTTP Web Auth:** Dev routes on the Web API (`/api/dev/*`) are protected by a password over plain HTTP, which is suitable for local hotspot use but not secure on public networks without SSL/TLS termination.
 - **CLI Signal Handling:** Pressing `Ctrl+C` in the CLI during active VNC desktop runs does not always immediately terminate the PyQt event loop, requiring manual process termination in some headless setups.

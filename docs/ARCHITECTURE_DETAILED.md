@@ -398,24 +398,27 @@ The startup sequence is managed by shell scripts and system daemons.
 ### Startup Pipeline and Mode Detection
 The system startup sequence executes through a single unified process:
 1. **Systemd Service**: At boot, `systemd` launches `spectroo.service` (defined in `scripts/systemd/spectroo.service`).
-2. **Environment Wrapper**: The service executes `scripts/boot_detect.sh`, which loads the virtual environment (`.venv`) and passes execution to `main.py` via `exec python main.py "$@"`.
-3. **Hardware Boot Detection**: `main.py` runs with default `--mode auto`, which calls `detect_boot_mode()` from `spectroo/system/boot_detect.py`.
-4. **Display Check**: `detect_boot_mode()` inspects `/sys/bus/platform/drivers/vc4_dsi/` for a touchscreen, and scans `/sys/class/drm/card*-HDMI-*/status` for connected monitors. If either is found, it returns `"desktop"`; otherwise, it falls back to `"web"`.
-5. **Execution Routing**: Based on the returned boot mode, `main.py` directly executes the PyQt5 application via `run_desktop()` or starts the Uvicorn/FastAPI server via `run_web()`.
+2. **Environment Wrapper**: The service executes `scripts/boot_detect.sh`, which loads the virtual environment (`.venv`) and queries the boot mode by executing `main.py --detect-mode`.
+3. **Lightweight Detection Query**: The `--detect-mode` execution bypasses all logging, database, and UI initializations, running in ~270ms. It checks for connected displays (HDMI/DSI) and outputs `desktop` or `web`.
+4. **Graphical/Web Branching**: 
+   - If the output is `desktop`, `boot_detect.sh` launches an X11 kiosk session using `startx` pointing to `scripts/xsession/.xinitrc`.
+   - If the output is `web`, `boot_detect.sh` automatically invokes `scripts/start_hotspot.sh` to configure the WiFi hotspot before starting the FastAPI/Uvicorn server.
+5. **Kiosk Session (`.xinitrc`)**: The new `scripts/xsession/.xinitrc` shell script disables DPMS/screensavers via `xset`, launches the lightweight `openbox` window manager (without desktop panel/taskbar), and runs `main.py --mode desktop` to host the PyQt5 application.
+6. **Execution Routing**: In final app runs, `main.py` directly executes the PyQt5 application via `run_desktop()` or starts the Uvicorn/FastAPI server via `run_web()`.
 
 ### Hotspot and Network Deployment
-When deployed headless, networking and routing are established once during deployment using `scripts/setup_hotspot.sh`:
-- **Access Point & DHCP**: Configures `hostapd` to broadcast the SSID (default `"Spectroo"`, overridable via the `SPECTROO_SSID` environment variable) and `dnsmasq` to assign IP leases on the `wlan0` interface (default range `192.168.4.2-192.168.4.20`, overridable via the `SPECTROO_DHCP` environment variable).
-- **Static IP Gateway**: Binds the wireless interface to the static IP gateway (default `192.168.4.1`, overridable via the `SPECTROO_IP` environment variable) inside `/etc/dhcpcd.conf`.
-- **Port Forwarding**: Adds an `iptables` NAT PREROUTING rule to redirect TCP traffic on port `80` to the internal Uvicorn server port `8000` (overridable via the `SPECTROO_PORT` environment variable).
-- **Avahi Daemon**: Configures `avahi-daemon` to resolve requests for `spectroo.local` to the hotspot gateway.
+When deployed in web/headless mode, the system automatically starts the local wireless Access Point:
+- **Automatic Setup via nmcli**: The `scripts/start_hotspot.sh` script is run by the boot detector wrapper. It dynamically parses `config.toml` using python one-liners to read the configured `ssid`, `password`, and `interface` (typically `wlan0`) from the `[hotspot]` section.
+- **Access Point Creation**: It purges any existing connection named `spectroo-hotspot` to avoid conflicts, then creates and starts a WPA2 Personal AP using `nmcli`. If hotspot execution fails (e.g. on dev machines lacking NetworkManager), the boot script prints a warning and proceeds to start the FastAPI server anyway, preventing lockout.
+- **Port Forwarding & Name Resolution**: Standard routing and DNS are established once during system deployment using `avahi-daemon` to resolve `spectroo.local` and `iptables` to redirect incoming external traffic from port `80` to Uvicorn's internal port `8000`.
 
 ### Systemd Configuration (`spectroo.service`)
-The primary systemd unit definition (located at `scripts/systemd/spectroo.service`) is:
+To allow a rootless X server to launch successfully from a systemd daemon, the service requires explicit tty integration:
 ```ini
 [Unit]
 Description=Spectroo v3 Spectrometer Application
-After=network.target
+After=network.target getty@tty1.service
+Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
@@ -428,18 +431,22 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 Environment=PYTHONUNBUFFERED=1
+TTYPath=/dev/tty1
+StandardInput=tty
+PAMName=login
 
 [Install]
 WantedBy=multi-user.target
 ```
-*(Note: systemd configuration stubs `spectroo-boot-detect.service`, `spectroo-desktop.service`, and `spectroo-web.service` exist in the repository as placeholder TODO stubs.)*
+*By conflicting with `getty@tty1.service` and specifying `TTYPath=/dev/tty1`, `StandardInput=tty`, and `PAMName=login`, the process gains appropriate session permissions to spin up Xorg without running as root.*
 
 ### Main Entry Mode Routing
 In `main.py`, CLI parsing decides the runtime flow:
 - `--mode auto` (default): Runs display interface detection to select `"desktop"` or `"web"` mode dynamically.
 - `--mode desktop`: Forces PyQt5 GUI instantiation and execution.
 - `--mode web`: Forces FastAPI/Uvicorn server binding.
-- `--dev` / `--no-dev`: Enables or disables developer mode (default: True). Enables developer keyboard shortcuts (`Ctrl+Shift+Alt+D` web / `Ctrl+Shift+D` desktop calibration, `Ctrl+Shift+Q` dark frame, `Ctrl+Shift+F` flat field).
+- `--detect-mode`: Detects the target mode (`desktop` or `web`), prints it to stdout, and exits immediately.
+- `--dev` / `--no-dev`: Enables or disables developer mode (default: True).
 
 ---
 
@@ -451,7 +458,7 @@ No known open bugs at this time.
 
 ## SECTION 10 — Test Suite
 
-The test suite contains **151 automated tests** inside the `tests/` directory.
+The test suite contains **144 automated tests** inside the `tests/` directory.
 
 ### Test Files and Coverage
 
@@ -479,5 +486,5 @@ The test suite contains **151 automated tests** inside the `tests/` directory.
   Tests platform detection, hardware diagnostic scripts, CPU temperature reading fallbacks, and boundary checks for the safe operating temperature warnings.
 - **`test_ui_widgets.py` (14 tests)**
   Verifies button behaviors, layout spacing, and control panel logging functions.
-- **`test_web.py` (16 tests)**
+- **`test_web.py` (9 tests)**
   Tests the FastAPI router endpoints, WebSocket feeds, baseline correction endpoints, live streaming auto-revert poll safeguards, shutdown endpoint, restart pipeline state resets, and `/api/current_frame` endpoints.
