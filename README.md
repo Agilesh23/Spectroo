@@ -28,13 +28,35 @@ For full startup orchestration on Raspberry Pi OS, the following system packages
 
 ---
 
-## 📥 Installation
+## ⚡ Automated Installation on Raspberry Pi
+
+For automated setup on a fresh Raspberry Pi OS install, run the provided install script. This script validates your system environment, installs all necessary Debian system packages (X11 server, window manager, NetworkManager), creates the local virtual environment, and installs the package dependencies:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Agilesh23/Spectroo.git
+cd Spectroo
+
+# 2. Make the install script executable and run it
+chmod +x scripts/install.sh
+./scripts/install.sh
+```
+
+### Options
+* **Enable systemd boot service:** To register and enable the spectroo systemd daemon configuration to run rootless desktop GUI kiosk mode automatically on boot, run the script with:
+  ```bash
+  ./scripts/install.sh --enable-boot-service
+  ```
+
+---
+
+## 📥 Manual Installation
 
 From a clean clone, execute the following commands in order to set up the virtual environment and install the application dependencies:
 
 ```bash
 # 1. Navigate to the project root directory
-cd spectroo_v3
+cd Spectroo
 
 # 2. Create a virtual environment
 python -m venv .venv
@@ -113,7 +135,7 @@ Key parameters in `config.toml` that a new user should adjust before running:
 ## 📁 Project Structure
 
 ```text
-spectroo_v3/
+Spectroo/
 ├── config.toml             # Configuration file (camera, dsp, calibration, hotspot settings)
 ├── main.py                 # Main CLI application entry point
 ├── pyproject.toml          # Packaging metadata and setuptools specification
