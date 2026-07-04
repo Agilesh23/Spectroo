@@ -21,7 +21,7 @@ The Spectroo v3 application is organized into modular directories separating the
 - **`requirements.txt`**
   A standard pip requirements list pointing directly to specified dependency versions to pin execution environments during setup.
 - **`scripts/`**
-  Contains utility scripts for startup detection, system daemonization, and hotspot routing. It hosts `boot_detect.sh` (the environment wrapper that delegates to `main.py`), `setup_hotspot.sh` (access point configuration script), and the `systemd/` directory containing service unit stubs and the main `spectroo.service` unit.
+  Contains utility scripts for startup detection, system daemonization, and hotspot routing. It hosts `boot_detect.sh` (the environment wrapper that delegates to `main.py`), `start_hotspot.sh` (access point configuration script), and the `systemd/` directory containing service unit stubs and the main `spectroo.service` unit.
 
 ### `spectroo` Submodules
 
@@ -313,6 +313,11 @@ The Spectroo UI layer is built on PyQt5 and uses a custom vector plotting widget
 - **Web System Controls**: The sidebar `.control-panel` hosts a `SYSTEM` controls section containing a `Shutdown` button (`POST /api/shutdown`) and a `Restart System` button (`POST /api/restart`). The restart button resets the application state (`live_active`, `ws_client_connected`, `current_frame`), bringing the server back to a clean startup condition.
 - **Live-to-Single Poll Sync**: The web frontend periodic status polling matches current streaming state, preventing polling intervals from reverting the mode selector away from a pending selection.
 
+### Developer Tools & Custom Plot Theme
+- **Dev-only Controls Gated by `--dev`**: When `--dev` is active, PyQt5 displays a `DEVELOPER` section in the Control Panel with "Show Terminal" (spawns an asynchronous interactive shell window via `xterm`) and "Show Logs" (launches an integrated console displaying live log outputs). In web mode, `/logs` HTML page requests and the `/ws/logs` WebSocket connection handshake are checked and rejected with a `403 Forbidden` response if dev mode is inactive.
+- **Standardized User Action Logs**: All user actions across desktop GUI clicks (Start/Stop, Mode switches, Exposure slider, Calibration actions) and Web API calls (POST capture, baseline, restart) are logged with a standardized `"User action: "` prefix. This facilitates diagnostic filtering.
+- **Custom Plot Theme (`theme.py`)**: All colors and style tokens (fonts, borders, margins) are centralized in `spectroo/ui/theme.py`, serving as the single source of truth for the GUI. `spectroo/ui/plot_widget.py` references these tokens (e.g. Cobalt Blue `#1d4ed8` for the spectrum curve, Crimson `#e11d48` for peak circles/labels, and light grey `#9ca3af` for crosshairs) and applies a smooth vertical linear gradient under the curve.
+
 ---
 
 ## SECTION 6 — Storage Layer
@@ -388,6 +393,11 @@ All runtime options are configured via key-value parameters in `config.toml`.
 | | `public_port` | Integer | Locked | Public external web port (e.g. `80`). |
 | **`[hotspot]`** | `ssid` | String | Locked | Hotspot Access Point name. Read by AP setup script. |
 | | `password` | String | Locked | Hotspot AP WPA password. Read by AP setup script. |
+| | `interface` | String | Locked | Hotspot AP interface name (e.g. `wlan0`). |
+| | `gateway_ip` | String | Locked | Hotspot AP gateway address (defaults to `10.42.0.1`). |
+| | `mdns_hostname` | String | Locked | Static mDNS host advertised via Avahi (e.g. `spectroo.local`). |
+| | `dhcp_range_start` | String | Informational | Start of DHCP IP pool range (informational only, NOT wired to actual hotspot config). |
+| | `dhcp_range_end` | String | Informational | End of DHCP IP pool range (informational only, NOT wired to actual hotspot config). |
 
 ---
 
@@ -452,7 +462,17 @@ In `main.py`, CLI parsing decides the runtime flow:
 
 ## SECTION 9 — Known Bugs and Workarounds
 
-No known open bugs at this time.
+### 1. NetworkManager Hotspot AP Mode (Resolved)
+* **Bug**: The `nmcli connection add` command in `scripts/start_hotspot.sh` was missing `802-11-wireless.mode ap`. NetworkManager defaulted the connection to "infrastructure" (client) mode rather than creating a hotspot, causing it to attempt to join a network named "Spectroo" instead of hosting it.
+* **Fix**: Added `802-11-wireless.mode ap` to the creation flags in `start_hotspot.sh` to enforce access-point creation.
+
+### 2. PolKit Permission Rules (Resolved)
+* **Bug**: Running the application as a standard rootless user (e.g., `laserquant`) caused NM commands in `start_hotspot.sh` to fail with "Insufficient privileges" due to PolicyKit controls.
+* **Fix**: Created a custom PolKit rules file (`scripts/systemd/10-spectroo-network.rules`) granting permission to netdev group members to modify NetworkManager connections. The installer (`scripts/install.sh`) dynamically adapts this rule to the setup user and copies it to `/etc/polkit-1/rules.d/`.
+
+### 3. Port Redirection & static mDNS (Resolved)
+* **Bug**: The server runs on internal port `8000` but clients expect standard port `80` (HTTP) without appending port suffixes. Additionally, clients could not resolve `spectroo.local` over the hotspot.
+* **Fix**: The installer now installs `avahi-daemon`, `iptables`, and `iptables-persistent` non-interactively. It maps the standard `10.42.0.1` shared-mode gateway IP to `spectroo.local` in `/etc/avahi/hosts` and appends an idempotent iptables NAT PREROUTING redirect rule to route incoming port `80` traffic to `8000`.
 
 ---
 

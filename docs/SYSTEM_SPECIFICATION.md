@@ -166,7 +166,7 @@ spectroo_v3/
 ├── main.py                          # Entry point, routed by boot-detect flag
 ├── scripts/
 │   ├── boot_detect.sh                # HDMI/DSI check, writes flag file
-│   ├── setup_hotspot.sh              # hostapd + dnsmasq + Avahi config
+│   ├── start_hotspot.sh              # NetworkManager wifi hotspot config
 │   └── systemd/
 │       ├── spectroo-boot-detect.service
 │       ├── spectroo-desktop.service
@@ -446,9 +446,9 @@ warmup_seconds = 30
 ssid = "Spectroo"
 password = "changeme"
 channel = 6
-gateway_ip = "192.168.4.1"
-dhcp_range_start = "192.168.4.10"
-dhcp_range_end = "192.168.4.50"
+gateway_ip = "10.42.0.1"
+dhcp_range_start = "10.42.0.10"
+dhcp_range_end = "10.42.0.50"
 mdns_hostname = "spectroo.local"
 
 [web]

@@ -27,7 +27,7 @@ For full startup orchestration and to bypass slow, fragile compilation of `PyQt5
 * **For Web Mode (Access Point Hotspot):**
   NetworkManager is used to auto-start the AP. Ensure `nmcli` is available (standard on Bookworm):
   ```bash
-  sudo apt-get install -y network-manager
+  sudo apt-get install -y network-manager avahi-daemon iptables iptables-persistent
   ```
 
 ---
@@ -41,9 +41,13 @@ For automated setup on a fresh Raspberry Pi OS install, run the provided install
 git clone https://github.com/Agilesh23/Spectroo.git
 cd Spectroo
 
-# 2. Make the install script executable and run it
+# 2. Make the install script executable and run it (use --enable-boot-service to daemonize)
 chmod +x scripts/install.sh
-./scripts/install.sh
+sudo ./scripts/install.sh --enable-boot-service
+
+# 3. Verify that the hotspot is active and bound to the default IP (10.42.0.1)
+nmcli connection show --active
+ip addr show wlan0
 ```
 
 ### Options
@@ -159,6 +163,57 @@ Spectroo/
     └── xsession/
         └── .xinitrc        # Openbox kiosk session loader
 ```
+
+---
+
+## 🔧 Troubleshooting
+
+If the hotspot or discovery services do not behave as expected, use the following real diagnostic commands:
+
+1. **Verify RF Lock status:**
+   ```bash
+   rfkill list
+   ```
+   Ensure `wlan0` is not soft-blocked or hard-blocked.
+
+2. **Check active network connections:**
+   ```bash
+   nmcli connection show
+   nmcli connection show --active
+   ```
+
+3. **Verify user groups (for NetworkManager PolKit authorization):**
+   ```bash
+   groups $(whoami)
+   ```
+   Ensure the invoking user belongs to the `netdev` group.
+
+4. **Inspect systemd service status:**
+   ```bash
+   systemctl status spectroo.service
+   ```
+
+5. **Examine live application stdout/stderr logs:**
+   ```bash
+   journalctl -u spectroo.service -f
+   ```
+
+6. **Verify PolKit permission configuration:**
+   ```bash
+   cat /etc/polkit-1/rules.d/10-spectroo-network.rules
+   ```
+
+7. **Verify required dependencies are present:**
+   ```bash
+   dpkg -l | grep -E "network-manager|avahi-daemon|iptables|iptables-persistent"
+   ```
+
+---
+
+## ⚠️ SSH Connectivity Notice
+
+* **Network Interruption**: SSH sessions running over WiFi will **drop instantly** when the hotspot activates. This happens because the system reconfigures the same `wlan0` interface to switch from client mode to Access Point mode.
+* **Testing Hotspot Changes**: To prevent lockouts, hotspot configuration changes should be tested while connected via a **wired Ethernet connection** or while having **direct physical monitor and keyboard access** (X11 terminal) to the Raspberry Pi.
 
 ---
 
