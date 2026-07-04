@@ -50,7 +50,7 @@ png_label_decimals = 1
 
 [boot]
 mode = "auto"
-warmup_seconds = 30
+warmup_seconds = 10
 
 [hotspot]
 ssid = "Spectroo"
