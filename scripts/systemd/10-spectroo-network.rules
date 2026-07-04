@@ -1,0 +1,11 @@
+/* PolKit rule to allow laserquant (or any user in the netdev group)
+   to manage NetworkManager without password/sudo.
+   File destination: /etc/polkit-1/rules.d/10-spectroo-network.rules */
+
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0) {
+        if (subject.user === "laserquant" || subject.isInGroup("netdev")) {
+            return polkit.Result.YES;
+        }
+    }
+});

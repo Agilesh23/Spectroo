@@ -106,6 +106,8 @@ if [ "$ENABLE_BOOT" == "true" ]; then
     echo "Enabling boot service..."
     SERVICE_SOURCE="$SCRIPT_DIR/systemd/spectroo.service"
     SERVICE_DEST="/etc/systemd/system/spectroo.service"
+    POLKIT_SOURCE="$SCRIPT_DIR/systemd/10-spectroo-network.rules"
+    POLKIT_DEST="/etc/polkit-1/rules.d/10-spectroo-network.rules"
     
     if [ ! -f "$SERVICE_SOURCE" ]; then
         echo "ERROR: Service file not found at $SERVICE_SOURCE" >&2
@@ -128,6 +130,19 @@ if [ "$ENABLE_BOOT" == "true" ]; then
         $SUDO cp "$TEMP_SERVICE" "$SERVICE_DEST"
         rm "$TEMP_SERVICE"
         
+        # Copy PolKit rules file for NetworkManager permissions
+        if [ -f "$POLKIT_SOURCE" ]; then
+            echo "Generating dynamic PolKit rule for user '$INVOKING_USER'..."
+            TEMP_POLKIT=$(mktemp)
+            sed "s|laserquant|$INVOKING_USER|g" "$POLKIT_SOURCE" > "$TEMP_POLKIT"
+            echo "Copying PolKit rule to $POLKIT_DEST..."
+            $SUDO cp "$TEMP_POLKIT" "$POLKIT_DEST"
+            $SUDO chmod 644 "$POLKIT_DEST"
+            rm "$TEMP_POLKIT"
+        else
+            echo "WARNING: PolKit rules file not found at $POLKIT_SOURCE, skipping."
+        fi
+
         # Reload daemon and enable service
         echo "Registering systemd service..."
         $SUDO systemctl daemon-reload

@@ -30,6 +30,7 @@ nmcli connection add \
     autoconnect no \
     ssid "$SSID" \
     -- \
+    802-11-wireless.mode ap \
     wifi-sec.key-mgmt wpa-psk \
     wifi-sec.psk "$PASSWORD" \
     ipv4.method shared \
