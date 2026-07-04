@@ -19,30 +19,23 @@ def detect_boot_mode() -> str:
     Log the decision at INFO level using Python's logging module.
     Logger name: "spectroo.boot"
     """
-    # 1. Check for DSI display
-    dsi_dir = "/sys/bus/platform/drivers/vc4_dsi/"
-    if os.path.isdir(dsi_dir):
-        try:
-            if os.listdir(dsi_dir):
-                logger.info("Boot mode: desktop")
-                return "desktop"
-        except Exception:
-            pass
-
-    # 2. Check for HDMI status
-    hdmi_files = glob.glob("/sys/class/drm/card*-HDMI-*/status")
-    for path in hdmi_files:
+    # 1. Check for HDMI or DSI status via DRM connectors
+    display_files = (
+        glob.glob("/sys/class/drm/card*-HDMI-*/status") +
+        glob.glob("/sys/class/drm/card*-DSI-*/status")
+    )
+    for path in display_files:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read().lower()
                 if "connected" in content:
-                    logger.info("Boot mode: desktop")
+                    logger.info("Boot mode: desktop (detected display connected at %s)", path)
                     return "desktop"
         except Exception:
             pass
 
-    # 3. Fallback to web
-    logger.info("Boot mode: web")
+    # 2. Fallback to web
+    logger.info("Boot mode: web (no physical display detected)")
     return "web"
 
 
