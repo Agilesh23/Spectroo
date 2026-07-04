@@ -28,7 +28,7 @@ def detect_boot_mode() -> str:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read().lower()
-                if "connected" in content:
+                if content.strip() == "connected":
                     logger.info("Boot mode: desktop (detected display connected at %s)", path)
                     return "desktop"
         except Exception:
