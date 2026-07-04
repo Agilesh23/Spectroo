@@ -7,12 +7,12 @@ from PyQt5.QtGui import QColor, QFont
 # --- Color palette ---
 COLOR_BG          = QColor("#ffffff")
 COLOR_GRID        = QColor("#eeeeee")
-COLOR_AXIS        = QColor("#555555")
+COLOR_AXIS        = QColor("#777777")   # Subdued axis color
 COLOR_TEXT        = QColor("#333333")
 COLOR_TEXT_DIM    = QColor("#666666")
-COLOR_CURVE       = QColor("#444444")
-COLOR_PEAK        = QColor("#ff4444")
-COLOR_INSPECT     = QColor("#666666")
+COLOR_CURVE       = QColor("#1d4ed8")   # Vivid Cobalt/Royal Blue
+COLOR_PEAK        = QColor("#e11d48")   # Vivid Crimson/Rose
+COLOR_INSPECT     = QColor("#9ca3af")   # Subdued light grey for crosshairs
 COLOR_BORDER      = QColor("#dcdcdc")
 COLOR_BTN_BG      = QColor("#fafafa")
 COLOR_BTN_BORDER  = QColor("#cccccc")
@@ -22,6 +22,8 @@ COLOR_BTN_ACTIVE  = QColor("#0066cc")
 COLOR_BTN_ACTIVE_TEXT = QColor("#ffffff")
 COLOR_BTN_ACTIVE_BORDER = QColor("#0055bb")
 COLOR_PLAIN_FILL  = QColor("#f0f0f0")
+COLOR_PLAIN_FILL_TOP = QColor(29, 78, 216, 75)   # 30% opaque Cobalt Blue
+COLOR_PLAIN_FILL_BOTTOM = QColor(29, 78, 216, 0) # Transparent Cobalt Blue
 
 # --- Layout constants ---
 CONTROL_PANEL_WIDTH = 200   # px, fixed

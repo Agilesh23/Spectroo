@@ -3,6 +3,10 @@ import numpy as np
 from PyQt5.QtCore import Qt, QPointF, QRectF
 from PyQt5.QtWidgets import QWidget, QSizePolicy
 from PyQt5.QtGui import QColor, QPainter, QPen, QBrush, QPolygonF, QFont, QLinearGradient
+from spectroo.ui.theme import (
+    COLOR_BG, COLOR_GRID, COLOR_AXIS, COLOR_TEXT, COLOR_CURVE, COLOR_PEAK,
+    COLOR_INSPECT, COLOR_PLAIN_FILL_TOP, COLOR_PLAIN_FILL_BOTTOM
+)
 
 
 def wavelength_to_rgb(wavelength: float) -> tuple[float, float, float]:
@@ -67,14 +71,14 @@ class SpectrumPlotWidget(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
 
-        # Colors — exact hex values, no substitutions
-        self.bg_color = QColor("#ffffff")
-        self.grid_color = QColor("#eeeeee")
-        self.axis_color = QColor("#555555")
-        self.text_color = QColor("#333333")
-        self.curve_color = QColor("#444444")
-        self.peak_line_color = QColor("#ff4444")
-        self.inspect_line_color = QColor("#666666")
+        # Colors — centralized in theme.py
+        self.bg_color = COLOR_BG
+        self.grid_color = COLOR_GRID
+        self.axis_color = COLOR_AXIS
+        self.text_color = COLOR_TEXT
+        self.curve_color = COLOR_CURVE
+        self.peak_line_color = COLOR_PEAK
+        self.inspect_line_color = COLOR_INSPECT
 
         # Data
         self.wavelengths: np.ndarray | None = None
@@ -385,7 +389,10 @@ class SpectrumPlotWidget(QWidget):
                 grad.setColorAt(t, QColor(int(r * 255), int(g * 255), int(b * 255)))
             painter.setBrush(QBrush(grad))
         else:
-            painter.setBrush(QBrush(QColor("#f0f0f0")))
+            grad = QLinearGradient(0, y_start, 0, y_end)
+            grad.setColorAt(0.0, COLOR_PLAIN_FILL_TOP)
+            grad.setColorAt(1.0, COLOR_PLAIN_FILL_BOTTOM)
+            painter.setBrush(QBrush(grad))
 
         painter.setPen(Qt.NoPen)
         painter.drawPolygon(fill_path)
@@ -411,10 +418,17 @@ class SpectrumPlotWidget(QWidget):
                     px = x_start
                 py = y_end - (pk_y / y_limit) * plot_h
 
+                # Vertical helper line
                 painter.setPen(QPen(self.peak_line_color, 1, Qt.DashLine))
                 painter.drawLine(QPointF(px, y_end), QPointF(px, py))
 
-                painter.setPen(QPen(self.text_color, 1))
+                # Vibrant peak circle/dot marker at curve tip
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QBrush(self.peak_line_color))
+                painter.drawEllipse(QPointF(px, py), 3, 3)
+
+                # Vibrant peak label
+                painter.setPen(QPen(self.peak_line_color, 1))
                 label = f"{int(round(pk_x))} nm" if is_calibrated else f"Px {pk_x}"
                 painter.drawText(QRectF(px - 40, py - 20, 80, 15), Qt.AlignCenter, label)
 
