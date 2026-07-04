@@ -17,3 +17,18 @@ def request_shutdown() -> None:
         subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
     except Exception as e:
         logger.error(f"Shutdown execution failed: {e}")
+
+
+def request_reboot() -> None:
+    """
+    Executes: sudo reboot
+    Logs "Reboot requested" at INFO level to logger "spectroo.system"
+    before executing.
+    Wraps subprocess.run in try/except — on failure logs the error
+    at ERROR level but does not raise.
+    """
+    logger.info("Reboot requested")
+    try:
+        subprocess.run(["sudo", "reboot"], check=True)
+    except Exception as e:
+        logger.error(f"Reboot execution failed: {e}")

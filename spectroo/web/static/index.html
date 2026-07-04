@@ -292,6 +292,8 @@
             <div class="section-header">SYSTEM</div>
             <button id="shutdown-btn">Shutdown</button>
             <span id="shutdown-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
+            <button id="reboot-btn" style="margin-top: 6px;">Reboot System</button>
+            <span id="reboot-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
             <button id="restart-btn" style="margin-top: 6px;">Restart System</button>
             <span id="restart-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
         </div>
@@ -1037,6 +1039,7 @@
         const exportJsonBtn = document.getElementById('export-json-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
         const shutdownBtn = document.getElementById('shutdown-btn');
+        const rebootBtn = document.getElementById('reboot-btn');
         const restartBtn = document.getElementById('restart-btn');
 
         function setSelectedMode(mode) {
@@ -1293,6 +1296,9 @@
         });
 
         shutdownBtn.addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to shut down the system?")) {
+                return;
+            }
             const statusEl = document.getElementById('shutdown-status');
             shutdownBtn.disabled = true;
             statusEl.innerText = 'Shutting down...';
@@ -1308,6 +1314,28 @@
             } catch (err) {
                 statusEl.innerText = `Error: ${err.message}`;
                 shutdownBtn.disabled = false;
+            }
+        });
+
+        rebootBtn.addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to reboot the system?")) {
+                return;
+            }
+            const statusEl = document.getElementById('reboot-status');
+            rebootBtn.disabled = true;
+            statusEl.innerText = 'Rebooting...';
+            try {
+                const res = await fetch('/api/reboot', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    statusEl.innerText = 'Reboot initiated.';
+                } else {
+                    statusEl.innerText = 'Reboot failed.';
+                    rebootBtn.disabled = false;
+                }
+            } catch (err) {
+                statusEl.innerText = `Error: ${err.message}`;
+                rebootBtn.disabled = false;
             }
         });
 

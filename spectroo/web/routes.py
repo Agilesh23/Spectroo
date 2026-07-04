@@ -18,7 +18,7 @@ from spectroo.core.models import HistoryRecord, Peak
 from spectroo.storage.db import save_record as save_spectrum, get_record, list_records
 from spectroo.storage.export import export_csv, export_json
 from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
-from spectroo.system.shutdown import request_shutdown
+from spectroo.system.shutdown import request_shutdown, request_reboot
 
 logger = logging.getLogger("spectroo.web.routes")
 
@@ -370,6 +370,13 @@ def post_baseline(body: BaselineRequest, request: Request):
 async def shutdown():
     logger.info("User action: Web API shutdown requested")
     request_shutdown()
+    return {"ok": True}
+
+
+@router.post("/api/reboot")
+async def reboot():
+    logger.info("User action: Web API reboot requested")
+    request_reboot()
     return {"ok": True}
 
 
