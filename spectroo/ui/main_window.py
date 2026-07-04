@@ -105,6 +105,7 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.export_requested.connect(self._on_export)
         self.control_panel.save_chart_requested.connect(self._on_save_chart)
         self.control_panel.shutdown_requested.connect(self._on_shutdown)
+        self.control_panel.reboot_requested.connect(self._on_reboot)
         if self._dev_mode:
             self.control_panel.show_terminal_requested.connect(self._on_show_terminal)
             self.control_panel.show_logs_requested.connect(self._on_show_logs)
@@ -224,9 +225,31 @@ class SpectrooMainWindow(QMainWindow):
 
     def _on_shutdown(self) -> None:
         logger.info("User action: Shutdown requested")
-        import subprocess
-        self._on_stop()
-        subprocess.run(["sudo", "shutdown", "-h", "now"])
+        reply = QMessageBox.question(
+            self,
+            "Confirm Shutdown",
+            "Are you sure you want to shut down the system?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self._on_stop()
+            from spectroo.system.shutdown import request_shutdown
+            request_shutdown()
+
+    def _on_reboot(self) -> None:
+        logger.info("User action: Reboot requested")
+        reply = QMessageBox.question(
+            self,
+            "Confirm Reboot",
+            "Are you sure you want to reboot the system?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self._on_stop()
+            from spectroo.system.shutdown import request_reboot
+            request_reboot()
 
 
     def closeEvent(self, event) -> None:

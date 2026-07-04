@@ -20,6 +20,7 @@ class ControlPanel(QWidget):
     export_requested    = pyqtSignal()
     save_chart_requested = pyqtSignal()
     shutdown_requested  = pyqtSignal()      # NEW — not in v1
+    reboot_requested    = pyqtSignal()
     show_terminal_requested = pyqtSignal()
     show_logs_requested     = pyqtSignal()
 
@@ -152,6 +153,10 @@ class ControlPanel(QWidget):
         self.shutdown_btn = QPushButton("Shutdown")
         self.shutdown_btn.clicked.connect(self.shutdown_requested.emit)
         self.layout.addWidget(self.shutdown_btn)
+
+        self.reboot_btn = QPushButton("Reboot System")
+        self.reboot_btn.clicked.connect(self.reboot_requested.emit)
+        self.layout.addWidget(self.reboot_btn)
 
         # Bottom Stretch
         self.layout.addStretch()
