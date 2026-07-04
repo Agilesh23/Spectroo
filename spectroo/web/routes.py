@@ -82,7 +82,8 @@ def get_status(request: Request):
         "dark_loaded": dark_loaded,
         "cpu_temp": temp,
         "cpu_temp_warn": is_cpu_temp_warning(temp),
-        "baseline_enabled": config.get("dsp", {}).get("baseline_enabled", True)
+        "baseline_enabled": config.get("dsp", {}).get("baseline_enabled", True),
+        "wavelength_range_nm": config.get("hardware", {}).get("wavelength_range_nm", [400, 700])
     }
 
 

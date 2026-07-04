@@ -199,7 +199,59 @@
             background-color: #e6e6e6;
         }
 
+        @media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+            body {
+                overflow: auto !important;
+                height: auto !important;
+            }
+            .app-container {
+                flex-direction: column !important;
+                height: auto !important;
+            }
+            .plot-area {
+                width: 100% !important;
+                height: 400px !important;
+                flex-grow: 0 !important;
+                border-bottom: 1px solid #dcdcdc;
+            }
+            .control-panel {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-left: none !important;
+                overflow-y: visible !important;
+            }
+            .status-bar {
+                height: auto !important;
+                min-height: auto !important;
+                padding: 10px !important;
+                flex-wrap: wrap !important;
+                gap: 10px !important;
+            }
+        }
 
+        /* Specific landscape compact tweaks */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .plot-area {
+                height: 60vh !important;
+            }
+            .control-panel {
+                padding: 8px 10px !important;
+            }
+            .control-panel button {
+                font-size: 0.85rem !important;
+                padding: 4px 6px !important;
+            }
+            .control-panel .section-header {
+                font-size: 0.75rem !important;
+                margin-top: 6px !important;
+                margin-bottom: 4px !important;
+            }
+            .control-panel .input-row {
+                font-size: 0.8rem !important;
+                margin-top: 4px !important;
+                margin-bottom: 6px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -266,6 +318,19 @@
         let lastRecordId = null;
         let selectedMode = 'single';
         let streamingActive = false;
+        let configWavelengthRange = [400, 700]; // default fallback
+
+        function getFullMin(wavelengths) {
+            if (!wavelengths || wavelengths.length === 0) return 0;
+            const isCalibrated = (wavelengths[wavelengths.length - 1] - wavelengths[0]) > 200;
+            return isCalibrated ? configWavelengthRange[0] : wavelengths[0];
+        }
+
+        function getFullMax(wavelengths) {
+            if (!wavelengths || wavelengths.length === 0) return 1;
+            const isCalibrated = (wavelengths[wavelengths.length - 1] - wavelengths[0]) > 200;
+            return isCalibrated ? configWavelengthRange[1] : wavelengths[wavelengths.length - 1];
+        }
         
 
         let ws = null;
@@ -371,7 +436,6 @@
                 Math.floor(b_adj * 255)
             ];
         }
-
         // Draw Spectrum
         function drawSpectrum(wavelengths, intensities, peaks) {
             currentWavelengths = wavelengths;
@@ -407,19 +471,15 @@
             ctx.restore();
 
             const hasData = wavelengths && intensities && wavelengths.length > 0 && intensities.length > 0;
+            const isCalibrated = hasData && (wavelengths[wavelengths.length - 1] - wavelengths[0]) > 200;
 
             // X axis label
-            let xLabel = 'Wavelength (nm)';
-            if (hasData) {
-                if ((wavelengths[wavelengths.length - 1] - wavelengths[0]) < 200) {
-                    xLabel = 'Pixel';
-                }
-            }
+            let xLabel = isCalibrated ? 'Wavelength (nm)' : 'Pixel';
             ctx.fillStyle = colors.text;
             ctx.font = 'bold 10px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(xLabel, margin.left + plotW / 2, canvas.height - margin.bottom + 28);
+            ctx.fillText(xLabel, margin.left + plotW / 2, canvas.height - margin.bottom + 32);
 
             if (!hasData) {
                 ctx.strokeStyle = colors.axis;
@@ -435,8 +495,8 @@
             }
 
             // Ranges
-            const fullMin = wavelengths[0];
-            const fullMax = wavelengths[wavelengths.length - 1];
+            const fullMin = getFullMin(wavelengths);
+            const fullMax = getFullMax(wavelengths);
             const xMin = zoomXMin !== null ? zoomXMin : fullMin;
             const xMax = zoomXMax !== null ? zoomXMax : fullMax;
 
@@ -446,7 +506,7 @@
 
             // Horizontal Grid & Y labels
             const yTicks = [0, 1, 2, 3, 4].map(i => i * (yLimit / 4.0));
-            ctx.font = '8px Arial';
+            ctx.font = '10px Arial';
             ctx.fillStyle = colors.text;
 
             yTicks.forEach(yVal => {
@@ -464,6 +524,7 @@
                 ctx.lineTo(margin.left, py);
                 ctx.stroke();
 
+                ctx.font = '10px Arial';
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(Math.round(yVal).toString(), margin.left - 7, py);
@@ -511,6 +572,7 @@
 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
+                ctx.font = '10px Arial';
                 ctx.fillText(Math.round(xVal).toString(), px, canvas.height - margin.bottom + 8);
             });
 
@@ -564,7 +626,6 @@
                 if (fillMode === 'color') {
                     const grad = ctx.createLinearGradient(margin.left, 0, canvas.width - margin.right, 0);
                     const numStops = 60;
-                    const isCalibrated = (fullMax - fullMin) > 200;
 
                     for (let stopI = 0; stopI <= numStops; stopI++) {
                         const t = stopI / numStops;
@@ -625,10 +686,16 @@
                 ctx.stroke();
             }
 
-            // Peak dashed lines and labels
-            const isCalibrated = (fullMax - fullMin) > 200;
-            if (showPeaks) {
-                peaks.forEach(idx => {
+            // Peak dashed lines and labels (top 5 peaks only)
+            if (showPeaks && peaks && peaks.length > 0) {
+                const sortedPeaks = peaks
+                    .filter(idx => idx >= 0 && idx < intensities.length)
+                    .map(idx => ({ idx, val: intensities[idx] }))
+                    .sort((a, b) => b.val - a.val)
+                    .slice(0, 5)
+                    .map(item => item.idx);
+
+                sortedPeaks.forEach(idx => {
                     if (idx < 0 || idx >= wavelengths.length) return;
                     const pkX = wavelengths[idx];
                     if (pkX < xMin || pkX > xMax) return;
@@ -649,7 +716,7 @@
 
                     // Text
                     ctx.fillStyle = colors.text;
-                    ctx.font = '8px Arial';
+                    ctx.font = '9px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
                     const label = isCalibrated ? Math.round(pkX) + ' nm' : 'Px ' + pkX;
@@ -663,7 +730,6 @@
             if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
                 const inspectW = wavelengths[inspectIdx];
                 const inspectY = intensities[inspectIdx];
-                const isCalibrated = (fullMax - fullMin) > 200;
 
                 const boxW = 156;
                 const boxH = 65;
@@ -722,8 +788,8 @@
             if (isPanClick) {
                 isPanning = true;
                 panStartX = mouseX;
-                const fullMin = currentWavelengths[0];
-                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                const fullMin = getFullMin(currentWavelengths);
+                const fullMax = getFullMax(currentWavelengths);
                 panStartXMin = zoomXMin !== null ? zoomXMin : fullMin;
                 panStartXMax = zoomXMax !== null ? zoomXMax : fullMax;
                 return;
@@ -748,8 +814,8 @@
                 const dataPerPx = (panStartXMax - panStartXMin) / plotW;
                 const shift = -dx * dataPerPx;
 
-                const fullMin = currentWavelengths[0];
-                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                const fullMin = getFullMin(currentWavelengths);
+                const fullMax = getFullMax(currentWavelengths);
                 const rng = panStartXMax - panStartXMin;
 
                 let newMin = Math.max(fullMin, panStartXMin + shift);
@@ -774,8 +840,8 @@
             e.preventDefault();
 
             const factor = e.deltaY < 0 ? 0.8 : 1.25;
-            const fullMin = currentWavelengths[0];
-            const fullMax = currentWavelengths[currentWavelengths.length - 1];
+            const fullMin = getFullMin(currentWavelengths);
+            const fullMax = getFullMax(currentWavelengths);
 
             const xMin = zoomXMin !== null ? zoomXMin : fullMin;
             const xMax = zoomXMax !== null ? zoomXMax : fullMax;
@@ -831,8 +897,8 @@
             if (mouseX >= margin.left && mouseX <= logicalWidth - margin.right &&
                 mouseY >= margin.top && mouseY <= logicalHeight - margin.bottom) {
 
-                const fullMin = currentWavelengths[0];
-                const fullMax = currentWavelengths[currentWavelengths.length - 1];
+                const fullMin = getFullMin(currentWavelengths);
+                const fullMax = getFullMax(currentWavelengths);
                 const xMin = zoomXMin !== null ? zoomXMin : fullMin;
                 const xMax = zoomXMax !== null ? zoomXMax : fullMax;
 
@@ -939,6 +1005,9 @@
                 const res = await fetch('/api/status');
                 const data = await res.json();
                 updateStatusBar(data);
+                if (data.wavelength_range_nm) {
+                    configWavelengthRange = data.wavelength_range_nm;
+                }
                 if (data.live_active) {
                     if (!streamingActive) {
                         setSelectedMode('live');
