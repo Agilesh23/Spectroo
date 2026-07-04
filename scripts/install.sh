@@ -60,9 +60,13 @@ elif command -v apt-get &> /dev/null; then
         "xinit"
         "openbox"
         "unclutter-xfixes"
+        "xterm"
         
-        # Web mode NetworkManager dependency
+        # Web mode NetworkManager and discovery dependencies
         "network-manager"
+        "avahi-daemon"
+        "iptables"
+        "iptables-persistent"
     )
     
     SUDO=""
@@ -75,6 +79,13 @@ elif command -v apt-get &> /dev/null; then
         fi
     fi
     
+    # Pre-seed iptables-persistent to run non-interactively without user prompts
+    export DEBIAN_FRONTEND=noninteractive
+    if command -v debconf-set-selections &> /dev/null; then
+        echo "iptables-persistent iptables-persistent/prules2 boolean true" | $SUDO debconf-set-selections || true
+        echo "iptables-persistent iptables-persistent/ip6rules2 boolean true" | $SUDO debconf-set-selections || true
+    fi
+
     $SUDO apt-get update -y
     $SUDO apt-get install -y "${SYSTEM_PACKAGES[@]}"
 else
@@ -154,6 +165,77 @@ if [ "$ENABLE_BOOT" == "true" ]; then
     fi
 else
     echo "Skipping systemd boot service installation. (Run with --enable-boot-service to enable)."
+fi
+
+# 5b. Hotspot Port Redirection & mDNS Configuration
+if [ -n "$SUDO" ] || [ "$EUID" -eq 0 ]; then
+    echo "Configuring hotspot port redirection and static mDNS..."
+
+    # Extract variables from config.toml using Python's standard tomllib
+    HOTSPOT_IFACE=$(python3 -c "
+import tomllib
+with open('config.toml', 'rb') as f:
+    cfg = tomllib.load(f)
+print(cfg.get('hotspot', {}).get('interface', 'wlan0'))
+" 2>/dev/null || echo "wlan0")
+
+    GATEWAY_IP=$(python3 -c "
+import tomllib
+with open('config.toml', 'rb') as f:
+    cfg = tomllib.load(f)
+print(cfg.get('hotspot', {}).get('gateway_ip', '10.42.0.1'))
+" 2>/dev/null || echo "10.42.0.1")
+
+    MDNS_HOSTNAME=$(python3 -c "
+import tomllib
+with open('config.toml', 'rb') as f:
+    cfg = tomllib.load(f)
+print(cfg.get('hotspot', {}).get('mdns_hostname', 'spectroo.local'))
+" 2>/dev/null || echo "spectroo.local")
+
+    PUBLIC_PORT=$(python3 -c "
+import tomllib
+with open('config.toml', 'rb') as f:
+    cfg = tomllib.load(f)
+print(cfg.get('web', {}).get('public_port', 80))
+" 2>/dev/null || echo 80)
+
+    INTERNAL_PORT=$(python3 -c "
+import tomllib
+with open('config.toml', 'rb') as f:
+    cfg = tomllib.load(f)
+print(cfg.get('web', {}).get('internal_port', 8000))
+" 2>/dev/null || echo 8000)
+
+    # Configure mDNS static entry in /etc/avahi/hosts
+    AVAHI_HOSTS="/etc/avahi/hosts"
+    AVAHI_ENTRY="$GATEWAY_IP $MDNS_HOSTNAME"
+    if [ -f "$AVAHI_HOSTS" ]; then
+        if ! grep -qxF "$AVAHI_ENTRY" "$AVAHI_HOSTS"; then
+            echo "Adding static mDNS entry '$AVAHI_ENTRY' to $AVAHI_HOSTS"
+            echo "$AVAHI_ENTRY" | $SUDO tee -a "$AVAHI_HOSTS" > /dev/null
+            if systemctl is-active --quiet avahi-daemon; then
+                echo "Restarting avahi-daemon to apply changes..."
+                $SUDO systemctl restart avahi-daemon
+            fi
+        else
+            echo "mDNS entry for $MDNS_HOSTNAME already exists in $AVAHI_HOSTS."
+        fi
+    fi
+
+    # Apply NAT port redirection rule idempotently
+    if ! $SUDO iptables -t nat -C PREROUTING -i "$HOTSPOT_IFACE" -p tcp --dport "$PUBLIC_PORT" -j REDIRECT --to-port "$INTERNAL_PORT" &>/dev/null; then
+        echo "Adding iptables PREROUTING redirect rule: $PUBLIC_PORT -> $INTERNAL_PORT on $HOTSPOT_IFACE"
+        $SUDO iptables -t nat -A PREROUTING -i "$HOTSPOT_IFACE" -p tcp --dport "$PUBLIC_PORT" -j REDIRECT --to-port "$INTERNAL_PORT"
+    else
+        echo "iptables PREROUTING redirect rule already exists."
+    fi
+
+    # Save iptables rules so they survive reboot
+    if command -v netfilter-persistent &> /dev/null; then
+        echo "Persisting iptables rules..."
+        $SUDO netfilter-persistent save
+    fi
 fi
 
 # 6. Print Final Instructions
