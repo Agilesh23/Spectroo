@@ -3,9 +3,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from spectroo.web import routes, ws
 
-def create_app(config: dict, config_path: str = None) -> FastAPI:
+def create_app(config: dict, config_path: str = None, dev: bool = False) -> FastAPI:
     app = FastAPI(title="Spectroo", version="3.0")
     app.state.config = config
+    app.state.dev = dev
     app.state.live_active = False
     app.state.ws_client_connected = False
     app.state.current_frame = None   # dict | None: latest frame data

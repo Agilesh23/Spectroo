@@ -69,7 +69,7 @@ class SpectrooMainWindow(QMainWindow):
         content_layout.setSpacing(0)
 
         self.plot_widget = SpectrumPlotWidget(self)
-        self.control_panel = ControlPanel(self)
+        self.control_panel = ControlPanel(self, dev=self._dev_mode)
 
         content_layout.addWidget(self.plot_widget, stretch=1)
         content_layout.addWidget(self.control_panel)
@@ -105,14 +105,18 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.export_requested.connect(self._on_export)
         self.control_panel.save_chart_requested.connect(self._on_save_chart)
         self.control_panel.shutdown_requested.connect(self._on_shutdown)
+        if self._dev_mode:
+            self.control_panel.show_terminal_requested.connect(self._on_show_terminal)
+            self.control_panel.show_logs_requested.connect(self._on_show_logs)
 
     def _on_mode_changed(self, mode: str) -> None:
+        logger.info("User action: Mode changed to %s", mode)
         self.current_mode = mode
         self._on_stop()
         self.control_panel.set_mode(mode)
 
     def _on_start(self) -> None:
-        logger.info("Button clicked: Start | Mode: %s | Exposure: %s", self.current_mode, self.config.get("camera", {}).get("exposure_us"))
+        logger.info("User action: Start Acquisition clicked (mode: %s, exposure: %s us)", self.current_mode, self.config.get("camera", {}).get("exposure_us"))
         self._on_stop()
         if self.current_mode == "single":
             self.control_panel.start_btn.setEnabled(False)
@@ -136,7 +140,7 @@ class SpectrooMainWindow(QMainWindow):
             self._live_worker.start()
 
     def _on_stop(self) -> None:
-        logger.info("Button clicked: Stop | Mode: %s", self.current_mode)
+        logger.info("User action: Stop Acquisition clicked")
         if hasattr(self, "_live_worker") and self._live_worker:
             self._live_worker.stop()
             self._live_worker = None
@@ -152,15 +156,16 @@ class SpectrooMainWindow(QMainWindow):
             self.control_panel.stop_btn.setEnabled(False)
 
     def _on_exposure_changed(self, exposure_us: int) -> None:
+        logger.info("User action: Exposure changed to %d us", exposure_us)
         self.config["camera"]["exposure_us"] = exposure_us
 
     def _on_baseline_toggled(self, enabled: bool) -> None:
-        logger.info("Button clicked: Baseline Corr | Enabled: %s", enabled)
+        logger.info("User action: Baseline correction toggled to %s", enabled)
         self.baseline_enabled = enabled
         self.config["dsp"]["baseline_enabled"] = enabled
 
     def _on_calibrate(self) -> None:
-        logger.info("Button clicked: Calibrate... | Dev Mode: %s", self._dev_mode)
+        logger.info("User action: Calibration wizard opened")
         if self._dev_mode:
             self._open_dev_window()
 
@@ -196,9 +201,29 @@ class SpectrooMainWindow(QMainWindow):
         calib_cfg = self.config.get("calibration", {})
         has_calib = bool(calib_cfg.get("coefficients", None))
         self.status_bar.update_status({"calibrated": has_calib})
+        logger.info("User action: Calibration wizard applied (reloaded config.toml)")
+
+    def _on_show_terminal(self) -> None:
+        logger.info("User action: Show Terminal clicked")
+        import subprocess
+        try:
+            subprocess.Popen(["xterm"])
+        except Exception as e:
+            logger.error("Failed to spawn xterm: %s", e)
+            QMessageBox.critical(self, "Error", f"Failed to spawn xterm: {e}")
+
+    def _on_show_logs(self) -> None:
+        logger.info("User action: Show Logs clicked")
+        try:
+            from spectroo.ui.dev.log_viewer_window import LogViewerWindow
+            win = LogViewerWindow(self.config, parent=self)
+            win.exec_()
+        except Exception as e:
+            logger.error("Failed to open log viewer: %s", e)
+            QMessageBox.critical(self, "Error", f"Failed to open log viewer: {e}")
 
     def _on_shutdown(self) -> None:
-        logger.info("Button clicked: Shutdown")
+        logger.info("User action: Shutdown requested")
         import subprocess
         self._on_stop()
         subprocess.run(["sudo", "shutdown", "-h", "now"])
@@ -272,7 +297,7 @@ class SpectrooMainWindow(QMainWindow):
         QMessageBox.critical(self, "Acquisition Error", message)
 
     def _on_dark_frame(self) -> None:
-        logger.info("Button clicked: Capture Dark Frame | Exposure: %s", self.config.get("camera", {}).get("exposure_us"))
+        logger.info("User action: Dark frame capture requested")
         QMessageBox.information(
             self,
             "Capture Dark Frame",
@@ -283,27 +308,28 @@ class SpectrooMainWindow(QMainWindow):
         self._dark_worker.start()
 
     def _on_dark_frame_finished(self, message: str) -> None:
+        logger.info("User action: Dark frame capture finished: %s", message)
         QMessageBox.information(self, "Dark Frame", message)
         dark_path = self.config.get("storage", {}).get("dark_frame_path", "")
         self.status_bar.update_status({"dark_loaded": bool(dark_path and __import__("os").path.exists(dark_path))})
         self._dark_worker.deleteLater()
 
     def _on_flat_field_capture(self) -> None:
-        logger.info("Shortcut triggered: Capture Flat Field | Exposure: %s", self.config.get("camera", {}).get("exposure_us"))
+        logger.info("User action: Flat field capture requested")
         self.status_bar.update_status({"message": "Capturing flat-field..."})
         self._flat_worker = FlatFieldWorker(self.config, self._frame_source, self)
         self._flat_worker.finished.connect(self._on_flat_field_finished)
         self._flat_worker.start()
 
     def _on_flat_field_finished(self, message: str) -> None:
-        logger.info("Flat-field worker finished: %s", message)
+        logger.info("User action: Flat field capture finished: %s", message)
         self.status_bar.update_status({"message": message})
         flat_path = self.config.get("storage", {}).get("flat_field_path", "")
         self.status_bar.update_status({"flat_loaded": bool(flat_path and __import__("os").path.exists(flat_path))})
         self._flat_worker.deleteLater()
 
     def _on_export(self) -> None:
-        logger.info("Button clicked: Export JSON")
+        logger.info("User action: Export requested")
         wavelengths = self.plot_widget.wavelengths
         intensities = self.plot_widget.intensities
         if wavelengths is None or intensities is None:
@@ -341,7 +367,7 @@ class SpectrooMainWindow(QMainWindow):
             QMessageBox.critical(self, "Export Failed", str(e))
 
     def _on_save_chart(self) -> None:
-        logger.info("Button clicked: Save Chart")
+        logger.info("User action: Save Chart requested")
         path, _ = QFileDialog.getSaveFileName(self, "Save Chart", "", "PNG (*.png)")
         if path:
             if not path.lower().endswith(".png"):
@@ -381,7 +407,7 @@ class SpectrooMainWindow(QMainWindow):
             QMessageBox.critical(self, "Save Failed", str(e))
 
     def _on_save_clicked(self) -> None:
-        logger.info("Button clicked: Save Spectrum")
+        logger.info("User action: Save Spectrum requested")
         if self.current_spectrum is None:
             import logging
             logging.getLogger("spectroo.ui").warning("No spectrum to save.")

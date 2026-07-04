@@ -20,9 +20,12 @@ class ControlPanel(QWidget):
     export_requested    = pyqtSignal()
     save_chart_requested = pyqtSignal()
     shutdown_requested  = pyqtSignal()      # NEW — not in v1
+    show_terminal_requested = pyqtSignal()
+    show_logs_requested     = pyqtSignal()
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, dev: bool = False) -> None:
         super().__init__(parent)
+        self._dev_mode = dev
         self.setFixedWidth(CONTROL_PANEL_WIDTH)
         self.setObjectName("ControlPanelRoot")
 
@@ -134,7 +137,17 @@ class ControlPanel(QWidget):
         self.layout.addWidget(self.export_btn)
         self.layout.addWidget(self.save_chart_btn)
 
-        # 5. SYSTEM
+        # 5. DEVELOPER
+        if self._dev_mode:
+            self._add_header("DEVELOPER")
+            self.show_terminal_btn = QPushButton("Show Terminal")
+            self.show_terminal_btn.clicked.connect(self.show_terminal_requested.emit)
+            self.show_logs_btn = QPushButton("Show Logs")
+            self.show_logs_btn.clicked.connect(self.show_logs_requested.emit)
+            self.layout.addWidget(self.show_terminal_btn)
+            self.layout.addWidget(self.show_logs_btn)
+
+        # 6. SYSTEM
         self._add_header("SYSTEM")
         self.shutdown_btn = QPushButton("Shutdown")
         self.shutdown_btn.clicked.connect(self.shutdown_requested.emit)

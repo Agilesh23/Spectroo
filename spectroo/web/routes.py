@@ -1,4 +1,5 @@
 import os
+import logging
 import tempfile
 from datetime import datetime, timezone
 from typing import Optional
@@ -18,6 +19,8 @@ from spectroo.storage.db import save_record as save_spectrum, get_record, list_r
 from spectroo.storage.export import export_csv, export_json
 from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
 from spectroo.system.shutdown import request_shutdown
+
+logger = logging.getLogger("spectroo.web.routes")
 
 router = APIRouter()
 
@@ -85,6 +88,7 @@ def get_status(request: Request):
 
 @router.post("/api/capture")
 def post_capture(body: CaptureRequest, request: Request):
+    logger.info("User action: Web API capture requested")
     config = request.app.state.config
 
     if request.app.state.live_active:
@@ -174,6 +178,7 @@ def get_current_frame(request: Request):
 
 @router.post("/api/live/start")
 def post_live_start(request: Request):
+    logger.info("User action: Web API live start requested")
 
     request.app.state.live_active = True
     return {"status": "live started"}
@@ -181,12 +186,14 @@ def post_live_start(request: Request):
 
 @router.post("/api/live/stop")
 def post_live_stop(request: Request):
+    logger.info("User action: Web API live stop requested")
     request.app.state.live_active = False
     return {"status": "live stopped"}
 
 
 @router.post("/api/save")
 def post_save(body: SaveRequest, request: Request):
+    logger.info("User action: Web API save spectrum requested")
     config = request.app.state.config
     current_frame = request.app.state.current_frame
 
@@ -241,6 +248,7 @@ def post_save(body: SaveRequest, request: Request):
 
 @router.get("/api/export/current")
 def get_export_current(request: Request, background_tasks: BackgroundTasks, format: str = "json"):
+    logger.info("User action: Web API export current requested (format: %s)", format)
     config = request.app.state.config
     current_frame = request.app.state.current_frame
 
@@ -305,6 +313,7 @@ def get_export_current(request: Request, background_tasks: BackgroundTasks, form
 
 @router.get("/api/export/{record_id}")
 def get_export_record(record_id: int, request: Request, background_tasks: BackgroundTasks, format: str = "json"):
+    logger.info("User action: Web API export record %d requested (format: %s)", record_id, format)
     config = request.app.state.config
     db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
     record = get_record(db_path, record_id)
@@ -339,6 +348,7 @@ def get_export_record(record_id: int, request: Request, background_tasks: Backgr
 
 @router.post("/api/exposure")
 def post_exposure(body: ExposureRequest, request: Request):
+    logger.info("User action: Web API exposure changed to %d us", body.exposure_us)
     config = request.app.state.config
 
     clamped_value = max(110, min(3066979, body.exposure_us))
@@ -349,6 +359,7 @@ def post_exposure(body: ExposureRequest, request: Request):
 
 @router.post("/api/baseline")
 def post_baseline(body: BaselineRequest, request: Request):
+    logger.info("User action: Web API baseline correction toggled to %s", body.enabled)
     config = request.app.state.config
     config.setdefault("dsp", {})["baseline_enabled"] = body.enabled
     return {"baseline_enabled": body.enabled}
@@ -356,14 +367,27 @@ def post_baseline(body: BaselineRequest, request: Request):
 
 @router.post("/api/shutdown")
 async def shutdown():
+    logger.info("User action: Web API shutdown requested")
     request_shutdown()
     return {"ok": True}
 
 
 @router.post("/api/restart")
 async def restart_pipeline(request: Request):
+    logger.info("User action: Web API restart pipeline requested")
     request.app.state.live_active = False
     request.app.state.ws_client_connected = False
     request.app.state.current_frame = None
     return {"ok": True}
+
+
+@router.get("/logs", response_class=HTMLResponse)
+def get_logs(request: Request):
+    if not getattr(request.app.state, "dev", False):
+        raise HTTPException(status_code=403, detail="Developer mode is not enabled")
+    static_file_path = os.path.join(os.path.dirname(__file__), "static", "logs.html")
+    if os.path.exists(static_file_path):
+        with open(static_file_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read(), status_code=200)
+    return HTMLResponse(content="<h1>Spectroo v3 - Logs</h1><p>Template logs.html not found.</p>", status_code=404)
 

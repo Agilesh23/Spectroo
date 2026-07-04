@@ -1,6 +1,8 @@
 """Per-frame DSP pipeline orchestrator."""
 
 from datetime import datetime, timezone
+import logging
+import threading
 import numpy as np
 import scipy.ndimage
 
@@ -10,6 +12,19 @@ from spectroo.dsp.collapse import extract_band, apply_flip
 from spectroo.dsp.corrections import subtract_dark, apply_flat_field
 from spectroo.dsp.filters import smooth_savgol, subtract_baseline
 from spectroo.dsp.peaks import find_spectrum_peaks
+
+logger = logging.getLogger("spectroo.dsp.pipeline")
+
+_pipeline_state_lock = threading.Lock()
+_pipeline_state = {
+    "dark_loaded": None,
+    "flat_loaded": None,
+    "baseline_enabled": None,
+    "baseline_method": None,
+    "baseline_window": None,
+    "calibration_active": None,
+}
+
 
 
 def average_frames(frames: list[np.ndarray]) -> np.ndarray:
@@ -61,6 +76,8 @@ def run_pipeline(
     calibration: PolynomialCalibration | None = None,
 ) -> Spectrum:
     """Orchestrates §7 steps 2-12 in order, producing a Spectrum object."""
+    global _pipeline_state
+
     # 1. Average frames
     avg = average_frames(frames)
 
@@ -84,6 +101,12 @@ def run_pipeline(
             dark_frame_1d = apply_flip(dark_band, optics["flip_spectrum"])
         band = subtract_dark(band, dark_frame_1d)
 
+    # Log dark frame state once on change
+    dark_loaded_now = dark_frame_1d is not None
+    with _pipeline_state_lock:
+        if dark_loaded_now != _pipeline_state["dark_loaded"]:
+            _pipeline_state["dark_loaded"] = dark_loaded_now
+            logger.info("DSP: Dark frame subtraction %s", "enabled" if dark_loaded_now else "disabled")
 
     # 7. Savitzky-Golay smoothing
     band = smooth_savgol(
@@ -99,9 +122,32 @@ def run_pipeline(
             dsp_cfg["baseline_polyorder"],
         )
 
+    # Log baseline correction state once on change
+    base_enabled_now = dsp_cfg.get("baseline_enabled", True)
+    base_method_now = dsp_cfg.get("baseline_method", "")
+    base_window_now = dsp_cfg.get("baseline_window", 0)
+    with _pipeline_state_lock:
+        if (base_enabled_now != _pipeline_state["baseline_enabled"] or 
+            base_method_now != _pipeline_state["baseline_method"] or
+            base_window_now != _pipeline_state["baseline_window"]):
+            _pipeline_state["baseline_enabled"] = base_enabled_now
+            _pipeline_state["baseline_method"] = base_method_now
+            _pipeline_state["baseline_window"] = base_window_now
+            if base_enabled_now:
+                logger.info("DSP: Baseline correction enabled (method: %s, window: %d)", base_method_now, base_window_now)
+            else:
+                logger.info("DSP: Baseline correction disabled")
+
     # 9. Response flat-field correction
     if response_flat is not None:
         band = apply_flat_field(band, response_flat)
+
+    # Log flat field state once on change
+    flat_loaded_now = response_flat is not None
+    with _pipeline_state_lock:
+        if flat_loaded_now != _pipeline_state["flat_loaded"]:
+            _pipeline_state["flat_loaded"] = flat_loaded_now
+            logger.info("DSP: Flat-field correction %s", "enabled" if flat_loaded_now else "disabled")
 
     # 10. Wavelength mapping
     pixel_indices = np.arange(len(band))
@@ -112,6 +158,16 @@ def run_pipeline(
     else:
         wavelengths = None
 
+    # Log calibration state once on change
+    cal_active_now = calibration is not None
+    with _pipeline_state_lock:
+        if cal_active_now != _pipeline_state["calibration_active"]:
+            _pipeline_state["calibration_active"] = cal_active_now
+            if cal_active_now:
+                logger.info("DSP: Calibration active (degree: %d, RMS: %.4f nm)", calibration.degree, calibration.rms_nm)
+            else:
+                logger.info("DSP: Calibration inactive (using fallback grating equation or pixel indices)")
+
     # 11. Peak detection
     peaks = find_spectrum_peaks(
         band,
@@ -120,6 +176,7 @@ def run_pipeline(
         peaks_cfg["prominence_min"],
         peaks_cfg["min_distance_px"],
     )
+    logger.debug("DSP: Peak detection found %d peaks", len(peaks))
 
     # 12. Build and return Spectrum
     timestamp = datetime.now(timezone.utc).isoformat()

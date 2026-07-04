@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 import asyncio
 import numpy as np
 from spectroo.camera.source import PiCameraFrameSource
@@ -117,6 +117,97 @@ async def live_stream(websocket: WebSocket):
                 source.close()
             except Exception:
                 pass
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+async def log_stream_generator(log_path: str):
+    import shutil
+    import subprocess
+    import os
+
+    has_journalctl = False
+    if shutil.which("journalctl"):
+        try:
+            res = await asyncio.create_subprocess_exec(
+                "journalctl", "-u", "spectroo.service", "-n", "1",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            await res.wait()
+            if res.returncode == 0:
+                has_journalctl = True
+        except Exception:
+            pass
+
+    if has_journalctl:
+        proc = await asyncio.create_subprocess_exec(
+            "journalctl", "-u", "spectroo.service", "-f", "-n", "100",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        try:
+            while True:
+                line = await proc.stdout.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="ignore")
+        finally:
+            try:
+                proc.terminate()
+                await proc.wait()
+            except Exception:
+                pass
+    else:
+        expanded_path = os.path.expanduser(log_path)
+        os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
+        if not os.path.exists(expanded_path):
+            with open(expanded_path, "w", encoding="utf-8") as f:
+                f.write("")
+
+        try:
+            with open(expanded_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                for line in lines[-100:]:
+                    yield line
+        except Exception:
+            pass
+
+        try:
+            with open(expanded_path, "r", encoding="utf-8") as f:
+                f.seek(0, os.SEEK_END)
+                while True:
+                    line = f.readline()
+                    if not line:
+                        await asyncio.sleep(0.1)
+                        continue
+                    yield line
+        except Exception:
+            pass
+
+
+@router.websocket("/ws/logs")
+async def logs_stream(websocket: WebSocket):
+    # Check dev mode BEFORE calling accept()
+    if not getattr(websocket.app.state, "dev", False):
+        raise HTTPException(status_code=403, detail="Developer mode is not enabled")
+
+    await websocket.accept()
+    log_path = "~/spectroo/logs/spectroo.log"
+    
+    try:
+        async for line in log_stream_generator(log_path):
+            await websocket.send_json({"log": line.strip()})
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"error": str(e)})
+        except Exception:
+            pass
+    finally:
         try:
             await websocket.close()
         except Exception:
