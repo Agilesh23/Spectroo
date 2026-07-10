@@ -67,9 +67,9 @@ The Spectroo v3 application is organized into modular directories separating the
 - **`spectroo/web/`**
   Hosts the standalone hotspot interface.
   - **`app.py`**: Initializes the FastAPI server.
-  - **`routes.py`**: Serves static HTML pages, dashboard, history, and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout). Also provides `/api/current_frame` to return the last captured frame data without querying the camera hardware.
+  - **`routes.py`**: Serves static HTML pages (the main dashboard), and provides status REST endpoints (e.g., `/api/status`, which includes the `cpu_temp` readout). Also provides `/api/current_frame` to return the last captured frame data without querying the camera hardware.
   - **`ws.py`**: Manages WebSockets for real-time streaming of spectrum graphs and dynamic stats (including `cpu_temp` and `cpu_temp_warn`) to browser clients.
-  - **`static/`**: Houses CSS styling, Javascript logic, and raw HTML templates for browser rendering.
+  - **`static/`**: Houses CSS styling, Javascript logic, and HTML files (index.html and logs.html) for browser rendering.
 
 ---
 
@@ -478,4 +478,21 @@ In `main.py`, CLI parsing decides the runtime flow:
 
 ## SECTION 10 — Test Suite
 
-The unit test suite has been removed to streamline the codebase. The repository maintains only the hardware-level integration tests (T7 through T11 integration scripts) in the root directory, designed for manual execution on physical Raspberry Pi hardware.
+The project features a comprehensive suite of unit and integration tests written with `pytest`. There are a total of 119 tests across the following files in the `tests/` directory:
+
+- `tests/test_calibration.py` (5 tests)
+- `tests/test_camera.py` (5 tests)
+- `tests/test_dev_calibration.py` (16 tests)
+- `tests/test_dsp.py` (15 tests)
+- `tests/test_flat_field.py` (5 tests)
+- `tests/test_main_window.py` (12 tests)
+- `tests/test_plot_widget.py` (10 tests)
+- `tests/test_storage.py` (7 tests)
+- `tests/test_system.py` (14 tests)
+- `tests/test_ui_widgets.py` (14 tests)
+- `tests/test_web.py` (16 tests)
+
+To execute the test suite in the virtual environment, run:
+```bash
+.venv/bin/pytest
+```

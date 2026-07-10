@@ -1,6 +1,6 @@
 """find_peaks, prominence ranking."""
 
-import scipy.signal
+from scipy.signal import find_peaks
 import numpy as np
 from spectroo.core.models import Peak
 
@@ -23,7 +23,7 @@ def find_spectrum_peaks(
     max_intensity = float(np.max(intensity_1d))
     prominence_threshold = max(prominence_min, prominence_pct * max_intensity)
 
-    indices, properties = scipy.signal.find_peaks(
+    indices, properties = find_peaks(
         intensity_1d, prominence=prominence_threshold, distance=min_distance_px
     )
 

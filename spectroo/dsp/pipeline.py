@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import logging
 import threading
 import numpy as np
-import scipy.ndimage
+from scipy.ndimage import rotate
 
 from spectroo.core.models import Spectrum
 from spectroo.core.calibration import PolynomialCalibration, apply_calibration
@@ -54,7 +54,7 @@ def apply_tilt_correction(
     change the frame shape during rotation, breaking downstream pixel indices
     (like center_y, band_half_height, centre_pixel).
     """
-    return scipy.ndimage.rotate(
+    return rotate(
         frame_2d,
         angle=tilt_angle_deg,
         reshape=False,

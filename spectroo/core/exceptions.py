@@ -15,10 +15,6 @@ class CameraNotFoundError(SpectrooError):
     pass
 
 
-class DarkFrameMissingError(SpectrooError):
-    """Raised when dark subtraction is requested but no dark frame calibration exists."""
-    pass
-
 
 class CalibrationError(SpectrooError):
     """Raised when calibration fitting fails, e.g. when fewer than min_points are provided."""
@@ -35,6 +31,3 @@ class DiskFullError(SpectrooError):
     pass
 
 
-class DeviceBusyError(SpectrooError):
-    """Raised when a client attempts to connect to a service that is already locked by another user."""
-    pass

@@ -1,5 +1,5 @@
 import os
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel, QCheckBox
 from PyQt5.QtGui import QFont, QTextCursor
 
