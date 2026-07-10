@@ -17,6 +17,11 @@ SSID=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c[
 PASSWORD=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c['hotspot']['password'])")
 INTERFACE=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c['hotspot']['interface'])")
 
+PREV_CONN=$(nmcli -t -f NAME,DEVICE connection show --active | grep ":$INTERFACE$" | cut -d: -f1 || true)
+if [[ -n "$PREV_CONN" ]]; then
+    nmcli connection down "$PREV_CONN" 2>/dev/null || true
+fi
+
 echo "[spectroo] Starting hotspot: SSID=$SSID on $INTERFACE"
 
 # Delete existing hotspot connection if present (avoid nmcli duplicate error)
@@ -36,6 +41,12 @@ nmcli connection add \
     ipv4.method shared \
     ipv6.method disabled
 
-nmcli connection up "spectroo-hotspot"
+if ! nmcli connection up "spectroo-hotspot"; then
+    echo "[spectroo] WARNING: hotspot failed to activate, falling back to previous connection" >&2
+    if [[ -n "$PREV_CONN" ]]; then
+        nmcli connection up "$PREV_CONN" 2>/dev/null || true
+    fi
+    exit 1
+fi
 
 echo "[spectroo] Hotspot active on $INTERFACE"
