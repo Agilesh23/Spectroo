@@ -5,10 +5,10 @@ Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
-User=spectroo
-WorkingDirectory=/home/spectroo/spectroo_v3
+User=laserquant
+WorkingDirectory=/home/laserquant/Spectroo
 ExecStartPre=/bin/sleep 10
-ExecStart=/home/spectroo/spectroo_v3/scripts/boot_detect.sh
+ExecStart=/home/laserquant/Spectroo/scripts/boot_detect.sh
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

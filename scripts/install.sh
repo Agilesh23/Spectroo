@@ -133,9 +133,9 @@ if [ "$ENABLE_BOOT" == "true" ]; then
         
         # Create a temporary file with substituted values
         TEMP_SERVICE=$(mktemp)
-        sed -e "s|User=spectroo|User=$INVOKING_USER|g" \
-            -e "s|WorkingDirectory=/home/spectroo/spectroo_v3|WorkingDirectory=$PROJECT_ROOT|g" \
-            -e "s|ExecStart=/home/spectroo/spectroo_v3/scripts/boot_detect.sh|ExecStart=$PROJECT_ROOT/scripts/boot_detect.sh|g" \
+        sed -e "s|User=laserquant|User=$INVOKING_USER|g" \
+            -e "s|WorkingDirectory=/home/laserquant/Spectroo|WorkingDirectory=$PROJECT_ROOT|g" \
+            -e "s|ExecStart=/home/laserquant/Spectroo/scripts/boot_detect.sh|ExecStart=$PROJECT_ROOT/scripts/boot_detect.sh|g" \
             "$SERVICE_SOURCE" > "$TEMP_SERVICE"
             
         echo "Copying service file to $SERVICE_DEST..."
