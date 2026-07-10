@@ -26,13 +26,38 @@ LOG_PATH = os.path.expanduser("~/spectroo/logs/spectroo.log")
 def run_desktop(config: dict, dev: bool = False) -> None:
     """Launch the PyQt5 desktop application."""
     from PyQt5.QtCore import Qt
-    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtWidgets import QApplication, QSplashScreen
+    from PyQt5.QtGui import QPixmap
     from spectroo.ui.main_window import SpectrooMainWindow
+    import time
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     app = QApplication(sys.argv)
     app.setApplicationName("Spectroo")
+    
+    # Show QSplashScreen immediately
+    logo_path = os.path.join(os.path.dirname(__file__), "spectroo", "assets", "laserquant_logo.png")
+    pixmap = QPixmap(logo_path)
+    scaled_pixmap = pixmap.scaledToWidth(400, Qt.SmoothTransformation)
+    splash = QSplashScreen(scaled_pixmap)
+    splash.show()
+    app.processEvents()
+    
+    start_time = time.time()
+    
+    # Construct SpectrooMainWindow
     window = SpectrooMainWindow(config, dev=dev)
+    
+    # Ensure minimum visible duration of 1.2 seconds (1200ms)
+    elapsed_ms = (time.time() - start_time) * 1000
+    remaining_ms = 1200 - elapsed_ms
+    if remaining_ms > 0:
+        t0 = time.time()
+        while (time.time() - t0) * 1000 < remaining_ms:
+            app.processEvents()
+            time.sleep(0.01)
+            
+    splash.finish(window)
     window.show()
     sys.exit(app.exec_())
 

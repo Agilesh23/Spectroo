@@ -122,10 +122,6 @@ class SpectrumPlotWidget(QWidget):
             self.fill_mode = mode
             self.update()
 
-    def set_peaks_visible(self, visible: bool) -> None:
-        self.peaks_visible = visible
-        self.update()
-
     def _get_zoom_range(self) -> tuple[float, float]:
         if self.wavelengths is None:
             return (0.0, 2591.0)

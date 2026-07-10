@@ -15,7 +15,7 @@ from spectroo.dsp.pipeline import average_frames, run_pipeline
 from spectroo.dsp.peaks import find_spectrum_peaks
 from spectroo.core.calibration import PolynomialCalibration, apply_calibration
 from spectroo.core.models import HistoryRecord, Peak
-from spectroo.storage.db import save_record as save_spectrum, get_record, list_records
+from spectroo.storage.db import save_record as save_spectrum, get_record
 from spectroo.storage.export import export_csv, export_json
 from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
 from spectroo.system.shutdown import request_shutdown, request_reboot
@@ -40,16 +40,6 @@ class ExposureRequest(BaseModel):
 class BaselineRequest(BaseModel):
     enabled: bool
 
-
-def get_history(config: dict) -> list[HistoryRecord]:
-    """Helper to retrieve history list from config db_path."""
-    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
-    from spectroo.storage.db import init_db
-    try:
-        init_db(db_path)
-    except Exception:
-        pass
-    return list_records(db_path)
 
 
 @router.get("/", response_class=HTMLResponse)
