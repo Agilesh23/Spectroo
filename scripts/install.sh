@@ -67,6 +67,7 @@ elif command -v apt-get &> /dev/null; then
         "avahi-daemon"
         "iptables"
         "iptables-persistent"
+        "dnsmasq"
     )
     
     SUDO=""
@@ -236,10 +237,26 @@ print(cfg.get('web', {}).get('internal_port', 8000))
         echo "Persisting iptables rules..."
         $SUDO netfilter-persistent save
     fi
+
+    # Configure dnsmasq resolve entry
+    DNSMASQ_CONF="/etc/dnsmasq.conf"
+    DNSMASQ_ENTRY="address=/laserquant.spectroo/10.42.0.1"
+    if [ -f "$DNSMASQ_CONF" ]; then
+        if ! grep -qF "$DNSMASQ_ENTRY" "$DNSMASQ_CONF"; then
+            echo "Adding dnsmasq entry '$DNSMASQ_ENTRY' to $DNSMASQ_CONF"
+            echo "$DNSMASQ_ENTRY" | $SUDO tee -a "$DNSMASQ_CONF" > /dev/null
+            echo "Restarting dnsmasq to apply changes..."
+            $SUDO systemctl restart dnsmasq || true
+        else
+            echo "dnsmasq entry for laserquant.spectroo already exists in $DNSMASQ_CONF."
+        fi
+    fi
 fi
 
 # 6. Print Final Instructions
 echo "=== Installation Completed Successfully ==="
+echo ""
+echo "Dashboard will be available at http://laserquant.spectroo (no port needed)"
 echo ""
 echo "To run the application manually:"
 echo ""

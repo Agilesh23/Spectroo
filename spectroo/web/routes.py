@@ -15,7 +15,7 @@ from spectroo.dsp.pipeline import average_frames, run_pipeline
 from spectroo.dsp.peaks import find_spectrum_peaks
 from spectroo.core.calibration import PolynomialCalibration, apply_calibration
 from spectroo.core.models import HistoryRecord, Peak
-from spectroo.storage.db import save_record as save_spectrum, get_record
+from spectroo.storage.db import save_record as save_spectrum, get_record, get_all_records, delete_record, set_pinned_status
 from spectroo.storage.export import export_csv, export_json
 from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
 from spectroo.system.shutdown import request_shutdown, request_reboot
@@ -152,6 +152,27 @@ def post_capture(body: CaptureRequest, request: Request):
         # Keep track of peaks and exposure in state for saving later
         request.app.state.current_peaks = peaks_list
         request.app.state.current_exposure = exposure_us
+
+        # Automatically save single captures to history
+        db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+        from spectroo.storage.db import init_db
+        try:
+            init_db(db_path)
+        except Exception:
+            pass
+
+        record = HistoryRecord(
+            id=None,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            exposure_us=exposure_us,
+            pixel_indices=list(range(len(intensities))),
+            intensity=intensities.tolist(),
+            wavelengths=wavelengths.tolist(),
+            peaks=peaks_list,
+            png_path="",
+            calibration_rms_at_capture=None
+        )
+        save_spectrum(db_path, record, max_entries=20)
 
     finally:
         source.close()
@@ -388,4 +409,86 @@ def get_logs(request: Request):
         with open(static_file_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read(), status_code=200)
     return HTMLResponse(content="<h1>Spectroo v3 - Logs</h1><p>Template logs.html not found.</p>", status_code=404)
+
+
+@router.get("/api/history")
+def get_history(request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    from spectroo.storage.db import init_db
+    try:
+        init_db(db_path)
+    except Exception:
+        pass
+    records = get_all_records(db_path)
+    
+    serialized = []
+    for r in records:
+        ints = r.intensity
+        sparkline = []
+        if ints:
+            step = max(1, len(ints) // 100)
+            sparkline = ints[::step][:100]
+            
+        serialized.append({
+            "id": r.id,
+            "timestamp": r.timestamp,
+            "exposure_us": r.exposure_us,
+            "pinned": r.pinned,
+            "peaks_count": len(r.peaks),
+            "sparkline": sparkline
+        })
+    return serialized
+
+
+@router.post("/api/history/{record_id}/restore")
+def post_restore_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    record = get_record(db_path, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+        
+    peaks_px = [p.pixel_index for p in record.peaks]
+    request.app.state.current_frame = {
+        "wavelengths": record.wavelengths,
+        "intensities": record.intensity,
+        "peaks": peaks_px
+    }
+    request.app.state.current_peaks = record.peaks
+    request.app.state.current_exposure = record.exposure_us
+    return request.app.state.current_frame
+
+
+@router.delete("/api/history/{record_id}")
+def delete_history_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    try:
+        delete_record(db_path, record_id)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/history/{record_id}/pin")
+def pin_history_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    try:
+        set_pinned_status(db_path, record_id, True)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/history/{record_id}/unpin")
+def unpin_history_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    try:
+        set_pinned_status(db_path, record_id, False)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 

@@ -24,7 +24,7 @@
             display: flex;
             flex-direction: row;
             flex-grow: 1;
-            height: calc(100vh - 28px);
+            height: calc(100vh - 158px);
         }
         .plot-area {
             flex-grow: 1;
@@ -49,20 +49,185 @@
             overflow-y: auto;
             padding: 12px 10px;
         }
-        .section-header {
+        .icon-toolbar {
+            width: 100%;
+            height: 38px;
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 6px;
+            user-select: none;
+            z-index: 999;
+        }
+        .toolbar-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            background-color: transparent;
+            cursor: pointer;
+            position: relative;
+            color: #475569;
+            padding: 0;
+        }
+        .toolbar-btn:hover:not(:disabled) {
+            background-color: #e2e8f0;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .toolbar-btn:active:not(:disabled) {
+            background-color: #cbd5e1;
+        }
+        .toolbar-btn.active {
+            background-color: #cbd5e1;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+        .toolbar-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background-color: #cbd5e1;
+            margin: 0 4px;
+        }
+        /* Toolbar Tooltips */
+        .toolbar-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            background-color: #1e293b;
+            color: #ffffff;
             font-size: 10px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            display: none;
+            z-index: 1002;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .toolbar-btn:hover:not(:disabled)::after {
+            display: block;
+        }
+        .header-bar {
+            width: 100%;
+            height: 60px;
+            background-color: #0f172a;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            color: #ffffff;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header-logo {
+            height: 48px;
+            width: auto;
+            margin-right: 12px;
+        }
+        .header-title {
+            font-size: 22px;
             font-weight: bold;
-            color: #666666;
-            margin-top: 10px;
-            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            color: #f1f5f9;
+        }
+        .menu-bar {
+            width: 100%;
+            height: 32px;
+            background-color: #e2e8f0;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 12px;
+            user-select: none;
+            z-index: 1000;
+            position: relative;
+        }
+        .menu-item {
+            position: relative;
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #334155;
+            font-weight: 500;
+        }
+        .menu-item:hover {
+            background-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            border-radius: 4px;
+            min-width: 180px;
+            padding: 4px 0;
+            margin-top: 2px;
+            list-style: none;
+            z-index: 1001;
+        }
+        .menu-item:hover .dropdown-menu {
+            display: block;
+        }
+        .dropdown-item {
+            padding: 6px 16px;
+            cursor: pointer;
+            color: #334155;
+            white-space: nowrap;
+            display: block;
+        }
+        .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .dropdown-item.disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+            background-color: transparent !important;
+        }
+        .dropdown-item.active {
+            font-weight: bold;
+            background-color: #f1f5f9;
+        }
+        .dropdown-item.active::before {
+            content: "✓ ";
+            color: #0066cc;
+        }
+        .panel {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        .panel-header {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .section-header.first {
-            margin-top: 0;
-        }
-        .separator {
-            border-top: 1px solid #eeeeee;
-            margin: 10px 0;
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
         }
         .btn-group {
             display: flex;
@@ -195,51 +360,295 @@
                 margin-bottom: 6px !important;
             }
         }
+        .history-panel {
+            position: fixed;
+            top: 130px;
+            left: -380px;
+            width: 360px;
+            height: calc(100vh - 130px);
+            background-color: #f8fafc;
+            border-right: 1px solid #cbd5e1;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1500;
+            display: flex;
+            flex-direction: column;
+        }
+        .history-panel.active {
+            left: 0;
+        }
+        .history-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #cbd5e1;
+            background-color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .history-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        .history-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .history-item {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .history-item.pinned-item {
+            border-color: #93c5fd;
+            background-color: #eff6ff;
+        }
+        .history-item-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .history-item-time {
+            font-weight: 500;
+        }
+        .history-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-item-sparkline {
+            height: 40px;
+            width: 100%;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .history-item-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .history-action-btn {
+            background: none;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .history-action-btn:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .history-action-btn.btn-delete:hover {
+            background-color: #fef2f2;
+            color: #ef4444;
+            border-color: #fca5a5;
+        }
+        .pin-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #94a3b8;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pin-btn.pinned {
+            color: #3b82f6;
+        }
+        .history-panel .close-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            line-height: 1;
+        }
+        .history-panel .close-btn:hover {
+            color: #0f172a;
+        }
     </style>
 </head>
 <body>
+    <div id="history-panel" class="history-panel">
+        <div class="history-header">
+            <h3>Spectrum History</h3>
+            <button id="close-history-panel" class="close-btn">&times;</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+    </div>
+    <div class="header-bar">
+        <img src="/static/logo.png" alt="LaserQuant Logo" class="header-logo">
+        <span class="header-title">Spectroo</span>
+    </div>
+    
+    <div class="menu-bar">
+        <div class="menu-item">File
+            <ul class="dropdown-menu">
+                <li class="dropdown-item disabled">Load Spectrum</li>
+                <li class="dropdown-item" id="menu-save-spectrum">Save Spectrum</li>
+                <li class="dropdown-item" id="menu-export-json">Export JSON</li>
+                <li class="dropdown-item" id="menu-export-csv">Export CSV</li>
+                <li class="dropdown-item disabled">Recent Files</li>
+                <li class="dropdown-item disabled">Exit</li>
+            </ul>
+        </div>
+        <div class="menu-item">Acquisition
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-single-capture">Single Capture</li>
+                <li class="dropdown-item" id="menu-start-stop-live">Start/Stop Live</li>
+                <li class="dropdown-item" id="menu-exposure-settings">Exposure Settings</li>
+                <li class="dropdown-item disabled">Capture Dark Frame</li>
+                <li class="dropdown-item disabled">Toggle Dark Subtraction</li>
+            </ul>
+        </div>
+        <div class="menu-item">Calibration
+            <ul class="dropdown-menu">
+                <li class="dropdown-item disabled">Wavelength Calibration</li>
+                <li class="dropdown-item disabled">Load Calibration File</li>
+                <li class="dropdown-item disabled">Save Calibration File</li>
+                <li class="dropdown-item disabled">Clear Calibration</li>
+            </ul>
+        </div>
+        <div class="menu-item">Analysis
+            <ul class="dropdown-menu">
+                <li class="dropdown-item disabled">Peak Detection</li>
+                <li class="dropdown-item disabled">Smoothing</li>
+                <li class="dropdown-item disabled">Baseline Correction</li>
+                <li class="dropdown-item disabled">Normalize</li>
+                <li class="dropdown-item disabled">Derivative</li>
+                <li class="dropdown-item disabled">Integrate (Area Under Curve)</li>
+                <li class="dropdown-item disabled">FFT/Frequency View</li>
+                <li class="dropdown-item disabled">Compare/Ratio Two Spectra</li>
+            </ul>
+        </div>
+        <div class="menu-item">View
+            <ul class="dropdown-menu">
+                <li class="dropdown-item active" id="menu-color-spectrum">Colour Spectrum</li>
+                <li class="dropdown-item active" id="menu-baseline-corr">Baseline Corr</li>
+                <li class="dropdown-item active" id="menu-show-grid">Show Grid</li>
+                <li class="dropdown-item active" id="menu-show-crosshair">Show Crosshair</li>
+                <li class="dropdown-item" id="menu-zoom-reset">Zoom Reset</li>
+            </ul>
+        </div>
+        <div class="menu-item">System
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-shutdown">Shutdown</li>
+                <li class="dropdown-item" id="menu-restart-system">Restart System</li>
+            </ul>
+        </div>
+        <div class="menu-item">Help
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-about">About</li>
+                <li class="dropdown-item" id="menu-documentation">Documentation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="icon-toolbar">
+        <button class="toolbar-btn" id="toolbar-capture" data-tooltip="Capture">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        </button>
+        <button class="toolbar-btn" id="toolbar-live" data-tooltip="Start Live">
+            <svg class="icon-play" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <svg class="icon-stop" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button class="toolbar-btn" id="toolbar-export-json" data-tooltip="Export JSON" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <button class="toolbar-btn" id="toolbar-export-csv" data-tooltip="Export CSV" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button class="toolbar-btn" id="toolbar-history" data-tooltip="History (Coming soon)">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button class="toolbar-btn active" id="toolbar-crosshair" data-tooltip="Toggle Crosshair">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+        </button>
+        <button class="toolbar-btn active" id="toolbar-color" data-tooltip="Toggle Colour Spectrum">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        </button>
+        <button class="toolbar-btn active" id="toolbar-baseline" data-tooltip="Toggle Baseline Correction">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </button>
+    </div>
+
     <div class="app-container">
         <div class="plot-area" id="plot-area">
             <canvas id="spectrum-canvas"></canvas>
         </div>
         <div class="control-panel">
-            <img src="/static/logo.png" alt="LaserQuant Logo" style="height: 32px; width: auto; align-self: center; margin-bottom: 12px;">
-            <div class="section-header first">MODE</div>
-            <div class="btn-group">
-                <button id="mode-single-btn" class="active">Single</button>
-                <button id="mode-live-btn">Live</button>
+            <div class="panel">
+                <div class="panel-header">MODE</div>
+                <div class="panel-body">
+                    <div class="btn-group" style="margin-bottom: 0;">
+                        <button id="mode-single-btn" class="active">Single</button>
+                        <button id="mode-live-btn">Live</button>
+                    </div>
+                </div>
             </div>
             
-            <div class="separator"></div>
-            
-            <div class="section-header">ACQUISITION</div>
-            <button id="capture-btn" style="margin-bottom: 6px;">Capture</button>
-            <button id="stop-btn" disabled style="margin-bottom: 6px;">Stop</button>
-            <div class="input-row">
-                <span>Exposure (µs):</span>
-                <input type="number" id="exposure-input" value="200000" min="110" max="3066979">
+            <div class="panel">
+                <div class="panel-header">ACQUISITION</div>
+                <div class="panel-body">
+                    <button id="capture-btn" style="margin-bottom: 6px;">Capture</button>
+                    <button id="stop-btn" disabled style="margin-bottom: 6px;">Stop</button>
+                    <div class="input-row" style="margin-bottom: 0; margin-top: 6px;">
+                        <span>Exposure (µs):</span>
+                        <input type="number" id="exposure-input" value="20000" min="110" max="3066979">
+                    </div>
+                </div>
             </div>
             
-            <div class="separator"></div>
+            <div class="panel">
+                <div class="panel-header">DISPLAY</div>
+                <div class="panel-body">
+                    <button id="plot-mode-btn" class="active" style="margin-bottom: 6px;">Colour Spectrum</button>
+                    <button id="baseline-btn" class="active">Baseline Corr</button>
+                </div>
+            </div>
             
-            <div class="section-header">DISPLAY</div>
-            <button id="plot-mode-btn" class="active" style="margin-bottom: 6px;">Colour Spectrum</button>
-            <button id="baseline-btn" class="active">Baseline Corr</button>
-            
-            <div class="separator"></div>
-            
-            <div class="section-header">DATA</div>
-            <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
-            <button id="export-csv-btn" disabled>Export CSV</button>
-            
-            <div class="separator"></div>
-            <div class="section-header">SYSTEM</div>
-            <button id="shutdown-btn">Shutdown</button>
-            <span id="shutdown-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
-            <button id="reboot-btn" style="margin-top: 6px;">Reboot System</button>
-            <span id="reboot-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
-            <button id="restart-btn" style="margin-top: 6px;">Restart System</button>
-            <span id="restart-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
+            <div class="panel">
+                <div class="panel-header">DATA</div>
+                <div class="panel-body">
+                    <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
+                    <button id="export-csv-btn" disabled>Export CSV</button>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -261,6 +670,8 @@
         let currentPeaks = [];
         let fillMode = 'color'; // 'color' | 'plain'
         let showPeaks = true;
+        let showGrid = true;
+        let showCrosshair = true;
         let lastRecordId = null;
         let selectedMode = 'single';
         let streamingActive = false;
@@ -457,12 +868,14 @@
 
             yTicks.forEach(yVal => {
                 const py = canvas.height - margin.bottom - (yVal / yLimit) * plotH;
-                ctx.strokeStyle = colors.grid;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(margin.left, py);
-                ctx.lineTo(canvas.width - margin.right, py);
-                ctx.stroke();
+                if (showGrid) {
+                    ctx.strokeStyle = colors.grid;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(margin.left, py);
+                    ctx.lineTo(canvas.width - margin.right, py);
+                    ctx.stroke();
+                }
 
                 ctx.strokeStyle = colors.axis;
                 ctx.beginPath();
@@ -503,12 +916,14 @@
                 const px = margin.left + (xVal - xMin) / (xMax - xMin) * plotW;
                 if (px < margin.left || px > canvas.width - margin.right) return;
 
-                ctx.strokeStyle = colors.grid;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(px, margin.top);
-                ctx.lineTo(px, canvas.height - margin.bottom);
-                ctx.stroke();
+                if (showGrid) {
+                    ctx.strokeStyle = colors.grid;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(px, margin.top);
+                    ctx.lineTo(px, canvas.height - margin.bottom);
+                    ctx.stroke();
+                }
 
                 ctx.strokeStyle = colors.axis;
                 ctx.beginPath();
@@ -595,7 +1010,7 @@
             }
 
             // Inspect/Cursor crosshair lines (behind the curve)
-            if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
+            if (!isPanning && showCrosshair && inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
                 const inspectW = wavelengths[inspectIdx];
                 const inspectY = intensities[inspectIdx];
                 const px = xMax !== xMin ? margin.left + (inspectW - xMin) / (xMax - xMin) * plotW : margin.left;
@@ -673,7 +1088,7 @@
             ctx.restore();
 
             // Readout box in top-left corner of chart area
-            if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
+            if (!isPanning && showCrosshair && inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
                 const inspectW = wavelengths[inspectIdx];
                 const inspectY = intensities[inspectIdx];
 
@@ -715,30 +1130,19 @@
 
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
 
-            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
-            const plotW = canvas.clientWidth - margin.left - margin.right;
-
-            if (e.button === 2) { // Right click reset
-                e.preventDefault();
-                zoomXMin = null;
-                zoomXMax = null;
-                inspectX = null;
-                inspectIdx = null;
-                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
-                return;
-            }
-
-            const isPanClick = e.button === 1 || (e.button === 0 && e.ctrlKey);
-            if (isPanClick) {
+            if (e.button === 0) { // Left click pans
                 isPanning = true;
                 panStartX = mouseX;
                 const fullMin = getFullMin(currentWavelengths);
                 const fullMax = getFullMax(currentWavelengths);
                 panStartXMin = zoomXMin !== null ? zoomXMin : fullMin;
                 panStartXMax = zoomXMax !== null ? zoomXMax : fullMax;
-                return;
+                
+                // Clear inspection index during pan start
+                inspectIdx = null;
+                inspectX = null;
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
             }
         });
 
@@ -800,14 +1204,29 @@
 
             const t = Math.max(0.0, Math.min(1.0, mouseX / plotW));
             const center = xMin + t * (xMax - xMin);
-            const newHalf = (xMax - xMin) * factor / 2;
+            const newSpan = (xMax - xMin) * factor;
 
-            let newMin = Math.max(fullMin, center - newHalf);
-            let newMax = Math.min(fullMax, center + newHalf);
+            let newMin = center - t * newSpan;
+            let newMax = center + (1.0 - t) * newSpan;
 
-            if (newMax - newMin < 5) return;
+            if (newMin < fullMin) {
+                newMin = fullMin;
+                newMax = newMin + newSpan;
+            }
+            if (newMax > fullMax) {
+                newMax = fullMax;
+                newMin = newMax - newSpan;
+            }
 
-            if (newMin <= fullMin && newMax >= fullMax) {
+            const isCalibrated = (currentWavelengths[currentWavelengths.length - 1] - currentWavelengths[0]) > 200;
+            const minSpan = isCalibrated ? 10.0 : 86.0;
+
+            if (newSpan < minSpan && factor < 1.0) {
+                // Prevent zooming in further than minSpan
+                return;
+            }
+
+            if (newSpan >= (fullMax - fullMin)) {
                 zoomXMin = null;
                 zoomXMax = null;
             } else {
@@ -829,6 +1248,7 @@
         canvas.addEventListener('mousemove', (e) => {
             if (!currentWavelengths || currentWavelengths.length === 0) return;
             if (isPanning) return;
+            if (!showCrosshair) return;
 
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -982,9 +1402,16 @@
         const baselineBtn = document.getElementById('baseline-btn');
         const exportJsonBtn = document.getElementById('export-json-btn');
         const exportCsvBtn = document.getElementById('export-csv-btn');
-        const shutdownBtn = document.getElementById('shutdown-btn');
-        const rebootBtn = document.getElementById('reboot-btn');
-        const restartBtn = document.getElementById('restart-btn');
+
+        // Icon Toolbar wiring
+        const toolbarCapture = document.getElementById('toolbar-capture');
+        const toolbarLive = document.getElementById('toolbar-live');
+        const toolbarExportJson = document.getElementById('toolbar-export-json');
+        const toolbarExportCsv = document.getElementById('toolbar-export-csv');
+        const toolbarHistory = document.getElementById('toolbar-history');
+        const toolbarCrosshair = document.getElementById('toolbar-crosshair');
+        const toolbarColor = document.getElementById('toolbar-color');
+        const toolbarBaseline = document.getElementById('toolbar-baseline');
 
         function setSelectedMode(mode) {
             selectedMode = mode;
@@ -1012,9 +1439,32 @@
                 captureBtn.disabled = active;
                 stopBtn.disabled = true;
             }
+
+            // Sync toolbar
+            toolbarCapture.disabled = active;
+            
+            if (active) {
+                toolbarLive.classList.add('active');
+                toolbarLive.setAttribute('data-tooltip', 'Stop Live');
+                toolbarLive.querySelector('.icon-play').style.display = 'none';
+                toolbarLive.querySelector('.icon-stop').style.display = 'block';
+            } else {
+                toolbarLive.classList.remove('active');
+                toolbarLive.setAttribute('data-tooltip', 'Start Live');
+                toolbarLive.querySelector('.icon-play').style.display = 'block';
+                toolbarLive.querySelector('.icon-stop').style.display = 'none';
+            }
+
             if (!active) {
                 document.getElementById('fps-status').innerText = 'FPS: 0.0';
             }
+        }
+
+        function setExportEnabled(enabled) {
+            exportJsonBtn.disabled = !enabled;
+            exportCsvBtn.disabled = !enabled;
+            toolbarExportJson.disabled = !enabled;
+            toolbarExportCsv.disabled = !enabled;
         }
 
         modeSingleBtn.addEventListener('click', async () => {
@@ -1096,8 +1546,7 @@
                 
                 // Draw frame
                 drawSpectrum(data.wavelengths, data.intensities, data.peaks);
-                exportJsonBtn.disabled = false;
-                exportCsvBtn.disabled = false;
+                setExportEnabled(true);
                 
                 // Check calibration status and update peaks label
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
@@ -1146,8 +1595,7 @@
                 
                 const data = await res.json();
                 drawSpectrum(data.wavelengths, data.intensities, data.peaks);
-                exportJsonBtn.disabled = false;
-                exportCsvBtn.disabled = false;
+                setExportEnabled(true);
                 
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
                 updatePeaksStatus(data.peaks, isCalibrated);
@@ -1197,14 +1645,19 @@
 
         // Display Toggles
         plotModeBtn.addEventListener('click', () => {
+            const menuColorSpectrum = document.getElementById('menu-color-spectrum');
             if (fillMode === 'color') {
                 fillMode = 'plain';
                 plotModeBtn.classList.remove('active');
                 plotModeBtn.innerText = 'Plain Spectrum';
+                menuColorSpectrum.classList.remove('active');
+                toolbarColor.classList.remove('active');
             } else {
                 fillMode = 'color';
                 plotModeBtn.classList.add('active');
                 plotModeBtn.innerText = 'Colour Spectrum';
+                menuColorSpectrum.classList.add('active');
+                toolbarColor.classList.add('active');
             }
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
         });
@@ -1212,6 +1665,7 @@
         baselineBtn.addEventListener('click', async () => {
             const currentActive = baselineBtn.classList.contains('active');
             const targetActive = !currentActive;
+            const menuBaselineCorr = document.getElementById('menu-baseline-corr');
             
             try {
                 const res = await fetch('/api/baseline', {
@@ -1222,8 +1676,12 @@
                 const data = await res.json();
                 if (data.baseline_enabled) {
                     baselineBtn.classList.add('active');
+                    menuBaselineCorr.classList.add('active');
+                    toolbarBaseline.classList.add('active');
                 } else {
                     baselineBtn.classList.remove('active');
+                    menuBaselineCorr.classList.remove('active');
+                    toolbarBaseline.classList.remove('active');
                 }
             } catch (err) {
                 console.error("Error toggling baseline:", err);
@@ -1239,68 +1697,303 @@
             window.location.href = `/api/export/current?format=csv`;
         });
 
-        shutdownBtn.addEventListener('click', async () => {
-            if (!confirm("Are you sure you want to shut down the system?")) {
+        // System Menu confirm handlers
+        async function runShutdown() {
+            if (confirm("Are you sure you want to shut down the system? Unsaved data will be lost.")) {
+                try {
+                    const res = await fetch('/api/shutdown', { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok && data.ok) {
+                        alert("Shutdown initiated successfully.");
+                    } else {
+                        alert("Shutdown failed.");
+                    }
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            }
+        }
+
+        async function runRestart() {
+            if (confirm("Are you sure you want to restart the system? Unsaved data will be lost.")) {
+                try {
+                    const res = await fetch('/api/restart', { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok && data.ok) {
+                        alert("Pipeline/system restarted successfully.");
+                        fetchStatus();
+                    } else {
+                        alert("Restart failed.");
+                    }
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            }
+        }
+
+        async function saveSpectrum() {
+            if (!currentWavelengths) {
+                alert("No spectrum data to save");
                 return;
             }
-            const statusEl = document.getElementById('shutdown-status');
-            shutdownBtn.disabled = true;
-            statusEl.innerText = 'Shutting down...';
             try {
-                const res = await fetch('/api/shutdown', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    statusEl.innerText = 'Shutdown initiated.';
+                const res = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label: "Web Spectrum" })
+                });
+                if (res.ok) {
+                    alert("Spectrum saved to database history");
+                    fetchStatus();
                 } else {
-                    statusEl.innerText = 'Shutdown failed.';
-                    shutdownBtn.disabled = false;
+                    alert("Failed to save spectrum");
                 }
             } catch (err) {
-                statusEl.innerText = `Error: ${err.message}`;
-                shutdownBtn.disabled = false;
+                console.error("Error saving spectrum:", err);
+            }
+        }
+
+        // Menu item click wiring
+        document.getElementById('menu-save-spectrum').addEventListener('click', saveSpectrum);
+        document.getElementById('menu-export-json').addEventListener('click', () => {
+            if (!exportJsonBtn.disabled) window.location.href = `/api/export/current?format=json`;
+        });
+        document.getElementById('menu-export-csv').addEventListener('click', () => {
+            if (!exportCsvBtn.disabled) window.location.href = `/api/export/current?format=csv`;
+        });
+        document.getElementById('menu-single-capture').addEventListener('click', () => {
+            if (!captureBtn.disabled) captureBtn.click();
+        });
+        document.getElementById('menu-start-stop-live').addEventListener('click', async () => {
+            if (selectedMode === 'single') {
+                setSelectedMode('live');
+                await startLive();
+            } else {
+                await stopLive();
+                setSelectedMode('single');
+            }
+        });
+        document.getElementById('menu-exposure-settings').addEventListener('click', () => {
+            exposureInput.focus();
+            exposureInput.select();
+        });
+        document.getElementById('menu-color-spectrum').addEventListener('click', () => {
+            plotModeBtn.click();
+        });
+        document.getElementById('menu-baseline-corr').addEventListener('click', () => {
+            baselineBtn.click();
+        });
+        document.getElementById('menu-show-grid').addEventListener('click', () => {
+            showGrid = !showGrid;
+            const menuShowGrid = document.getElementById('menu-show-grid');
+            if (showGrid) {
+                menuShowGrid.classList.add('active');
+            } else {
+                menuShowGrid.classList.remove('active');
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-show-crosshair').addEventListener('click', () => {
+            showCrosshair = !showCrosshair;
+            const menuShowCrosshair = document.getElementById('menu-show-crosshair');
+            if (showCrosshair) {
+                menuShowCrosshair.classList.add('active');
+                toolbarCrosshair.classList.add('active');
+            } else {
+                menuShowCrosshair.classList.remove('active');
+                toolbarCrosshair.classList.remove('active');
+            }
+            if (!showCrosshair) {
+                inspectIdx = null;
+                inspectX = null;
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-zoom-reset').addEventListener('click', () => {
+            zoomXMin = null;
+            zoomXMax = null;
+            inspectX = null;
+            inspectIdx = null;
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-shutdown').addEventListener('click', runShutdown);
+        document.getElementById('menu-restart-system').addEventListener('click', runRestart);
+        document.getElementById('menu-about').addEventListener('click', () => {
+            alert("Spectroo v3\nVersion 3.0.0\nPowered by LaserQuant");
+        });
+        document.getElementById('menu-documentation').addEventListener('click', () => {
+            window.open('/docs/ARCHITECTURE_DETAILED.md', '_blank');
+        });
+
+        // Toolbar button listeners
+        toolbarCapture.addEventListener('click', () => {
+            if (!toolbarCapture.disabled) {
+                if (selectedMode === 'live') {
+                    setSelectedMode('single');
+                }
+                captureBtn.click();
+            }
+        });
+        
+        toolbarLive.addEventListener('click', async () => {
+            if (streamingActive) {
+                await stopLive();
+                setSelectedMode('single');
+            } else {
+                setSelectedMode('live');
+                await startLive();
+            }
+        });
+        
+        toolbarExportJson.addEventListener('click', () => {
+            if (!toolbarExportJson.disabled) {
+                exportJsonBtn.click();
+            }
+        });
+        
+        toolbarExportCsv.addEventListener('click', () => {
+            if (!toolbarExportCsv.disabled) {
+                exportCsvBtn.click();
+            }
+        });
+        const historyPanel = document.getElementById('history-panel');
+        const historyList = document.getElementById('history-list');
+        const closeHistoryPanel = document.getElementById('close-history-panel');
+
+        function generateSparklineSvg(sparklineData) {
+            if (!sparklineData || sparklineData.length === 0) return '';
+            const width = 320;
+            const height = 40;
+            const maxVal = Math.max(1, Math.max(...sparklineData));
+            const points = sparklineData.map((val, i) => {
+                const x = (i / (sparklineData.length - 1)) * width;
+                const y = height - (val / maxVal) * height;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            
+            return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none">
+                <polyline fill="none" stroke="#3b82f6" stroke-width="1.5" points="${points}" />
+            </svg>`;
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) throw new Error("Failed to fetch history");
+                const data = await res.json();
+                renderHistory(data);
+            } catch (err) {
+                console.error("Error fetching history:", err);
+                historyList.innerHTML = `<div style="padding: 16px; color: #ef4444; font-size: 12px; text-align: center;">Error loading history: ${err.message}</div>`;
+            }
+        }
+
+        function renderHistory(items) {
+            if (!items || items.length === 0) {
+                historyList.innerHTML = '<div style="padding: 24px; color: #94a3b8; font-size: 12px; text-align: center;">No saved captures.</div>';
+                return;
+            }
+
+            historyList.innerHTML = items.map(item => {
+                const dt = new Date(item.timestamp);
+                const timeStr = dt.toLocaleString();
+                const pinClass = item.pinned ? 'pinned' : '';
+                const pinTooltip = item.pinned ? 'Unpin spectrum' : 'Pin spectrum';
+                
+                const pinIcon = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="${item.pinned ? 'currentColor' : 'none'}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+
+                return `
+                    <div class="history-item ${item.pinned ? 'pinned-item' : ''}" data-id="${item.id}">
+                        <div class="history-item-top">
+                            <span class="history-item-time">${timeStr}</span>
+                            <div class="history-item-meta">
+                                <span>${item.exposure_us / 1000} ms</span>
+                                <button class="pin-btn ${pinClass}" onclick="togglePin(${item.id}, ${item.pinned})" title="${pinTooltip}">
+                                    ${pinIcon}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="history-item-sparkline">
+                            ${generateSparklineSvg(item.sparkline)}
+                        </div>
+                        <div class="history-item-actions">
+                            <button class="history-action-btn" onclick="restoreHistory(${item.id})">Restore</button>
+                            <button class="history-action-btn" onclick="exportHistory(${item.id}, 'json')">JSON</button>
+                            <button class="history-action-btn" onclick="exportHistory(${item.id}, 'csv')">CSV</button>
+                            <button class="history-action-btn btn-delete" onclick="deleteHistory(${item.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function togglePin(id, currentPinned) {
+            const endpoint = currentPinned ? 'unpin' : 'pin';
+            try {
+                const res = await fetch(`/api/history/${id}/${endpoint}`, { method: 'POST' });
+                if (res.ok) {
+                    fetchHistory();
+                }
+            } catch (err) {
+                console.error("Error toggling pin:", err);
+            }
+        }
+
+        async function restoreHistory(id) {
+            try {
+                const res = await fetch(`/api/history/${id}/restore`, { method: 'POST' });
+                if (!res.ok) throw new Error("Failed to restore record");
+                const data = await res.json();
+                
+                drawSpectrum(data.wavelengths, data.intensities, data.peaks);
+                setExportEnabled(true);
+            } catch (err) {
+                alert("Error restoring spectrum: " + err.message);
+            }
+        }
+
+        async function deleteHistory(id) {
+            if (!confirm("Are you sure you want to delete this capture from history?")) return;
+            try {
+                const res = await fetch(`/api/history/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchHistory();
+                }
+            } catch (err) {
+                console.error("Error deleting history:", err);
+            }
+        }
+
+        function exportHistory(id, format) {
+            window.location.href = `/api/export/${id}?format=${format}`;
+        }
+
+        window.togglePin = togglePin;
+        window.restoreHistory = restoreHistory;
+        window.deleteHistory = deleteHistory;
+        window.exportHistory = exportHistory;
+
+        toolbarHistory.addEventListener('click', () => {
+            const isActive = historyPanel.classList.toggle('active');
+            if (isActive) {
+                fetchHistory();
             }
         });
 
-        rebootBtn.addEventListener('click', async () => {
-            if (!confirm("Are you sure you want to reboot the system?")) {
-                return;
-            }
-            const statusEl = document.getElementById('reboot-status');
-            rebootBtn.disabled = true;
-            statusEl.innerText = 'Rebooting...';
-            try {
-                const res = await fetch('/api/reboot', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    statusEl.innerText = 'Reboot initiated.';
-                } else {
-                    statusEl.innerText = 'Reboot failed.';
-                    rebootBtn.disabled = false;
-                }
-            } catch (err) {
-                statusEl.innerText = `Error: ${err.message}`;
-                rebootBtn.disabled = false;
-            }
+        closeHistoryPanel.addEventListener('click', () => {
+            historyPanel.classList.remove('active');
         });
-
-        restartBtn.addEventListener('click', async () => {
-            const statusEl = document.getElementById('restart-status');
-            restartBtn.disabled = true;
-            statusEl.innerText = 'Restarting pipeline...';
-            try {
-                const res = await fetch('/api/restart', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    statusEl.innerText = 'Pipeline restarted.';
-                    restartBtn.disabled = false;
-                } else {
-                    statusEl.innerText = 'Restart failed.';
-                    restartBtn.disabled = false;
-                }
-            } catch (err) {
-                statusEl.innerText = `Error: ${err.message}`;
-                restartBtn.disabled = false;
-            }
+        
+        toolbarCrosshair.addEventListener('click', () => {
+            document.getElementById('menu-show-crosshair').click();
+        });
+        
+        toolbarColor.addEventListener('click', () => {
+            plotModeBtn.click();
+        });
+        
+        toolbarBaseline.addEventListener('click', () => {
+            baselineBtn.click();
         });
 
         // Periodic polling for status when not streaming
