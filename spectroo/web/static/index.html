@@ -99,42 +99,41 @@
             margin: 0 4px;
         }
         /* Toolbar Tooltips */
-        .toolbar-btn::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(4px);
+        .toolbar-tooltip {
+            position: fixed;
             background-color: #1e293b;
             color: #ffffff;
-            font-size: 10px;
-            padding: 4px 6px;
+            font-size: 13px;
+            padding: 5.2px 7.8px;
             border-radius: 4px;
             white-space: nowrap;
-            display: none;
             z-index: 1002;
             pointer-events: none;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.08s ease;
         }
-        .toolbar-btn:hover:not(:disabled)::after {
-            display: block;
+        .toolbar-tooltip.visible {
+            opacity: 1;
+            visibility: visible;
         }
         .header-bar {
             width: 100%;
             background-color: #0f172a;
             display: flex;
             align-items: center;
-            padding: 8px 16px;
+            padding: 6px 12px;
             color: #ffffff;
             border-bottom: 1px solid #1e293b;
         }
         .header-logo {
-            height: 96px;
+            height: 72px;
             width: auto;
-            margin-right: 12px;
+            margin-right: 9px;
         }
         .header-title {
-            font-size: 22px;
+            font-size: 17px;
             font-weight: bold;
             letter-spacing: 0.5px;
             color: #f1f5f9;
@@ -167,7 +166,7 @@
         .dropdown-menu {
             display: none;
             position: absolute;
-            top: 100%;
+            top: calc(100% - 1px);
             left: 0;
             background-color: #ffffff;
             border: 1px solid #cbd5e1;
@@ -175,7 +174,7 @@
             border-radius: 4px;
             min-width: 180px;
             padding: 4px 0;
-            margin-top: 2px;
+            margin-top: 0;
             list-style: none;
             z-index: 1001;
         }
@@ -561,7 +560,7 @@
         <img src="/static/logo.png" alt="LaserQuant Logo" class="header-logo">
         <div>
             <div class="header-title">Spectroo</div>
-            <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Live Spectrum Acquisition</div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Live Spectrum Acquisition</div>
         </div>
     </div>
     
@@ -753,6 +752,43 @@
         // DOM elements
         const canvas = document.getElementById('spectrum-canvas');
         const plotArea = document.getElementById('plot-area');
+        const toolbarTooltip = document.createElement('div');
+        toolbarTooltip.className = 'toolbar-tooltip';
+        document.body.appendChild(toolbarTooltip);
+
+        function hideToolbarTooltip() {
+            toolbarTooltip.classList.remove('visible');
+        }
+
+        function positionToolbarTooltip(anchor) {
+            const anchorRect = anchor.getBoundingClientRect();
+            const gap = 4;
+            const viewportPadding = 8;
+
+            toolbarTooltip.textContent = anchor.getAttribute('data-tooltip') || '';
+            toolbarTooltip.classList.add('visible');
+
+            const tooltipRect = toolbarTooltip.getBoundingClientRect();
+
+            let left = anchorRect.left - tooltipRect.width - gap;
+            let top = anchorRect.top - tooltipRect.height - gap;
+
+            if (left < viewportPadding) {
+                left = anchorRect.right + gap;
+            }
+            if (top < viewportPadding) {
+                top = anchorRect.bottom + gap;
+            }
+            if (left + tooltipRect.width > window.innerWidth - viewportPadding) {
+                left = Math.max(viewportPadding, window.innerWidth - tooltipRect.width - viewportPadding);
+            }
+            if (top + tooltipRect.height > window.innerHeight - viewportPadding) {
+                top = Math.max(viewportPadding, window.innerHeight - tooltipRect.height - viewportPadding);
+            }
+
+            toolbarTooltip.style.left = `${left}px`;
+            toolbarTooltip.style.top = `${top}px`;
+        }
 
         function getPlotMetrics() {
             const margin = { left: 65, right: 35, top: 35, bottom: 50 };
@@ -2212,6 +2248,21 @@
                 exportCurrent('csv');
             }
         });
+        document.querySelectorAll('.toolbar-btn[data-tooltip]').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                if (btn.disabled) return;
+                positionToolbarTooltip(btn);
+            });
+            btn.addEventListener('mousemove', () => {
+                if (toolbarTooltip.classList.contains('visible')) {
+                    positionToolbarTooltip(btn);
+                }
+            });
+            btn.addEventListener('mouseleave', hideToolbarTooltip);
+            btn.addEventListener('blur', hideToolbarTooltip);
+        });
+        window.addEventListener('scroll', hideToolbarTooltip, true);
+        window.addEventListener('resize', hideToolbarTooltip);
         const historyPanel = document.getElementById('history-panel');
         const historyList = document.getElementById('history-list');
         const closeHistoryPanel = document.getElementById('close-history-panel');
