@@ -527,7 +527,7 @@
         </div>
         <div class="menu-item">Calibration
             <ul class="dropdown-menu">
-                <li class="dropdown-item disabled">Wavelength Calibration</li>
+                <li class="dropdown-item" id="menu-wavelength-calibration">Wavelength Calibration</li>
                 <li class="dropdown-item disabled">Load Calibration File</li>
                 <li class="dropdown-item disabled">Save Calibration File</li>
                 <li class="dropdown-item disabled">Clear Calibration</li>
@@ -1836,6 +1836,9 @@
         document.getElementById('menu-exposure-settings').addEventListener('click', () => {
             exposureInput.focus();
             exposureInput.select();
+        });
+        document.getElementById('menu-wavelength-calibration').addEventListener('click', () => {
+            window.location.href = '/static/calibration.html';
         });
         document.getElementById('menu-capture-dark').addEventListener('click', async () => {
             if (!confirm("Cover the lens completely to block all light, then click OK to capture dark frame.")) return;

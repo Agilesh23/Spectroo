@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectroo - Wavelength Calibration Wizard</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+        .header-bar {
+            width: 100%;
+            height: 120px;
+            background-color: #0f172a;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            color: #ffffff;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header-logo {
+            height: 96px;
+            width: auto;
+            margin-right: 12px;
+        }
+        .header-title {
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: #f1f5f9;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            height: calc(100vh - 120px);
+        }
+        .left-panel {
+            flex-grow: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background-color: #fafafa;
+            border-right: 1px solid #cbd5e1;
+        }
+        .plot-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .right-panel {
+            width: 320px;
+            min-width: 320px;
+            max-width: 320px;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .panel {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        .panel-header {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        button {
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 6px 10px;
+            background-color: #fafafa;
+            color: #333333;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            transition: background-color 0.1s, border-color 0.1s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #f0f0f0;
+            border-color: #b0b0b0;
+        }
+        button:active:not(:disabled) {
+            background-color: #e5e5e5;
+        }
+        button.active {
+            background-color: #0066cc;
+            color: #ffffff;
+            border-color: #0055bb;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #fafafa;
+            border-color: #cccccc;
+            color: #999999;
+        }
+        input[type="number"] {
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 4px 6px;
+            outline: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .delete-btn {
+            background-color: #fee2e2;
+            color: #ef4444;
+            border: 1px solid #fecaca;
+            border-radius: 3px;
+            padding: 3px 6px;
+            cursor: pointer;
+            width: auto;
+        }
+        .delete-btn:hover {
+            background-color: #fecaca;
+            border-color: #fca5a5;
+        }
+        .overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .dialog {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 280px;
+            border: 1px solid #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Bar -->
+    <div class="header-bar">
+        <img src="/static/logo.png" class="header-logo" alt="LaserQuant Logo">
+        <div>
+            <div class="header-title">Spectroo</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Wavelength Calibration Wizard</div>
+        </div>
+        <div style="margin-left: auto;">
+            <button id="back-btn" class="active" style="width: auto; padding: 6px 12px;">Back to Spectrum</button>
+        </div>
+    </div>
+
+    <!-- App Main Split -->
+    <div class="app-container">
+        
+        <!-- Left Panel: Interactive Canvas -->
+        <div class="left-panel">
+            <div class="plot-container">
+                <canvas id="calibration-canvas"></canvas>
+                
+                <!-- Prompt Overlay Modal -->
+                <div id="prompt-overlay" class="overlay">
+                    <div class="dialog">
+                        <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1e293b;">Add Calibration Point</h4>
+                        <p id="prompt-pixel-text" style="margin: 0 0 12px 0; font-size: 12px; color: #475569;"></p>
+                        <div style="margin-bottom: 16px;">
+                            <input type="number" id="prompt-wl-input" step="0.1" min="300" max="900" placeholder="Wavelength (nm)" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="prompt-submit-btn" class="active">Add Point</button>
+                            <button id="prompt-cancel-btn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Horizontal Controls -->
+            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <button id="reset-zoom-btn" style="width: auto; padding: 6px 12px;">Reset Zoom</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; color: #475569;">Exposure:</span>
+                    <input type="number" id="exposure-input" style="width: 80px;" min="110" max="3066979" step="1000">
+                    <span style="font-size: 12px; color: #475569;">µs</span>
+                    <button id="apply-exposure-btn" style="width: auto; padding: 6px 12px;">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Controls & Tables -->
+        <div class="right-panel">
+            <!-- Table Container -->
+            <div class="panel" style="flex-grow: 1; display: flex; flex-direction: column; min-height: 200px;">
+                <div class="panel-header">Calibration Points</div>
+                <div style="flex-grow: 1; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pixel</th>
+                                <th>Wavelength (nm)</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="points-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Fit Status Container -->
+            <div class="panel" style="flex-shrink: 0;">
+                <div class="panel-header">Fit Quality Status</div>
+                <div class="panel-body" style="padding: 12px;">
+                    <div id="fit-status-badge" style="padding: 8px; border-radius: 4px; font-size: 11px; font-weight: bold; line-height: 1.4; text-align: center;">
+                        <!-- Updated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Buttons -->
+            <div style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                <button id="run-fit-btn" class="active" style="padding: 8px; font-weight: bold;">Run Fit</button>
+                <button id="undo-last-btn" style="padding: 8px;">Undo Last</button>
+                <button id="apply-save-btn" disabled style="background-color: #10b981; color: white; border-color: #059669; padding: 10px; font-weight: bold;">Apply & Save</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // State variables
+        let currentIntensities = null;
+        let statePoints = [];
+        let stateFitResult = null;
+        let stateFitPoints = null;
+
+        let zoomXMin = null;
+        let zoomXMax = null;
+        let isPanning = false;
+        let panStartX = null;
+        let panStartXMin = null;
+        let panStartXMax = null;
+        let downX = 0;
+        let downY = 0;
+
+        let ws = null;
+        let promptPixel = null;
+        let weStartedLive = false;
+
+        const colors = {
+            bg: '#ffffff',
+            grid: '#eeeeee',
+            axis: '#555555',
+            text: '#333333'
+        };
+
+        const canvas = document.getElementById('calibration-canvas');
+        const exposureInput = document.getElementById('exposure-input');
+
+        // Fetch functions
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                if (data.exposure_us !== undefined) {
+                    exposureInput.value = data.exposure_us;
+                }
+            } catch (err) {
+                console.error("Error fetching status:", err);
+            }
+        }
+
+        async function fetchCalibrationState() {
+            try {
+                const res = await fetch('/api/calibration/state');
+                const data = await res.json();
+                statePoints = data.points || [];
+                stateFitResult = data.fit_result;
+                stateFitPoints = data.fit_points;
+                
+                renderPointsTable();
+                updateFitStatus();
+                drawPlot();
+            } catch (err) {
+                console.error("Error fetching calibration state:", err);
+            }
+        }
+
+        // Render point list in panel
+        function renderPointsTable() {
+            const tbody = document.getElementById('points-tbody');
+            tbody.innerHTML = '';
+            
+            statePoints.forEach((pt, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${pt.pixel}</td>
+                    <td>${pt.wavelength.toFixed(1)}</td>
+                    <td style="text-align: right;">
+                        <button class="delete-btn" onclick="deletePoint(${index})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Fit badge rendering and color styling
+        function updateFitStatus() {
+            const badge = document.getElementById('fit-status-badge');
+            const applyBtn = document.getElementById('apply-save-btn');
+            
+            if (!stateFitResult) {
+                badge.innerText = "Enter at least 2 mapping pairs";
+                badge.style.backgroundColor = '#e2e8f0';
+                badge.style.color = '#475569';
+                applyBtn.disabled = true;
+                return;
+            }
+
+            // Check staleness (compare current points with points during fit)
+            let isStale = false;
+            if (!stateFitPoints || statePoints.length !== stateFitPoints.length) {
+                isStale = true;
+            } else {
+                for (let i = 0; i < statePoints.length; i++) {
+                    if (statePoints[i].pixel !== stateFitPoints[i].pixel ||
+                        Math.abs(statePoints[i].wavelength - stateFitPoints[i].wavelength) > 1e-4) {
+                        isStale = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isStale) {
+                badge.innerText = "Stale — run fit again";
+                badge.style.backgroundColor = '#fee2e2';
+                badge.style.color = '#dc2626';
+                applyBtn.disabled = true;
+            } else {
+                badge.innerText = `RMS: ${stateFitResult.rms_nm.toFixed(4)} nm\nDegree: ${stateFitResult.degree}`;
+                badge.style.backgroundColor = '#d1fae5';
+                badge.style.color = '#065f46';
+                applyBtn.disabled = false;
+            }
+        }
+
+        // Helper evaluates polyfit coefficients at x index
+        function evaluatePolynomial(coefficients, x) {
+            let result = 0;
+            const degree = coefficients.length - 1;
+            for (let i = 0; i < coefficients.length; i++) {
+                result += coefficients[i] * Math.pow(x, degree - i);
+            }
+            return result;
+        }
+
+        // Drawing routine
+        function drawPlot() {
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const logicalWidth = canvas.clientWidth;
+            const logicalHeight = canvas.clientHeight;
+            
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = logicalWidth * dpr;
+            canvas.height = logicalHeight * dpr;
+            ctx.scale(dpr, dpr);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+            
+            const margin = { left: 65, right: 65, top: 35, bottom: 50 };
+            const plotW = logicalWidth - margin.left - margin.right;
+            const plotH = logicalHeight - margin.top - margin.bottom;
+            
+            if (plotW <= 0 || plotH <= 0) return;
+            
+            let yMax = 1.0;
+            if (currentIntensities && currentIntensities.length > 0) {
+                yMax = Math.max(...currentIntensities);
+            }
+            if (yMax <= 0) yMax = 1.0;
+            const yLimit = yMax * 1.15;
+            
+            const fullMin = 0;
+            const fullMax = currentIntensities ? currentIntensities.length - 1 : 2591;
+            const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+            const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+            
+            // Draw horizontal gridlines & Y ticks
+            const yTicks = [0, yLimit * 0.25, yLimit * 0.5, yLimit * 0.75, yLimit];
+            ctx.font = '10px Arial';
+            yTicks.forEach(yVal => {
+                const py = logicalHeight - margin.bottom - (yVal / yLimit) * plotH;
+                
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, py);
+                ctx.lineTo(logicalWidth - margin.right, py);
+                ctx.stroke();
+                
+                ctx.fillStyle = colors.text;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(Math.round(yVal).toString(), margin.left - 8, py);
+            });
+            
+            // Draw vertical ticks & gridlines
+            const rangeX = xMax - xMin;
+            if (rangeX > 0) {
+                const step = Math.max(1, Math.ceil(rangeX / 6));
+                let startTick = Math.ceil(xMin / step) * step;
+                while (startTick <= xMax) {
+                    const px = margin.left + (startTick - xMin) / rangeX * plotW;
+                    
+                    ctx.strokeStyle = colors.grid;
+                    ctx.beginPath();
+                    ctx.moveTo(px, margin.top);
+                    ctx.lineTo(px, logicalHeight - margin.bottom);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = colors.text;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(Math.round(startTick).toString(), px, logicalHeight - margin.bottom + 8);
+                    
+                    startTick += step;
+                }
+            }
+            
+            // Draw axis borders
+            ctx.strokeStyle = colors.axis;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(margin.left, margin.top, plotW, plotH);
+            
+            // Left Y Title
+            ctx.save();
+            ctx.translate(15, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 11px Arial';
+            ctx.fillStyle = colors.text;
+            ctx.fillText("Intensity (Counts)", 0, 0);
+            ctx.restore();
+            
+            // X Title
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = 'bold 11px Arial';
+            ctx.fillStyle = colors.text;
+            ctx.fillText("Pixel Index", margin.left + plotW / 2, logicalHeight - margin.bottom + 25);
+            
+            // Draw intensity curve
+            if (currentIntensities && currentIntensities.length > 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(margin.left, margin.top, plotW, plotH);
+                ctx.clip();
+                
+                ctx.beginPath();
+                let first = true;
+                for (let idx = 0; idx < currentIntensities.length; idx++) {
+                    if (idx >= xMin && idx <= xMax) {
+                        const px = margin.left + (idx - xMin) / (xMax - xMin) * plotW;
+                        const py = logicalHeight - margin.bottom - (currentIntensities[idx] / yLimit) * plotH;
+                        if (first) {
+                            ctx.moveTo(px, py);
+                            first = false;
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                }
+                ctx.strokeStyle = '#444444';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.restore();
+            }
+            
+            // Draw point markers
+            statePoints.forEach(pt => {
+                const px = margin.left + (pt.pixel - xMin) / (xMax - xMin) * plotW;
+                if (px >= margin.left && px <= logicalWidth - margin.right) {
+                    ctx.strokeStyle = '#3366cc';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, margin.top);
+                    ctx.lineTo(px, logicalHeight - margin.bottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    ctx.fillStyle = colors.text;
+                    ctx.font = 'bold 9px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(`${pt.wavelength.toFixed(1)} nm`, px, margin.top + 18);
+                }
+            });
+            
+            // Draw right axis and fit curve
+            if (stateFitResult && stateFitResult.coefficients && stateFitResult.coefficients.length > 0) {
+                const coefs = stateFitResult.coefficients;
+                const n_pixels = currentIntensities ? currentIntensities.length : 2592;
+                
+                const w_vals = [];
+                for (let i = 0; i < n_pixels; i++) {
+                    w_vals.push(evaluatePolynomial(coefs, i));
+                }
+                statePoints.forEach(pt => {
+                    w_vals.push(pt.wavelength);
+                });
+                
+                const w_min = Math.min(...w_vals);
+                const w_max = Math.max(...w_vals);
+                const w_range = w_max - w_min || 1.0;
+                const w_limit_min = w_min - 0.05 * w_range;
+                const w_limit_max = w_max + 0.05 * w_range;
+                
+                // Right Title
+                ctx.save();
+                ctx.translate(logicalWidth - 15, margin.top + plotH / 2);
+                ctx.rotate(Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = 'bold 11px Arial';
+                ctx.fillStyle = '#dc2626';
+                ctx.fillText("Fitted Wavelength (nm)", 0, 0);
+                ctx.restore();
+                
+                // Right ticks
+                const wTicks = [
+                    w_limit_min,
+                    w_limit_min + 0.25 * (w_limit_max - w_limit_min),
+                    w_limit_min + 0.5 * (w_limit_max - w_limit_min),
+                    w_limit_min + 0.75 * (w_limit_max - w_limit_min),
+                    w_limit_max
+                ];
+                wTicks.forEach(wVal => {
+                    const py = logicalHeight - margin.bottom - ((wVal - w_limit_min) / (w_limit_max - w_limit_min)) * plotH;
+                    
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.beginPath();
+                    ctx.moveTo(logicalWidth - margin.right, py);
+                    ctx.lineTo(logicalWidth - margin.right + 5, py);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = colors.text;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(wVal.toFixed(1), logicalWidth - margin.right + 8, py);
+                });
+                
+                // Draw curve
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(margin.left, margin.top, plotW, plotH);
+                ctx.clip();
+                
+                ctx.beginPath();
+                let first = true;
+                for (let idx = 0; idx < n_pixels; idx++) {
+                    if (idx >= xMin && idx <= xMax) {
+                        const px = margin.left + (idx - xMin) / (xMax - xMin) * plotW;
+                        const w_fit = evaluatePolynomial(coefs, idx);
+                        const py = logicalHeight - margin.bottom - ((w_fit - w_limit_min) / (w_limit_max - w_limit_min)) * plotH;
+                        
+                        if (first) {
+                            ctx.moveTo(px, py);
+                            first = false;
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                }
+                ctx.strokeStyle = '#dc2626';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // Web socket stream connection
+        function connectWebSocket() {
+            if (ws) return;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/live`;
+            ws = new WebSocket(wsUrl);
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.intensities) {
+                    currentIntensities = data.intensities;
+                    drawPlot();
+                }
+            };
+            ws.onclose = () => {
+                ws = null;
+                setTimeout(connectWebSocket, 1000);
+            };
+        }
+
+        // Mouse canvas events (adapted from index.html zoom/pan)
+        canvas.addEventListener('mousedown', (e) => {
+            if (!currentIntensities || currentIntensities.length === 0) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+
+            if (e.button === 0) {
+                isPanning = true;
+                panStartX = mouseX;
+                downX = e.clientX;
+                downY = e.clientY;
+
+                const fullMin = 0;
+                const fullMax = currentIntensities.length - 1;
+                panStartXMin = zoomXMin !== null ? zoomXMin : fullMin;
+                panStartXMax = zoomXMax !== null ? zoomXMax : fullMax;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!currentIntensities || currentIntensities.length === 0) return;
+            if (isPanning) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const dx = mouseX - panStartX;
+
+                const margin = { left: 65, right: 65, top: 35, bottom: 50 };
+                const plotW = canvas.clientWidth - margin.left - margin.right;
+                if (plotW <= 0) return;
+
+                const dataPerPx = (panStartXMax - panStartXMin) / plotW;
+                const shift = -dx * dataPerPx;
+
+                const fullMin = 0;
+                const fullMax = currentIntensities.length - 1;
+                const rng = panStartXMax - panStartXMin;
+
+                let newMin = Math.max(fullMin, panStartXMin + shift);
+                let newMax = newMin + rng;
+                if (newMax > fullMax) {
+                    newMax = fullMax;
+                    newMin = newMax - rng;
+                }
+
+                zoomXMin = newMin;
+                zoomXMax = newMax;
+                drawPlot();
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (isPanning) {
+                isPanning = false;
+                const moveDist = Math.hypot(e.clientX - downX, e.clientY - downY);
+                // If moved less than 5px, handle as point selection click
+                if (moveDist < 5) {
+                    handleCanvasClick(e);
+                }
+            }
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            if (!currentIntensities || currentIntensities.length === 0) return;
+            e.preventDefault();
+
+            const factor = e.deltaY < 0 ? 0.8 : 1.25;
+            const fullMin = 0;
+            const fullMax = currentIntensities.length - 1;
+
+            const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+            const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - 65;
+            const margin = { left: 65, right: 65, top: 35, bottom: 50 };
+            const plotW = canvas.clientWidth - margin.left - margin.right;
+            if (plotW <= 0) return;
+
+            const t = Math.max(0.0, Math.min(1.0, mouseX / plotW));
+            const center = xMin + t * (xMax - xMin);
+            const newSpan = (xMax - xMin) * factor;
+
+            let newMin = center - t * newSpan;
+            let newMax = center + (1.0 - t) * newSpan;
+
+            if (newMin < fullMin) {
+                newMin = fullMin;
+                newMax = newMin + newSpan;
+            }
+            if (newMax > fullMax) {
+                newMax = fullMax;
+                newMin = newMax - newSpan;
+            }
+
+            const minSpan = 20.0;
+            if (newSpan < minSpan && factor < 1.0) return;
+
+            if (newSpan >= (fullMax - fullMin)) {
+                zoomXMin = null;
+                zoomXMax = null;
+            } else {
+                zoomXMin = newMin;
+                zoomXMax = newMax;
+            }
+
+            drawPlot();
+        }, { passive: false });
+
+        canvas.addEventListener('dblclick', () => {
+            zoomXMin = null;
+            zoomXMax = null;
+            drawPlot();
+        });
+
+        // Click selection handler
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const margin = { left: 65, right: 65, top: 35, bottom: 50 };
+            const plotW = canvas.clientWidth - margin.left - margin.right;
+            const plotH = canvas.clientHeight - margin.top - margin.bottom;
+
+            if (mouseX >= margin.left && mouseX <= canvas.clientWidth - margin.right &&
+                mouseY >= margin.top && mouseY <= canvas.clientHeight - margin.bottom) {
+                
+                const fullMin = 0;
+                const fullMax = currentIntensities ? currentIntensities.length - 1 : 2591;
+                const xMin = zoomXMin !== null ? zoomXMin : fullMin;
+                const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+
+                const frac = (mouseX - margin.left) / plotW;
+                const targetVal = xMin + frac * (xMax - xMin);
+                const clickedPixel = Math.round(targetVal);
+
+                openPrompt(clickedPixel);
+            }
+        }
+
+        // Inline dialog handling
+        function openPrompt(pixel) {
+            promptPixel = pixel;
+            document.getElementById('prompt-pixel-text').innerText = `Enter known wavelength for pixel ${pixel} (nm):`;
+            document.getElementById('prompt-wl-input').value = '';
+            document.getElementById('prompt-overlay').style.display = 'flex';
+            document.getElementById('prompt-wl-input').focus();
+        }
+
+        function closePrompt() {
+            document.getElementById('prompt-overlay').style.display = 'none';
+            promptPixel = null;
+        }
+
+        document.getElementById('prompt-cancel-btn').addEventListener('click', closePrompt);
+        
+        document.getElementById('prompt-submit-btn').addEventListener('click', async () => {
+            const input = document.getElementById('prompt-wl-input');
+            const wl = parseFloat(input.value);
+            if (isNaN(wl) || wl < 300 || wl > 900) {
+                alert("Please enter a valid wavelength between 300 and 900 nm.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/calibration/point', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pixel_index: promptPixel, wavelength_nm: wl })
+                });
+                if (res.ok) {
+                    closePrompt();
+                    await fetchCalibrationState();
+                } else {
+                    const data = await res.json();
+                    alert("Failed to add point: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error adding point: " + err.message);
+            }
+        });
+
+        // Delete calibration points
+        async function deletePoint(index) {
+            try {
+                const res = await fetch(`/api/calibration/point/${index}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await fetchCalibrationState();
+                } else {
+                    const data = await res.json();
+                    alert("Failed to delete point: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error deleting point: " + err.message);
+            }
+        }
+
+        // Right side button wiring
+        document.getElementById('run-fit-btn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/calibration/fit', { method: 'POST' });
+                if (res.ok) {
+                    await fetchCalibrationState();
+                } else {
+                    const data = await res.json();
+                    alert("Fitting failed: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error during fit: " + err.message);
+            }
+        });
+
+        document.getElementById('undo-last-btn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/calibration/undo', { method: 'POST' });
+                if (res.ok) {
+                    await fetchCalibrationState();
+                }
+            } catch (err) {
+                alert("Error during undo: " + err.message);
+            }
+        });
+
+        document.getElementById('apply-save-btn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/calibration/apply', { method: 'POST' });
+                if (res.ok) {
+                    alert("Calibration applied successfully!");
+                    if (weStartedLive) {
+                        try {
+                            await fetch('/api/live/stop', { method: 'POST' });
+                        } catch (e) {}
+                    }
+                    window.location.href = '/';
+                } else {
+                    const data = await res.json();
+                    alert("Failed to apply calibration: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error applying calibration: " + err.message);
+            }
+        });
+
+        // Exposure apply
+        document.getElementById('apply-exposure-btn').addEventListener('click', async () => {
+            const val = parseInt(exposureInput.value);
+            if (isNaN(val) || val < 110 || val > 3066979) {
+                alert("Exposure must be between 110 and 3,066,979 µs");
+                return;
+            }
+            try {
+                const res = await fetch('/api/exposure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exposure_us: val })
+                });
+                const data = await res.json();
+                exposureInput.value = data.exposure_us;
+            } catch (err) {
+                alert("Error setting exposure: " + err.message);
+            }
+        });
+
+        document.getElementById('back-btn').addEventListener('click', async () => {
+            if (weStartedLive) {
+                try {
+                    await fetch('/api/live/stop', { method: 'POST' });
+                } catch (e) {}
+            }
+            window.location.href = '/';
+        });
+
+        // Init routine
+        async function init() {
+            await fetchStatus();
+            await fetchCalibrationState();
+            
+            // Auto start live mode if not streaming
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                if (!data.live_active) {
+                    const startRes = await fetch('/api/live/start', { method: 'POST' });
+                    if (startRes.ok) {
+                        weStartedLive = true;
+                    }
+                }
+            } catch (err) {
+                console.error("Error starting live mode:", err);
+            }
+
+            connectWebSocket();
+        }
+
+        window.onload = init;
+
+        // Cleanup on page exits
+        window.addEventListener('pagehide', () => {
+            if (weStartedLive) {
+                fetch('/api/live/stop', { method: 'POST', keepalive: true }).catch(() => {});
+            }
+        });
+    </script>
+</body>
+</html>
