@@ -618,7 +618,7 @@
         <div class="menu-item">Help
             <ul class="dropdown-menu">
                 <li class="dropdown-item" id="menu-about">About</li>
-                <li class="dropdown-item" id="menu-documentation">Documentation</li>
+                <li class="dropdown-item" id="menu-documentation">User Guide</li>
             </ul>
         </div>
     </div>
@@ -2220,7 +2220,7 @@
             alert("Spectroo v3\nVersion 3.0.0\nPowered by LaserQuant");
         });
         document.getElementById('menu-documentation').addEventListener('click', () => {
-            window.open('/docs/ARCHITECTURE_DETAILED.md', '_blank');
+            window.location.href = '/static/help.html';
         });
 
         // Toolbar button listeners
