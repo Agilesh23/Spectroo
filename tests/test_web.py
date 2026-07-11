@@ -497,8 +497,56 @@ async def test_calibration_snapshot_endpoints(app, tmp_path):
         assert "Malformed JSON" in response.json()["detail"]
 
 
+@pytest.mark.asyncio
+async def test_fit_residuals_perfect_linear(app, tmp_path):
+    """A perfect 2-point linear fit should return residuals of length 2, all ~0."""
+    state_file = tmp_path / "calibration_state.json"
+    app.state.config["storage"]["calibration_state_path"] = str(state_file)
+
+    async with get_client(app) as client:
+        await client.post("/api/calibration/point", json={"pixel_index": 100, "wavelength_nm": 400.0})
+        await client.post("/api/calibration/point", json={"pixel_index": 200, "wavelength_nm": 500.0})
+
+        response = await client.post("/api/calibration/fit")
+        assert response.status_code == 200
+        data = response.json()
+
+        # residuals key exists and has correct length
+        assert "residuals" in data
+        assert len(data["residuals"]) == 2
+
+        # Perfect linear fit through 2 points → residuals ≈ 0
+        for r in data["residuals"]:
+            assert abs(r) < 1e-6
 
 
+@pytest.mark.asyncio
+async def test_fit_residuals_offset_point(app, tmp_path):
+    """5 points (4 collinear + 1 offset): degree-3 fit cannot interpolate all 5, so the offset point has a nonzero residual."""
+    state_file = tmp_path / "calibration_state.json"
+    app.state.config["storage"]["calibration_state_path"] = str(state_file)
+
+    async with get_client(app) as client:
+        # 4 perfectly collinear points: wavelength = 2*pixel + 200
+        await client.post("/api/calibration/point", json={"pixel_index": 100, "wavelength_nm": 400.0})
+        await client.post("/api/calibration/point", json={"pixel_index": 200, "wavelength_nm": 600.0})
+        await client.post("/api/calibration/point", json={"pixel_index": 300, "wavelength_nm": 800.0})
+        await client.post("/api/calibration/point", json={"pixel_index": 400, "wavelength_nm": 1000.0})
+        # 5th point deliberately offset by +50 nm from the line
+        await client.post("/api/calibration/point", json={"pixel_index": 500, "wavelength_nm": 1250.0})
+
+        response = await client.post("/api/calibration/fit")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "residuals" in data
+        assert len(data["residuals"]) == 5
+
+        # With 5 points and degree min(4, 3) = 3, the polynomial cannot
+        # pass through all 5 points exactly. The 5th point is offset
+        # from the linear trend, so at least one residual should be nonzero.
+        max_residual = max(abs(r) for r in data["residuals"])
+        assert max_residual > 0.01
 
 
 

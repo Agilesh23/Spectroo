@@ -665,10 +665,16 @@ def post_calibration_fit(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Polynomial fitting failed: {e}")
         
+    residuals = [
+        float(np.polyval(result.coefficients, p["pixel"]) - p["wavelength"])
+        for p in points_data
+    ]
+
     fit_result_data = {
         "degree": result.degree,
         "rms_nm": result.rms_nm,
-        "coefficients": result.coefficients
+        "coefficients": result.coefficients,
+        "residuals": residuals
     }
     
     state["fit_result"] = fit_result_data

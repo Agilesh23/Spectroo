@@ -248,6 +248,7 @@
                             <tr>
                                 <th>Pixel</th>
                                 <th>Wavelength (nm)</th>
+                                <th>Residual (nm)</th>
                                 <th style="text-align: right;">Action</th>
                             </tr>
                         </thead>
@@ -341,12 +342,33 @@
         function renderPointsTable() {
             const tbody = document.getElementById('points-tbody');
             tbody.innerHTML = '';
-            
+
+            // Determine if fit is fresh (not stale) and has residuals
+            let hasFreshResiduals = false;
+            if (stateFitResult && stateFitResult.residuals && stateFitPoints &&
+                statePoints.length === stateFitPoints.length) {
+                let stale = false;
+                for (let i = 0; i < statePoints.length; i++) {
+                    if (statePoints[i].pixel !== stateFitPoints[i].pixel ||
+                        Math.abs(statePoints[i].wavelength - stateFitPoints[i].wavelength) > 1e-4) {
+                        stale = true;
+                        break;
+                    }
+                }
+                hasFreshResiduals = !stale;
+            }
+
             statePoints.forEach((pt, index) => {
                 const tr = document.createElement('tr');
+                let residualText = '-';
+                if (hasFreshResiduals && stateFitResult.residuals[index] !== undefined) {
+                    const v = stateFitResult.residuals[index];
+                    residualText = (v >= 0 ? '+' : '') + v.toFixed(2);
+                }
                 tr.innerHTML = `
                     <td>${pt.pixel}</td>
                     <td>${pt.wavelength.toFixed(1)}</td>
+                    <td>${residualText}</td>
                     <td style="text-align: right;">
                         <button class="delete-btn" onclick="deletePoint(${index})">Delete</button>
                     </td>
