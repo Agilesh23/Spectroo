@@ -389,6 +389,7 @@
             font-size: 14px;
             color: #1e293b;
             font-weight: 600;
+            flex-shrink: 0; /* Prevent title from shrinking/wrapping in flex layout */
         }
         .history-list {
             flex-grow: 1;
@@ -480,15 +481,24 @@
             color: #3b82f6;
         }
         .history-panel .close-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
             background: none;
             border: none;
+            border-radius: 4px;
             color: #64748b;
             cursor: pointer;
             font-size: 18px;
             padding: 0;
             line-height: 1;
+            flex-shrink: 0; /* Prevent button from shrinking */
+            transition: background-color 0.1s, color 0.1s;
         }
         .history-panel .close-btn:hover {
+            background-color: #e2e8f0;
             color: #0f172a;
         }
     </style>
