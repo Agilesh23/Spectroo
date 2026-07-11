@@ -52,6 +52,10 @@ class SmoothingToggleRequest(BaseModel):
     enabled: bool
 
 
+class NormalizeToggleRequest(BaseModel):
+    enabled: bool
+
+
 class CalibrationPointRequest(BaseModel):
     pixel_index: int
     wavelength_nm: float
@@ -92,6 +96,7 @@ def get_status(request: Request):
         "dark_loaded": dark_loaded,
         "dark_subtraction_enabled": config.get("dsp", {}).get("dark_subtraction_enabled", True),
         "savgol_enabled": config.get("dsp", {}).get("savgol_enabled", True),
+        "normalize_enabled": config.get("dsp", {}).get("normalize_enabled", False),
         "cpu_temp": temp,
         "cpu_temp_warn": is_cpu_temp_warning(temp),
         "baseline_enabled": config.get("dsp", {}).get("baseline_enabled", True),
@@ -477,6 +482,14 @@ def post_smoothing_toggle(body: SmoothingToggleRequest, request: Request):
     config = request.app.state.config
     config.setdefault("dsp", {})["savgol_enabled"] = body.enabled
     return {"savgol_enabled": body.enabled}
+
+
+@router.post("/api/normalize/toggle")
+def post_normalize_toggle(body: NormalizeToggleRequest, request: Request):
+    logger.info("User action: Web API normalization toggled to %s", body.enabled)
+    config = request.app.state.config
+    config.setdefault("dsp", {})["normalize_enabled"] = body.enabled
+    return {"normalize_enabled": body.enabled}
 
 
 @router.get("/logs", response_class=HTMLResponse)

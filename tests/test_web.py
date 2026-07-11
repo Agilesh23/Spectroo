@@ -308,6 +308,37 @@ async def test_smoothing_toggle(app):
 
 
 @pytest.mark.asyncio
+async def test_normalize_toggle(app):
+    async with get_client(app) as client:
+        # Toggle True
+        response = await client.post("/api/normalize/toggle", json={"enabled": True})
+        assert response.status_code == 200
+        assert response.json()["normalize_enabled"] is True
+        assert app.state.config["dsp"]["normalize_enabled"] is True
+
+        # Toggle False
+        response = await client.post("/api/normalize/toggle", json={"enabled": False})
+        assert response.status_code == 200
+        assert response.json()["normalize_enabled"] is False
+        assert app.state.config["dsp"]["normalize_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_normalize_in_status(app):
+    async with get_client(app) as client:
+        # Default should be False
+        response = await client.get("/api/status")
+        assert response.status_code == 200
+        assert response.json()["normalize_enabled"] is False
+
+        # Enable and verify status reflects it
+        await client.post("/api/normalize/toggle", json={"enabled": True})
+        response = await client.get("/api/status")
+        assert response.status_code == 200
+        assert response.json()["normalize_enabled"] is True
+
+
+@pytest.mark.asyncio
 async def test_calibration_endpoints(app, tmp_path):
     state_file = tmp_path / "calibration_state.json"
     app.state.config["storage"]["calibration_state_path"] = str(state_file)

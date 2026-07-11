@@ -596,7 +596,7 @@
                 <li class="dropdown-item active" id="menu-peak-detection">Peak Detection</li>
                 <li class="dropdown-item active" id="menu-smoothing">Smoothing</li>
                 <li class="dropdown-item active" id="menu-analysis-baseline-corr">Baseline Correction</li>
-                <li class="dropdown-item disabled">Normalize</li>
+                <li class="dropdown-item" id="menu-normalize">Normalize</li>
                 <li class="dropdown-item disabled">Derivative</li>
                 <li class="dropdown-item disabled">Integrate (Area Under Curve)</li>
                 <li class="dropdown-item disabled">FFT/Frequency View</li>
@@ -1374,6 +1374,9 @@
             if (status.savgol_enabled !== undefined) {
                 updateSmoothingUI(status.savgol_enabled);
             }
+            if (status.normalize_enabled !== undefined) {
+                updateNormalizeUI(status.normalize_enabled);
+            }
         }
 
         function updatePeaksStatus(peaks, calibrated) {
@@ -1787,6 +1790,33 @@
             }
         }
 
+        async function toggleNormalize() {
+            const menuNormalize = document.getElementById('menu-normalize');
+            const currentActive = menuNormalize ? menuNormalize.classList.contains('active') : false;
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/normalize/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                updateNormalizeUI(data.normalize_enabled);
+            } catch (err) {
+                console.error("Error toggling normalization:", err);
+            }
+        }
+
+        function updateNormalizeUI(enabled) {
+            const menuNormalize = document.getElementById('menu-normalize');
+            if (enabled) {
+                if (menuNormalize) menuNormalize.classList.add('active');
+            } else {
+                if (menuNormalize) menuNormalize.classList.remove('active');
+            }
+        }
+
         function exportCurrent(format) {
             window.location.href = `/api/export/current?format=${format}`;
         }
@@ -1936,6 +1966,9 @@
         });
         document.getElementById('menu-smoothing').addEventListener('click', () => {
             toggleSmoothing();
+        });
+        document.getElementById('menu-normalize').addEventListener('click', () => {
+            toggleNormalize();
         });
         document.getElementById('menu-color-spectrum').addEventListener('click', () => {
             toggleColorSpectrum();

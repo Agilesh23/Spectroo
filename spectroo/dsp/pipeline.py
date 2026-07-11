@@ -151,6 +151,13 @@ def run_pipeline(
             _pipeline_state["flat_loaded"] = flat_loaded_now
             logger.info("DSP: Flat-field correction %s", "enabled" if flat_loaded_now else "disabled")
 
+    # 9.5 Normalize (min-max scaling to [0, 1])
+    if dsp_cfg.get("normalize_enabled", False):
+        b_min = np.min(band)
+        b_max = np.max(band)
+        if b_max > b_min:
+            band = (band - b_min) / (b_max - b_min)
+
     # 10. Wavelength mapping
     pixel_indices = np.arange(len(band))
     if calibration is not None:
