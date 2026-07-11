@@ -1,6 +1,7 @@
 import os
 import logging
 import tempfile
+import time
 from datetime import datetime, timezone
 from typing import Optional
 import numpy as np
@@ -11,7 +12,7 @@ from pydantic import BaseModel
 
 from spectroo.core.exceptions import CameraNotFoundError
 from spectroo.camera.source import PiCameraFrameSource
-from spectroo.dsp.pipeline import average_frames, run_pipeline
+from spectroo.dsp.pipeline import average_frames, run_pipeline, to_greyscale
 from spectroo.dsp.peaks import find_spectrum_peaks
 from spectroo.core.calibration import PolynomialCalibration, apply_calibration
 from spectroo.core.models import HistoryRecord, Peak
@@ -38,6 +39,14 @@ class ExposureRequest(BaseModel):
 
 
 class BaselineRequest(BaseModel):
+    enabled: bool
+
+
+class DarkToggleRequest(BaseModel):
+    enabled: bool
+
+
+class SmoothingToggleRequest(BaseModel):
     enabled: bool
 
 
@@ -70,6 +79,8 @@ def get_status(request: Request):
         "live_active": live_active,
         "calibrated": calibrated,
         "dark_loaded": dark_loaded,
+        "dark_subtraction_enabled": config.get("dsp", {}).get("dark_subtraction_enabled", True),
+        "savgol_enabled": config.get("dsp", {}).get("savgol_enabled", True),
         "cpu_temp": temp,
         "cpu_temp_warn": is_cpu_temp_warning(temp),
         "baseline_enabled": config.get("dsp", {}).get("baseline_enabled", True),
@@ -398,6 +409,63 @@ async def restart_pipeline(request: Request):
     request.app.state.ws_client_connected = False
     request.app.state.current_frame = None
     return {"ok": True}
+
+
+@router.post("/api/dark/capture")
+def post_dark_capture(request: Request):
+    logger.info("User action: Web API dark frame capture requested")
+    config = request.app.state.config
+
+    if request.app.state.live_active:
+        raise HTTPException(status_code=409, detail="Live mode active — stop live before dark capture")
+
+    exposure_us = config.get("camera", {}).get("exposure_us", 200000)
+    res = tuple(config.get("camera", {}).get("resolution", (2592, 200)))
+
+    try:
+        source = PiCameraFrameSource(resolution=res, exposure_us=exposure_us)
+    except CameraNotFoundError as e:
+        raise HTTPException(status_code=503, detail="Camera not available") from e
+
+    try:
+        frames = []
+        for _ in range(4):
+            frames.append(source.capture_frame())
+            time.sleep(0.01)
+
+        averaged = average_frames(frames)
+        grey = to_greyscale(averaged)
+
+        dark_path = config.get("storage", {}).get("dark_frame_path", "")
+        if dark_path:
+            os.makedirs(os.path.dirname(dark_path), exist_ok=True)
+            np.save(dark_path, grey)
+            logger.info(f"Dark frame saved successfully to: {dark_path}")
+        else:
+            raise HTTPException(status_code=500, detail="Dark frame path not specified in configuration.")
+    except Exception as e:
+        logger.error(f"Error during dark capture: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        source.close()
+
+    return {"status": "Dark frame captured and saved successfully"}
+
+
+@router.post("/api/dark/toggle")
+def post_dark_toggle(body: DarkToggleRequest, request: Request):
+    logger.info("User action: Web API dark subtraction toggled to %s", body.enabled)
+    config = request.app.state.config
+    config.setdefault("dsp", {})["dark_subtraction_enabled"] = body.enabled
+    return {"dark_subtraction_enabled": body.enabled}
+
+
+@router.post("/api/smoothing/toggle")
+def post_smoothing_toggle(body: SmoothingToggleRequest, request: Request):
+    logger.info("User action: Web API smoothing toggled to %s", body.enabled)
+    config = request.app.state.config
+    config.setdefault("dsp", {})["savgol_enabled"] = body.enabled
+    return {"savgol_enabled": body.enabled}
 
 
 @router.get("/logs", response_class=HTMLResponse)

@@ -513,7 +513,7 @@
                 <li class="dropdown-item" id="menu-save-spectrum">Save Spectrum</li>
                 <li class="dropdown-item" id="menu-export-json">Export JSON</li>
                 <li class="dropdown-item" id="menu-export-csv">Export CSV</li>
-                <li class="dropdown-item disabled">Recent Files</li>
+                <li class="dropdown-item" id="menu-recent-files">Recent Files</li>
             </ul>
         </div>
         <div class="menu-item">Acquisition
@@ -521,8 +521,8 @@
                 <li class="dropdown-item" id="menu-single-capture">Single Capture</li>
                 <li class="dropdown-item" id="menu-start-stop-live">Start/Stop Live</li>
                 <li class="dropdown-item" id="menu-exposure-settings">Exposure Settings</li>
-                <li class="dropdown-item disabled">Capture Dark Frame</li>
-                <li class="dropdown-item disabled">Toggle Dark Subtraction</li>
+                <li class="dropdown-item" id="menu-capture-dark">Capture Dark Frame</li>
+                <li class="dropdown-item active" id="menu-toggle-dark">Toggle Dark Subtraction</li>
             </ul>
         </div>
         <div class="menu-item">Calibration
@@ -535,9 +535,9 @@
         </div>
         <div class="menu-item">Analysis
             <ul class="dropdown-menu">
-                <li class="dropdown-item disabled">Peak Detection</li>
-                <li class="dropdown-item disabled">Smoothing</li>
-                <li class="dropdown-item disabled">Baseline Correction</li>
+                <li class="dropdown-item active" id="menu-peak-detection">Peak Detection</li>
+                <li class="dropdown-item active" id="menu-smoothing">Smoothing</li>
+                <li class="dropdown-item active" id="menu-analysis-baseline-corr">Baseline Correction</li>
                 <li class="dropdown-item disabled">Normalize</li>
                 <li class="dropdown-item disabled">Derivative</li>
                 <li class="dropdown-item disabled">Integrate (Area Under Curve)</li>
@@ -1310,6 +1310,12 @@
             if (status.baseline_enabled !== undefined) {
                 updateBaselineUI(status.baseline_enabled);
             }
+            if (status.dark_subtraction_enabled !== undefined) {
+                updateDarkUI(status.dark_subtraction_enabled);
+            }
+            if (status.savgol_enabled !== undefined) {
+                updateSmoothingUI(status.savgol_enabled);
+            }
         }
 
         function updatePeaksStatus(peaks, calibrated) {
@@ -1654,15 +1660,72 @@
 
         function updateBaselineUI(enabled) {
             const menuBaselineCorr = document.getElementById('menu-baseline-corr');
+            const menuAnalysisBaselineCorr = document.getElementById('menu-analysis-baseline-corr');
             const baselineBtn = document.getElementById('baseline-btn');
             if (enabled) {
                 if (baselineBtn) baselineBtn.classList.add('active');
-                menuBaselineCorr.classList.add('active');
+                if (menuBaselineCorr) menuBaselineCorr.classList.add('active');
+                if (menuAnalysisBaselineCorr) menuAnalysisBaselineCorr.classList.add('active');
                 toolbarBaseline.classList.add('active');
             } else {
                 if (baselineBtn) baselineBtn.classList.remove('active');
-                menuBaselineCorr.classList.remove('active');
+                if (menuBaselineCorr) menuBaselineCorr.classList.remove('active');
+                if (menuAnalysisBaselineCorr) menuAnalysisBaselineCorr.classList.remove('active');
                 toolbarBaseline.classList.remove('active');
+            }
+        }
+
+        async function toggleDarkSubtraction() {
+            const menuToggleDark = document.getElementById('menu-toggle-dark');
+            const currentActive = menuToggleDark ? menuToggleDark.classList.contains('active') : true;
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/dark/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                updateDarkUI(data.dark_subtraction_enabled);
+            } catch (err) {
+                console.error("Error toggling dark subtraction:", err);
+            }
+        }
+
+        function updateDarkUI(enabled) {
+            const menuToggleDark = document.getElementById('menu-toggle-dark');
+            if (enabled) {
+                if (menuToggleDark) menuToggleDark.classList.add('active');
+            } else {
+                if (menuToggleDark) menuToggleDark.classList.remove('active');
+            }
+        }
+
+        async function toggleSmoothing() {
+            const menuSmoothing = document.getElementById('menu-smoothing');
+            const currentActive = menuSmoothing ? menuSmoothing.classList.contains('active') : true;
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/smoothing/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                updateSmoothingUI(data.savgol_enabled);
+            } catch (err) {
+                console.error("Error toggling smoothing:", err);
+            }
+        }
+
+        function updateSmoothingUI(enabled) {
+            const menuSmoothing = document.getElementById('menu-smoothing');
+            if (enabled) {
+                if (menuSmoothing) menuSmoothing.classList.add('active');
+            } else {
+                if (menuSmoothing) menuSmoothing.classList.remove('active');
             }
         }
 
@@ -1745,6 +1808,12 @@
         }
 
         // Menu item click wiring
+        document.getElementById('menu-recent-files').addEventListener('click', () => {
+            const isActive = historyPanel.classList.toggle('active');
+            if (isActive) {
+                fetchHistory();
+            }
+        });
         document.getElementById('menu-save-spectrum').addEventListener('click', saveSpectrum);
         document.getElementById('menu-export-json').addEventListener('click', () => {
             if (!toolbarExportJson.disabled) exportCurrent('json');
@@ -1768,10 +1837,52 @@
             exposureInput.focus();
             exposureInput.select();
         });
+        document.getElementById('menu-capture-dark').addEventListener('click', async () => {
+            if (!confirm("Cover the lens completely to block all light, then click OK to capture dark frame.")) return;
+            try {
+                const res = await fetch('/api/dark/capture', { method: 'POST' });
+                if (res.status === 409) {
+                    alert("Live mode active — stop live before dark capture");
+                    return;
+                }
+                if (res.status === 503) {
+                    alert("Camera not available");
+                    return;
+                }
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.status || "Dark frame captured successfully");
+                    fetchStatus();
+                } else {
+                    alert("Failed to capture dark frame: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        });
+        document.getElementById('menu-peak-detection').addEventListener('click', () => {
+            showPeaks = !showPeaks;
+            const menuPeakDetection = document.getElementById('menu-peak-detection');
+            if (showPeaks) {
+                menuPeakDetection.classList.add('active');
+            } else {
+                menuPeakDetection.classList.remove('active');
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-toggle-dark').addEventListener('click', () => {
+            toggleDarkSubtraction();
+        });
+        document.getElementById('menu-smoothing').addEventListener('click', () => {
+            toggleSmoothing();
+        });
         document.getElementById('menu-color-spectrum').addEventListener('click', () => {
             toggleColorSpectrum();
         });
         document.getElementById('menu-baseline-corr').addEventListener('click', () => {
+            toggleBaselineCorrection();
+        });
+        document.getElementById('menu-analysis-baseline-corr').addEventListener('click', () => {
             toggleBaselineCorrection();
         });
         document.getElementById('menu-show-grid').addEventListener('click', () => {

@@ -252,6 +252,64 @@ async def test_current_frame_with_data(app):
     assert data["peaks"] == [1]
 
 
+@pytest.mark.asyncio
+async def test_dark_capture_without_camera_returns_503(app):
+    async with get_client(app) as client:
+        response = await client.post("/api/dark/capture")
+        assert response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_dark_capture_success(app, tmp_path):
+    from unittest.mock import patch
+    from spectroo.camera.source import MockFrameSource
+    # Update config dark_frame_path to use a temp file
+    dark_file = tmp_path / "dark_frame.npy"
+    app.state.config["storage"]["dark_frame_path"] = str(dark_file)
+
+    async with get_client(app) as client:
+        with patch("spectroo.web.routes.PiCameraFrameSource", return_value=MockFrameSource()):
+            response = await client.post("/api/dark/capture")
+        assert response.status_code == 200
+        assert response.json()["status"] == "Dark frame captured and saved successfully"
+        assert os.path.exists(dark_file)
+
+
+@pytest.mark.asyncio
+async def test_dark_toggle(app):
+    async with get_client(app) as client:
+        # Toggle False
+        response = await client.post("/api/dark/toggle", json={"enabled": False})
+        assert response.status_code == 200
+        assert response.json()["dark_subtraction_enabled"] is False
+        assert app.state.config["dsp"]["dark_subtraction_enabled"] is False
+
+        # Toggle True
+        response = await client.post("/api/dark/toggle", json={"enabled": True})
+        assert response.status_code == 200
+        assert response.json()["dark_subtraction_enabled"] is True
+        assert app.state.config["dsp"]["dark_subtraction_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_smoothing_toggle(app):
+    async with get_client(app) as client:
+        # Toggle False
+        response = await client.post("/api/smoothing/toggle", json={"enabled": False})
+        assert response.status_code == 200
+        assert response.json()["savgol_enabled"] is False
+        assert app.state.config["dsp"]["savgol_enabled"] is False
+
+        # Toggle True
+        response = await client.post("/api/smoothing/toggle", json={"enabled": True})
+        assert response.status_code == 200
+        assert response.json()["savgol_enabled"] is True
+        assert app.state.config["dsp"]["savgol_enabled"] is True
+
+
+
+
+
 
 
 
