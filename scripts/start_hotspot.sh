@@ -64,6 +64,7 @@ nmcli connection add \
     802-11-wireless.mode ap \
     wifi-sec.key-mgmt wpa-psk \
     wifi-sec.psk "$PASSWORD" \
+    wifi-sec.wps-method 1 \
     ipv4.method shared \
     ipv6.method disabled
 
