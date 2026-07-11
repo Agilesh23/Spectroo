@@ -570,22 +570,16 @@
         </div>
     </div>
 
+
     <div class="icon-toolbar">
-        <button class="toolbar-btn" id="toolbar-capture" data-tooltip="Capture">
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        <button class="toolbar-btn active" id="toolbar-baseline" data-tooltip="Toggle Baseline Correction">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
         </button>
-        <button class="toolbar-btn" id="toolbar-live" data-tooltip="Start Live">
-            <svg class="icon-play" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            <svg class="icon-stop" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+        <button class="toolbar-btn active" id="toolbar-color" data-tooltip="Toggle Colour Spectrum">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
         </button>
-        
-        <div class="toolbar-separator"></div>
-        
-        <button class="toolbar-btn" id="toolbar-export-json" data-tooltip="Export JSON" disabled>
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        </button>
-        <button class="toolbar-btn" id="toolbar-export-csv" data-tooltip="Export CSV" disabled>
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <button class="toolbar-btn active" id="toolbar-crosshair" data-tooltip="Toggle Crosshair">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
         </button>
         
         <div class="toolbar-separator"></div>
@@ -596,14 +590,11 @@
         
         <div class="toolbar-separator"></div>
         
-        <button class="toolbar-btn active" id="toolbar-crosshair" data-tooltip="Toggle Crosshair">
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+        <button class="toolbar-btn" id="toolbar-export-json" data-tooltip="Export JSON" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         </button>
-        <button class="toolbar-btn active" id="toolbar-color" data-tooltip="Toggle Colour Spectrum">
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-        </button>
-        <button class="toolbar-btn active" id="toolbar-baseline" data-tooltip="Toggle Baseline Correction">
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        <button class="toolbar-btn" id="toolbar-export-csv" data-tooltip="Export CSV" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
         </button>
     </div>
 
@@ -631,22 +622,6 @@
                         <span>Exposure (µs):</span>
                         <input type="number" id="exposure-input" value="20000" min="110" max="3066979">
                     </div>
-                </div>
-            </div>
-            
-            <div class="panel">
-                <div class="panel-header">DISPLAY</div>
-                <div class="panel-body">
-                    <button id="plot-mode-btn" class="active" style="margin-bottom: 6px;">Colour Spectrum</button>
-                    <button id="baseline-btn" class="active">Baseline Corr</button>
-                </div>
-            </div>
-            
-            <div class="panel">
-                <div class="panel-header">DATA</div>
-                <div class="panel-body">
-                    <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
-                    <button id="export-csv-btn" disabled>Export CSV</button>
                 </div>
             </div>
         </div>
@@ -1335,12 +1310,7 @@
                 updateCpuTemp(status.cpu_temp, status.cpu_temp_warn);
             }
             if (status.baseline_enabled !== undefined) {
-                const baselineBtn = document.getElementById('baseline-btn');
-                if (status.baseline_enabled) {
-                    baselineBtn.classList.add('active');
-                } else {
-                    baselineBtn.classList.remove('active');
-                }
+                updateBaselineUI(status.baseline_enabled);
             }
         }
 
@@ -1398,14 +1368,14 @@
         const captureBtn = document.getElementById('capture-btn');
         const stopBtn = document.getElementById('stop-btn');
         const exposureInput = document.getElementById('exposure-input');
-        const plotModeBtn = document.getElementById('plot-mode-btn');
-        const baselineBtn = document.getElementById('baseline-btn');
-        const exportJsonBtn = document.getElementById('export-json-btn');
-        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const plotModeBtn = null;
+        const baselineBtn = null;
+        const exportJsonBtn = null;
+        const exportCsvBtn = null;
 
         // Icon Toolbar wiring
-        const toolbarCapture = document.getElementById('toolbar-capture');
-        const toolbarLive = document.getElementById('toolbar-live');
+        const toolbarCapture = null;
+        const toolbarLive = null;
         const toolbarExportJson = document.getElementById('toolbar-export-json');
         const toolbarExportCsv = document.getElementById('toolbar-export-csv');
         const toolbarHistory = document.getElementById('toolbar-history');
@@ -1440,19 +1410,19 @@
                 stopBtn.disabled = true;
             }
 
-            // Sync toolbar
-            toolbarCapture.disabled = active;
-            
-            if (active) {
-                toolbarLive.classList.add('active');
-                toolbarLive.setAttribute('data-tooltip', 'Stop Live');
-                toolbarLive.querySelector('.icon-play').style.display = 'none';
-                toolbarLive.querySelector('.icon-stop').style.display = 'block';
-            } else {
-                toolbarLive.classList.remove('active');
-                toolbarLive.setAttribute('data-tooltip', 'Start Live');
-                toolbarLive.querySelector('.icon-play').style.display = 'block';
-                toolbarLive.querySelector('.icon-stop').style.display = 'none';
+            if (toolbarCapture) toolbarCapture.disabled = active;
+            if (toolbarLive) {
+                if (active) {
+                    toolbarLive.classList.add('active');
+                    toolbarLive.setAttribute('data-tooltip', 'Stop Live');
+                    toolbarLive.querySelector('.icon-play').style.display = 'none';
+                    toolbarLive.querySelector('.icon-stop').style.display = 'block';
+                } else {
+                    toolbarLive.classList.remove('active');
+                    toolbarLive.setAttribute('data-tooltip', 'Start Live');
+                    toolbarLive.querySelector('.icon-play').style.display = 'block';
+                    toolbarLive.querySelector('.icon-stop').style.display = 'none';
+                }
             }
 
             if (!active) {
@@ -1461,8 +1431,8 @@
         }
 
         function setExportEnabled(enabled) {
-            exportJsonBtn.disabled = !enabled;
-            exportCsvBtn.disabled = !enabled;
+            if (exportJsonBtn) exportJsonBtn.disabled = !enabled;
+            if (exportCsvBtn) exportCsvBtn.disabled = !enabled;
             toolbarExportJson.disabled = !enabled;
             toolbarExportCsv.disabled = !enabled;
         }
@@ -1643,29 +1613,33 @@
             }
         });
 
-        // Display Toggles
-        plotModeBtn.addEventListener('click', () => {
+        // Shared Toggles and Handlers
+        function toggleColorSpectrum() {
             const menuColorSpectrum = document.getElementById('menu-color-spectrum');
             if (fillMode === 'color') {
                 fillMode = 'plain';
-                plotModeBtn.classList.remove('active');
-                plotModeBtn.innerText = 'Plain Spectrum';
+                if (plotModeBtn) {
+                    plotModeBtn.classList.remove('active');
+                    plotModeBtn.innerText = 'Plain Spectrum';
+                }
                 menuColorSpectrum.classList.remove('active');
                 toolbarColor.classList.remove('active');
             } else {
                 fillMode = 'color';
-                plotModeBtn.classList.add('active');
-                plotModeBtn.innerText = 'Colour Spectrum';
+                if (plotModeBtn) {
+                    plotModeBtn.classList.add('active');
+                    plotModeBtn.innerText = 'Colour Spectrum';
+                }
                 menuColorSpectrum.classList.add('active');
                 toolbarColor.classList.add('active');
             }
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
-        });
+        }
 
-        baselineBtn.addEventListener('click', async () => {
-            const currentActive = baselineBtn.classList.contains('active');
-            const targetActive = !currentActive;
+        async function toggleBaselineCorrection() {
             const menuBaselineCorr = document.getElementById('menu-baseline-corr');
+            const currentActive = toolbarBaseline.classList.contains('active');
+            const targetActive = !currentActive;
             
             try {
                 const res = await fetch('/api/baseline', {
@@ -1674,28 +1648,47 @@
                     body: JSON.stringify({ enabled: targetActive })
                 });
                 const data = await res.json();
-                if (data.baseline_enabled) {
-                    baselineBtn.classList.add('active');
-                    menuBaselineCorr.classList.add('active');
-                    toolbarBaseline.classList.add('active');
-                } else {
-                    baselineBtn.classList.remove('active');
-                    menuBaselineCorr.classList.remove('active');
-                    toolbarBaseline.classList.remove('active');
-                }
+                updateBaselineUI(data.baseline_enabled);
             } catch (err) {
                 console.error("Error toggling baseline:", err);
             }
-        });
+        }
+
+        function updateBaselineUI(enabled) {
+            const menuBaselineCorr = document.getElementById('menu-baseline-corr');
+            const baselineBtn = document.getElementById('baseline-btn');
+            if (enabled) {
+                if (baselineBtn) baselineBtn.classList.add('active');
+                menuBaselineCorr.classList.add('active');
+                toolbarBaseline.classList.add('active');
+            } else {
+                if (baselineBtn) baselineBtn.classList.remove('active');
+                menuBaselineCorr.classList.remove('active');
+                toolbarBaseline.classList.remove('active');
+            }
+        }
+
+        function exportCurrent(format) {
+            window.location.href = `/api/export/current?format=${format}`;
+        }
+
+        // Display Toggles
+        if (plotModeBtn) {
+            plotModeBtn.addEventListener('click', toggleColorSpectrum);
+        }
+
+        if (baselineBtn) {
+            baselineBtn.addEventListener('click', toggleBaselineCorrection);
+        }
 
         // Export handlers
-        exportJsonBtn.addEventListener('click', () => {
-            window.location.href = `/api/export/current?format=json`;
-        });
+        if (exportJsonBtn) {
+            exportJsonBtn.addEventListener('click', () => exportCurrent('json'));
+        }
 
-        exportCsvBtn.addEventListener('click', () => {
-            window.location.href = `/api/export/current?format=csv`;
-        });
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', () => exportCurrent('csv'));
+        }
 
         // System Menu confirm handlers
         async function runShutdown() {
@@ -1756,10 +1749,10 @@
         // Menu item click wiring
         document.getElementById('menu-save-spectrum').addEventListener('click', saveSpectrum);
         document.getElementById('menu-export-json').addEventListener('click', () => {
-            if (!exportJsonBtn.disabled) window.location.href = `/api/export/current?format=json`;
+            if (!toolbarExportJson.disabled) exportCurrent('json');
         });
         document.getElementById('menu-export-csv').addEventListener('click', () => {
-            if (!exportCsvBtn.disabled) window.location.href = `/api/export/current?format=csv`;
+            if (!toolbarExportCsv.disabled) exportCurrent('csv');
         });
         document.getElementById('menu-single-capture').addEventListener('click', () => {
             if (!captureBtn.disabled) captureBtn.click();
@@ -1778,10 +1771,10 @@
             exposureInput.select();
         });
         document.getElementById('menu-color-spectrum').addEventListener('click', () => {
-            plotModeBtn.click();
+            toggleColorSpectrum();
         });
         document.getElementById('menu-baseline-corr').addEventListener('click', () => {
-            baselineBtn.click();
+            toggleBaselineCorrection();
         });
         document.getElementById('menu-show-grid').addEventListener('click', () => {
             showGrid = !showGrid;
@@ -1826,34 +1819,38 @@
         });
 
         // Toolbar button listeners
-        toolbarCapture.addEventListener('click', () => {
-            if (!toolbarCapture.disabled) {
-                if (selectedMode === 'live') {
-                    setSelectedMode('single');
+        if (toolbarCapture) {
+            toolbarCapture.addEventListener('click', () => {
+                if (!toolbarCapture.disabled) {
+                    if (selectedMode === 'live') {
+                        setSelectedMode('single');
+                    }
+                    captureBtn.click();
                 }
-                captureBtn.click();
-            }
-        });
+            });
+        }
         
-        toolbarLive.addEventListener('click', async () => {
-            if (streamingActive) {
-                await stopLive();
-                setSelectedMode('single');
-            } else {
-                setSelectedMode('live');
-                await startLive();
-            }
-        });
+        if (toolbarLive) {
+            toolbarLive.addEventListener('click', async () => {
+                if (streamingActive) {
+                    await stopLive();
+                    setSelectedMode('single');
+                } else {
+                    setSelectedMode('live');
+                    await startLive();
+                }
+            });
+        }
         
         toolbarExportJson.addEventListener('click', () => {
             if (!toolbarExportJson.disabled) {
-                exportJsonBtn.click();
+                exportCurrent('json');
             }
         });
         
         toolbarExportCsv.addEventListener('click', () => {
             if (!toolbarExportCsv.disabled) {
-                exportCsvBtn.click();
+                exportCurrent('csv');
             }
         });
         const historyPanel = document.getElementById('history-panel');
@@ -1989,11 +1986,11 @@
         });
         
         toolbarColor.addEventListener('click', () => {
-            plotModeBtn.click();
+            toggleColorSpectrum();
         });
         
         toolbarBaseline.addEventListener('click', () => {
-            baselineBtn.click();
+            toggleBaselineCorrection();
         });
 
         // Periodic polling for status when not streaming
