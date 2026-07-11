@@ -906,15 +906,6 @@
         
         // Resize Canvas
         function resizeCanvas() {
-            const cssWidth = plotArea.clientWidth;
-            const cssHeight = plotArea.clientHeight;
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = cssWidth * dpr;
-            canvas.height = cssHeight * dpr;
-            canvas.style.width = cssWidth + "px";
-            canvas.style.height = cssHeight + "px";
-            const ctx = canvas.getContext('2d');
-            ctx.scale(dpr, dpr);
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
         }
         window.addEventListener('resize', resizeCanvas);
@@ -985,13 +976,26 @@
             currentPeaks = peaks;
 
             const rawCanvas = document.getElementById('spectrum-canvas');
+            const dpr = window.devicePixelRatio || 1;
+            const parent = rawCanvas.parentElement;
+            const logicalWidth = parent.clientWidth;
+            const logicalHeight = parent.clientHeight;
+
+            rawCanvas.width = logicalWidth * dpr;
+            rawCanvas.height = logicalHeight * dpr;
+            rawCanvas.style.width = logicalWidth + 'px';
+            rawCanvas.style.height = logicalHeight + 'px';
+
             const canvas = {
-                width: rawCanvas.clientWidth,
-                height: rawCanvas.clientHeight,
+                width: logicalWidth,
+                height: logicalHeight,
                 getContext: (t) => rawCanvas.getContext(t)
             };
 
             const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+            ctx.scale(dpr, dpr);
+
             ctx.fillStyle = colors.bg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
