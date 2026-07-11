@@ -16,6 +16,8 @@ source "$VENV/bin/activate"
 SSID=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c['hotspot']['ssid'])")
 PASSWORD=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c['hotspot']['password'])")
 INTERFACE=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c['hotspot']['interface'])")
+GATEWAY_IP=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c.get('hotspot', {}).get('gateway_ip', '10.42.0.1'))")
+MDNS_HOSTNAME=$(python -c "import tomllib; c=tomllib.load(open('$CONFIG','rb')); print(c.get('hotspot', {}).get('mdns_hostname', 'spectroo.local'))")
 
 PREV_CONN=$(nmcli -t -f NAME,DEVICE connection show --active | grep ":$INTERFACE$" | cut -d: -f1 || true)
 if [[ -n "$PREV_CONN" ]]; then
@@ -40,6 +42,10 @@ nmcli connection add \
     wifi-sec.psk "$PASSWORD" \
     ipv4.method shared \
     ipv6.method disabled
+
+# Configure dnsmasq under NetworkManager shared configuration for standard DNS resolution
+sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+echo "address=/$MDNS_HOSTNAME/$GATEWAY_IP" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/spectroo.conf > /dev/null
 
 if ! nmcli connection up "spectroo-hotspot"; then
     echo "[spectroo] WARNING: hotspot failed to activate, falling back to previous connection" >&2
