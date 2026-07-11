@@ -501,6 +501,52 @@
             background-color: #e2e8f0;
             color: #0f172a;
         }
+        
+        /* Modal dialog and overlay styling matching calibration.html pattern */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .dialog {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 280px;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+        }
+        .calibration-list-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #cbd5e1;
+            transition: background-color 0.1s;
+        }
+        .calibration-list-item:last-child {
+            border-bottom: none;
+        }
+        .calibration-list-item:hover {
+            background-color: #f1f5f9;
+        }
+        .calibration-item-title {
+            font-weight: bold;
+            color: #0f172a;
+            font-size: 12px;
+        }
+        .calibration-item-meta {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -540,9 +586,9 @@
         <div class="menu-item">Calibration
             <ul class="dropdown-menu">
                 <li class="dropdown-item" id="menu-wavelength-calibration">Wavelength Calibration</li>
-                <li class="dropdown-item disabled">Load Calibration File</li>
-                <li class="dropdown-item disabled">Save Calibration File</li>
-                <li class="dropdown-item disabled">Clear Calibration</li>
+                <li class="dropdown-item" id="menu-load-calibration">Load Calibration File</li>
+                <li class="dropdown-item" id="menu-save-calibration">Save Calibration File</li>
+                <li class="dropdown-item" id="menu-clear-calibration">Clear Calibration</li>
             </ul>
         </div>
         <div class="menu-item">Analysis
@@ -2124,6 +2170,148 @@
             }
         }, 5000);
 
+        // Calibration Menu Action Handling
+        const saveCalOverlay = document.getElementById('save-calibration-overlay');
+        const loadCalOverlay = document.getElementById('load-calibration-overlay');
+        const saveCalLabel = document.getElementById('save-calibration-label');
+        const loadCalListContainer = document.getElementById('load-calibration-list');
+
+        document.getElementById('menu-save-calibration').addEventListener('click', () => {
+            saveCalLabel.value = '';
+            saveCalOverlay.style.display = 'flex';
+        });
+
+        document.getElementById('save-calibration-cancel').addEventListener('click', () => {
+            saveCalOverlay.style.display = 'none';
+        });
+
+        document.getElementById('save-calibration-submit').addEventListener('click', async () => {
+            const label = saveCalLabel.value.trim() || 'Untitled';
+            try {
+                const res = await fetch('/api/calibration/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label })
+                });
+                
+                if (res.ok) {
+                    alert("Calibration snapshot saved successfully.");
+                    saveCalOverlay.style.display = 'none';
+                    fetchStatus();
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to save calibration: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error saving calibration: " + err.message);
+            }
+        });
+
+        document.getElementById('menu-load-calibration').addEventListener('click', async () => {
+            loadCalOverlay.style.display = 'flex';
+            await fetchCalibrationFileList();
+        });
+
+        document.getElementById('load-calibration-cancel-btn').addEventListener('click', () => {
+            loadCalOverlay.style.display = 'none';
+        });
+
+        async function fetchCalibrationFileList() {
+            loadCalListContainer.innerHTML = '<div style="padding: 12px; color: #64748b; text-align: center;">Loading...</div>';
+            try {
+                const res = await fetch('/api/calibration/list');
+                if (!res.ok) throw new Error("Failed to fetch list");
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    loadCalListContainer.innerHTML = '<div style="padding: 16px; color: #94a3b8; text-align: center;">No saved calibration snapshots found.</div>';
+                    return;
+                }
+                
+                loadCalListContainer.innerHTML = data.map(item => `
+                    <div class="calibration-list-item" onclick="loadCalibrationFile('${item.filename}')">
+                        <div class="calibration-item-title">${item.label || 'Untitled'}</div>
+                        <div class="calibration-item-meta">
+                            RMS: ${item.rms_nm ? item.rms_nm.toFixed(4) + ' nm' : 'N/A'} | degree: ${item.degree}
+                        </div>
+                        <div class="calibration-item-meta" style="font-size: 8px; color: #94a3b8;">
+                            ${item.filename}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                loadCalListContainer.innerHTML = `<div style="padding: 12px; color: #ef4444; text-align: center;">Error: ${err.message}</div>`;
+            }
+        }
+
+        async function loadCalibrationFile(filename) {
+            try {
+                const res = await fetch(`/api/calibration/load/${filename}`, { method: 'POST' });
+                if (res.ok) {
+                    alert("Calibration loaded and applied successfully.");
+                    loadCalOverlay.style.display = 'none';
+                    
+                    fetchStatus();
+                    // Trigger capture to show updated spectrum wavelengths
+                    if (!streamingActive) {
+                        captureBtn.click();
+                    }
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to load calibration: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error loading calibration: " + err.message);
+            }
+        }
+        window.loadCalibrationFile = loadCalibrationFile;
+
+        document.getElementById('menu-clear-calibration').addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to clear the active calibration and revert to default pixels?")) return;
+            try {
+                const res = await fetch('/api/calibration/clear', { method: 'POST' });
+                if (res.ok) {
+                    alert("Calibration cleared successfully.");
+                    fetchStatus();
+                    if (!streamingActive) {
+                        captureBtn.click();
+                    }
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to clear calibration: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error clearing calibration: " + err.message);
+            }
+        });
+
     </script>
+
+    <!-- Save Calibration Modal -->
+    <div id="save-calibration-overlay" class="overlay">
+        <div class="dialog">
+            <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1e293b;">Save Calibration Snapshot</h4>
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="save-calibration-label" placeholder="Calibration Label (e.g. Neon lamp)" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; outline: none;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="save-calibration-submit" class="active" style="width: auto; flex-grow: 1;">Save</button>
+                <button id="save-calibration-cancel" style="width: auto; flex-grow: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Calibration Modal -->
+    <div id="load-calibration-overlay" class="overlay">
+        <div class="dialog" style="width: 320px;">
+            <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1e293b;">Load Calibration File</h4>
+            <div id="load-calibration-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
+                <!-- List items loaded dynamically -->
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="load-calibration-cancel-btn" style="width: 100%;">Cancel</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
