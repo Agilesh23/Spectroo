@@ -688,6 +688,7 @@
         <span id="dark-status" class="status-field">Dark Frame: Not Loaded</span>
         <span id="peaks-status" class="status-field">Peaks: None</span>
         <span id="temp-status" class="status-field">CPU Temp: --°C</span>
+        <span id="action-status" class="status-field" style="display: none;"></span>
         <span class="status-stretch"></span>
     </div>
 
@@ -2035,7 +2036,11 @@
                     const res = await fetch('/api/shutdown', { method: 'POST' });
                     const data = await res.json();
                     if (res.ok && data.ok) {
-                        alert("Shutdown initiated successfully.");
+                        const actionStatus = document.getElementById('action-status');
+                        if (actionStatus) {
+                            actionStatus.innerText = 'Shutting down...';
+                            actionStatus.style.display = '';
+                        }
                     } else {
                         alert("Shutdown failed.");
                     }

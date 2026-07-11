@@ -2,6 +2,7 @@ import pytest
 import httpx
 import tempfile
 import os
+from pathlib import Path
 from spectroo.web.app import create_app
 
 pytestmark = pytest.mark.asyncio
@@ -252,6 +253,15 @@ async def test_shutdown_endpoint(app):
         assert response.status_code == 200
         assert response.json() == {"ok": True}
         mock_sd.assert_called_once()
+
+
+async def test_shutdown_menu_requires_confirmation_and_sets_status_message():
+    index_html = Path("spectroo/web/static/index.html").read_text(encoding="utf-8")
+    assert 'id="menu-shutdown"' in index_html
+    assert 'confirm("Are you sure you want to shut down the system? Unsaved data will be lost.")' in index_html
+    assert "fetch('/api/shutdown', { method: 'POST' })" in index_html
+    assert 'id="action-status"' in index_html
+    assert "actionStatus.innerText = 'Shutting down...';" in index_html
 
 
 # 20. test_restart_pipeline_idle
