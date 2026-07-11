@@ -400,6 +400,104 @@ async def test_calibration_endpoints(app, tmp_path):
         assert "No fit" in response.json()["detail"]
 
 
+@pytest.mark.asyncio
+async def test_calibration_snapshot_endpoints(app, tmp_path):
+    import asyncio
+    calibrations_dir = tmp_path / "calibrations"
+    
+    # Write the calibrations_dir to the test's config.toml on disk so it persists across reloads!
+    config_path = app.state.config_path
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_text = f.read()
+        
+    escaped_dir = str(calibrations_dir).replace('\\', '\\\\')
+    config_text += f'\n\n[storage]\ncalibrations_dir = "{escaped_dir}"\n'
+    
+    with open(config_path, "w", encoding="utf-8") as f:
+        f.write(config_text)
+        
+    # Reload config in memory once
+    from spectroo.core.config import load_config
+    app.state.config.clear()
+    app.state.config.update(load_config(config_path))
+    
+    # 1. Clear calibration in config so it is empty
+    app.state.config.setdefault("calibration", {})["coefficients"] = []
+    
+    async with get_client(app) as client:
+        # Save with no active calibration (should fail with 400)
+        response = await client.post("/api/calibration/save", json={"label": "Test Cal"})
+        assert response.status_code == 400
+        assert "No active calibration" in response.json()["detail"]
+        
+        # Verify list is empty
+        response = await client.get("/api/calibration/list")
+        assert response.status_code == 200
+        assert response.json() == []
+
+        # Make active calibration in memory
+        app.state.config["calibration"]["coefficients"] = [1.0, 2.0, 3.0]
+        app.state.config["calibration"]["degree"] = 2
+        app.state.config["calibration"]["n_points"] = 3
+        
+        # Save success
+        response = await client.post("/api/calibration/save", json={"label": "First Calibration"})
+        assert response.status_code == 200
+        data = response.json()
+        assert "filename" in data
+        assert data["data"]["label"] == "First Calibration"
+        assert data["data"]["coefficients"] == [1.0, 2.0, 3.0]
+        first_filename = data["filename"]
+
+        # Sleep briefly to ensure distinct timestamps
+        await asyncio.sleep(1.1)
+
+        # Save a second one
+        response = await client.post("/api/calibration/save", json={"label": "Second Calibration"})
+        assert response.status_code == 200
+        second_filename = response.json()["filename"]
+
+        # List (entries, newest-first ordering)
+        response = await client.get("/api/calibration/list")
+        assert response.status_code == 200
+        records = response.json()
+        assert len(records) == 2
+        assert records[0]["filename"] == second_filename
+        assert records[0]["label"] == "Second Calibration"
+        assert records[1]["filename"] == first_filename
+        assert records[1]["label"] == "First Calibration"
+
+        # Load success (confirms config.toml updated)
+        app.state.config["calibration"]["coefficients"] = []
+        response = await client.post(f"/api/calibration/load/{first_filename}")
+        assert response.status_code == 200
+        assert response.json() == {"status": "Calibration loaded successfully"}
+        assert app.state.config["calibration"]["coefficients"] == [1.0, 2.0, 3.0]
+
+        # Load with invalid/traversal filename (400)
+        response = await client.post("/api/calibration/load/subdir/file.json")
+        assert response.status_code == 400
+        assert "Invalid snapshot filename" in response.json()["detail"]
+
+        response = await client.post("/api/calibration/load/%2e%2e%2ftraversal.json")
+        assert response.status_code == 400
+        assert "Invalid snapshot filename" in response.json()["detail"]
+
+        # Load with nonexistent filename (404)
+        response = await client.post("/api/calibration/load/nonexistent.json")
+        assert response.status_code == 404
+        assert "Calibration snapshot not found" in response.json()["detail"]
+
+        # Load with malformed JSON content (400)
+        malformed_file = calibrations_dir / "malformed.json"
+        with open(malformed_file, "w", encoding="utf-8") as f:
+            f.write("invalid json {")
+        response = await client.post("/api/calibration/load/malformed.json")
+        assert response.status_code == 400
+        assert "Malformed JSON" in response.json()["detail"]
+
+
+
 
 
 

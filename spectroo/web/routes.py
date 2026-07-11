@@ -57,6 +57,10 @@ class CalibrationPointRequest(BaseModel):
     wavelength_nm: float
 
 
+class CalibrationSaveRequest(BaseModel):
+    label: Optional[str] = "Untitled"
+
+
 
 @router.get("/", response_class=HTMLResponse)
 def get_root():
@@ -729,5 +733,133 @@ def post_calibration_clear(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
     return {"status": "Calibration cleared"}
+
+
+@router.post("/api/calibration/save")
+def post_calibration_save(body: CalibrationSaveRequest, request: Request):
+    config = request.app.state.config
+    calib = config.get("calibration", {})
+    coefficients = calib.get("coefficients", [])
+    
+    if not coefficients:
+        raise HTTPException(status_code=400, detail="No active calibration to save")
+        
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_dir = config.get("storage", {}).get("calibrations_dir", "data/calibrations")
+    calibrations_dir = os.path.abspath(os.path.join(config_dir, rel_dir))
+    os.makedirs(calibrations_dir, exist_ok=True)
+    
+    # Load rms_nm from state if available
+    state = load_state_file(request)
+    fit_result = state.get("fit_result")
+    rms_nm = fit_result.get("rms_nm") if fit_result else None
+    
+    label = body.label or "Untitled"
+    now_utc = datetime.now(timezone.utc)
+    ts = now_utc.strftime("%Y-%m-%dT%H-%M-%S")
+    filename = f"calibration_{ts}.json"
+    file_path = os.path.join(calibrations_dir, filename)
+    
+    payload = {
+        "label": label,
+        "coefficients": coefficients,
+        "degree": calib.get("degree", 3),
+        "n_points": calib.get("n_points", 0),
+        "rms_nm": rms_nm,
+        "saved_at": now_utc.isoformat()
+    }
+    
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to write calibration snapshot to {file_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save calibration snapshot: {e}")
+        
+    return {"filename": filename, "data": payload}
+
+
+@router.get("/api/calibration/list")
+def get_calibration_list(request: Request):
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_dir = config.get("storage", {}).get("calibrations_dir", "data/calibrations")
+    calibrations_dir = os.path.abspath(os.path.join(config_dir, rel_dir))
+    
+    if not os.path.exists(calibrations_dir):
+        return []
+        
+    results = []
+    try:
+        files = os.listdir(calibrations_dir)
+    except Exception as e:
+        logger.error(f"Failed to list directory {calibrations_dir}: {e}")
+        return []
+        
+    for filename in files:
+        if not filename.endswith(".json"):
+            continue
+        file_path = os.path.join(calibrations_dir, filename)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # Ensure basic fields are present
+            results.append({
+                "filename": filename,
+                "label": data.get("label", "Untitled"),
+                "saved_at": data.get("saved_at", ""),
+                "rms_nm": data.get("rms_nm"),
+                "n_points": data.get("n_points", 0),
+                "degree": data.get("degree", 3)
+            })
+        except Exception as e:
+            logger.error(f"Failed to parse calibration snapshot file {filename}: {e}")
+            continue
+            
+    # Sort newest-first based on saved_at string comparison
+    results.sort(key=lambda x: x["saved_at"], reverse=True)
+    return results
+
+
+@router.post("/api/calibration/load/{filename:path}")
+def post_calibration_load(filename: str, request: Request):
+    # Path-sanitize
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid snapshot filename")
+        
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_dir = config.get("storage", {}).get("calibrations_dir", "data/calibrations")
+    calibrations_dir = os.path.abspath(os.path.join(config_dir, rel_dir))
+    file_path = os.path.join(calibrations_dir, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Calibration snapshot not found")
+        
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to parse snapshot JSON {filename}: {e}")
+        raise HTTPException(status_code=400, detail="Malformed JSON content in snapshot file")
+        
+    coefficients = data.get("coefficients")
+    degree = data.get("degree")
+    n_points = data.get("n_points")
+    
+    if coefficients is None or degree is None or n_points is None:
+        raise HTTPException(status_code=400, detail="Snapshot is missing required calibration parameters")
+        
+    config_path = request.app.state.config_path
+    try:
+        write_calibration_to_config(config_path, coefficients, degree, n_points)
+        from spectroo.core.config import load_config
+        new_config = load_config(config_path)
+        request.app.state.config.clear()
+        request.app.state.config.update(new_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return {"status": "Calibration loaded successfully"}
 
 
