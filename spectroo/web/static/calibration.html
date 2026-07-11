@@ -69,9 +69,9 @@
             height: 100%;
         }
         .right-panel {
-            width: 320px;
-            min-width: 320px;
-            max-width: 320px;
+            width: 360px;
+            min-width: 360px;
+            max-width: 360px;
             background-color: #ffffff;
             display: flex;
             flex-direction: column;
@@ -88,8 +88,8 @@
         .panel-header {
             background-color: #f1f5f9;
             border-bottom: 1px solid #cbd5e1;
-            padding: 6px 8px;
-            font-size: 11px;
+            padding: 8px 10px;
+            font-size: 13px;
             font-weight: bold;
             color: #475569;
             text-transform: uppercase;
@@ -103,10 +103,10 @@
         button {
             border: 1px solid #cccccc;
             border-radius: 3px;
-            padding: 6px 10px;
+            padding: 7px 12px;
             background-color: #fafafa;
             color: #333333;
-            font-size: 11px;
+            font-size: 13px;
             cursor: pointer;
             text-align: center;
             width: 100%;
@@ -141,7 +141,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
+            font-size: 14px;
         }
         th, td {
             padding: 8px;
@@ -194,7 +194,7 @@
         <img src="/static/logo.png" class="header-logo" alt="LaserQuant Logo">
         <div>
             <div class="header-title">Spectroo</div>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Wavelength Calibration Wizard</div>
+            <div style="font-size: 13px; color: #94a3b8; margin-top: 1px;">Wavelength Calibration Wizard</div>
         </div>
         <div style="margin-left: auto;">
             <button id="back-btn" class="active" style="width: auto; padding: 6px 12px;">Back to Spectrum</button>
@@ -212,8 +212,8 @@
                 <!-- Prompt Overlay Modal -->
                 <div id="prompt-overlay" class="overlay">
                     <div class="dialog">
-                        <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1e293b;">Add Calibration Point</h4>
-                        <p id="prompt-pixel-text" style="margin: 0 0 12px 0; font-size: 12px; color: #475569;"></p>
+                        <h4 style="margin: 0 0 12px 0; font-size: 17px; color: #1e293b;">Add Calibration Point</h4>
+                        <p id="prompt-pixel-text" style="margin: 0 0 12px 0; font-size: 14px; color: #475569;"></p>
                         <div style="margin-bottom: 16px;">
                             <input type="number" id="prompt-wl-input" step="0.1" min="300" max="900" placeholder="Wavelength (nm)" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;">
                         </div>
@@ -229,9 +229,9 @@
             <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
                 <button id="reset-zoom-btn" style="width: auto; padding: 6px 12px;">Reset Zoom</button>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 12px; color: #475569;">Exposure:</span>
-                    <input type="number" id="exposure-input" style="width: 80px;" min="110" max="3066979" step="1000">
-                    <span style="font-size: 12px; color: #475569;">µs</span>
+                    <span style="font-size: 14px; color: #475569;">Exposure:</span>
+                    <input type="number" id="exposure-input" style="width: 90px; padding: 5px; font-size: 13px;" min="110" max="3066979" step="1000">
+                    <span style="font-size: 14px; color: #475569;">µs</span>
                     <button id="apply-exposure-btn" style="width: auto; padding: 6px 12px;">Apply</button>
                 </div>
             </div>
@@ -263,7 +263,7 @@
             <div class="panel" style="flex-shrink: 0;">
                 <div class="panel-header">Fit Quality Status</div>
                 <div class="panel-body" style="padding: 12px;">
-                    <div id="fit-status-badge" style="padding: 8px; border-radius: 4px; font-size: 11px; font-weight: bold; line-height: 1.4; text-align: center;">
+                    <div id="fit-status-badge" style="padding: 10px; border-radius: 4px; font-size: 13px; font-weight: bold; line-height: 1.4; text-align: center;">
                         <!-- Updated dynamically -->
                     </div>
                 </div>
@@ -467,7 +467,7 @@
             
             // Draw horizontal gridlines & Y ticks
             const yTicks = [0, yLimit * 0.25, yLimit * 0.5, yLimit * 0.75, yLimit];
-            ctx.font = '10px Arial';
+            ctx.font = '12px Arial';
             yTicks.forEach(yVal => {
                 const py = logicalHeight - margin.bottom - (yVal / yLimit) * plotH;
                 
@@ -518,7 +518,7 @@
             ctx.rotate(-Math.PI / 2);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = 'bold 11px Arial';
+            ctx.font = 'bold 13px Arial';
             ctx.fillStyle = colors.text;
             ctx.fillText("Intensity (Counts)", 0, 0);
             ctx.restore();
@@ -526,7 +526,7 @@
             // X Title
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.font = 'bold 11px Arial';
+            ctx.font = 'bold 13px Arial';
             ctx.fillStyle = colors.text;
             ctx.fillText("Pixel Index", margin.left + plotW / 2, logicalHeight - margin.bottom + 25);
             
@@ -571,7 +571,7 @@
                     ctx.setLineDash([]);
                     
                     ctx.fillStyle = colors.text;
-                    ctx.font = 'bold 9px Arial';
+                    ctx.font = 'bold 11px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
                     ctx.fillText(`${pt.wavelength.toFixed(1)} nm`, px, margin.top + 18);
@@ -603,7 +603,7 @@
                 ctx.rotate(Math.PI / 2);
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.font = 'bold 11px Arial';
+                ctx.font = 'bold 13px Arial';
                 ctx.fillStyle = '#dc2626';
                 ctx.fillText("Fitted Wavelength (nm)", 0, 0);
                 ctx.restore();

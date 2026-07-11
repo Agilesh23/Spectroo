@@ -69,9 +69,9 @@
             height: 100%;
         }
         .right-panel {
-            width: 320px;
-            min-width: 320px;
-            max-width: 320px;
+            width: 360px;
+            min-width: 360px;
+            max-width: 360px;
             background-color: #ffffff;
             display: flex;
             flex-direction: column;
@@ -88,8 +88,8 @@
         .panel-header {
             background-color: #f1f5f9;
             border-bottom: 1px solid #cbd5e1;
-            padding: 6px 8px;
-            font-size: 11px;
+            padding: 8px 10px;
+            font-size: 13px;
             font-weight: bold;
             color: #475569;
             text-transform: uppercase;
@@ -103,10 +103,10 @@
         button {
             border: 1px solid #cccccc;
             border-radius: 3px;
-            padding: 6px 10px;
+            padding: 7px 12px;
             background-color: #fafafa;
             color: #333333;
-            font-size: 11px;
+            font-size: 13px;
             cursor: pointer;
             text-align: center;
             width: 100%;
@@ -136,8 +136,8 @@
             background-color: #f8fafc;
             border: 1px dashed #cbd5e1;
             border-radius: 4px;
-            padding: 10px;
-            font-size: 11px;
+            padding: 12px;
+            font-size: 13px;
             color: #475569;
             line-height: 1.5;
             margin-bottom: 10px;
@@ -155,7 +155,7 @@
         <img src="/static/logo.png" class="header-logo" alt="LaserQuant Logo">
         <div>
             <div class="header-title">Spectroo</div>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Spectrum Comparison &amp; Ratio</div>
+            <div style="font-size: 13px; color: #94a3b8; margin-top: 1px;">Spectrum Comparison &amp; Ratio</div>
         </div>
         <div style="margin-left: auto;">
             <button id="back-btn" class="active" style="width: auto; padding: 6px 12px;">Back to Spectrum</button>
@@ -321,7 +321,7 @@
             // Handle "No data" case
             if (!currentRatioData || !currentRatioData.ratios || currentRatioData.ratios.length === 0) {
                 ctx.fillStyle = colors.text;
-                ctx.font = 'bold 12px Arial';
+                ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText("No ratio data computed yet. Click 'Compute Ratio' to calculate.", logicalWidth / 2, logicalHeight / 2);
@@ -336,7 +336,7 @@
             let validRatios = ratios.filter(r => r !== null && !isNaN(r));
             if (validRatios.length === 0) {
                 ctx.fillStyle = colors.text;
-                ctx.font = 'bold 12px Arial';
+                ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText("All reference values are near zero. Ratio is undefined.", logicalWidth / 2, logicalHeight / 2);
@@ -353,7 +353,7 @@
 
             // Draw horizontal gridlines & Y ticks
             const yTicks = [0, yLimit * 0.25, yLimit * 0.5, yLimit * 0.75, yLimit];
-            ctx.font = '10px Arial';
+            ctx.font = '12px Arial';
             yTicks.forEach(yVal => {
                 const py = logicalHeight - margin.bottom - (yVal / yLimit) * plotH;
                 
@@ -422,7 +422,7 @@
 
             // Label X Axis
             ctx.fillStyle = colors.text;
-            ctx.font = 'bold 11px Arial';
+            ctx.font = 'bold 13px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(isCalibrated ? "Wavelength (nm)" : "Pixel Index", margin.left + plotW / 2, logicalHeight - 15);
 

@@ -39,9 +39,9 @@
             height: 100%;
         }
         .control-panel {
-            width: 200px;
-            min-width: 200px;
-            max-width: 200px;
+            width: 240px;
+            min-width: 240px;
+            max-width: 240px;
             background-color: #ffffff;
             border-left: 1px solid #dcdcdc;
             display: flex;
@@ -103,7 +103,7 @@
             position: fixed;
             background-color: #1e293b;
             color: #ffffff;
-            font-size: 13px;
+            font-size: 16px;
             padding: 5.2px 7.8px;
             border-radius: 4px;
             white-space: nowrap;
@@ -140,13 +140,13 @@
         }
         .menu-bar {
             width: 100%;
-            height: 32px;
+            height: 38px;
             background-color: #e2e8f0;
             border-bottom: 1px solid #cbd5e1;
             display: flex;
             align-items: center;
             padding: 0 8px;
-            font-size: 12px;
+            font-size: 14px;
             user-select: none;
             z-index: 1000;
             position: relative;
@@ -215,8 +215,8 @@
         .panel-header {
             background-color: #f1f5f9;
             border-bottom: 1px solid #cbd5e1;
-            padding: 6px 8px;
-            font-size: 11px;
+            padding: 8px 10px;
+            font-size: 13px;
             font-weight: bold;
             color: #475569;
             text-transform: uppercase;
@@ -235,10 +235,10 @@
         button {
             border: 1px solid #cccccc;
             border-radius: 3px;
-            padding: 5px 8px;
+            padding: 6px 10px;
             background-color: #fafafa;
             color: #333333;
-            font-size: 11px;
+            font-size: 13px;
             cursor: pointer;
             text-align: center;
             width: 100%;
@@ -268,7 +268,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 13px;
             color: #555555;
             margin-top: 6px;
             margin-bottom: 8px;
@@ -276,26 +276,26 @@
         input[type="number"] {
             border: 1px solid #cccccc;
             border-radius: 3px;
-            padding: 4px;
+            padding: 5px;
             background-color: #ffffff;
             color: #333333;
-            font-size: 11px;
-            width: 80px;
+            font-size: 13px;
+            width: 90px;
             outline: none;
         }
         input[type="number"]:focus {
             border-color: #0066cc;
         }
         .status-bar {
-            height: 28px;
-            min-height: 28px;
+            height: 34px;
+            min-height: 34px;
             background-color: #ffffff;
             border-top: 1px solid #dcdcdc;
             display: flex;
             align-items: center;
             padding: 0 10px;
             gap: 25px;
-            font-size: 11px;
+            font-size: 13px;
             color: #555555;
         }
         .status-field {
@@ -361,8 +361,8 @@
         .history-panel {
             position: fixed;
             top: 182px;
-            left: -380px;
-            width: 360px;
+            left: -420px;
+            width: 400px;
             height: calc(100vh - 182px);
             background-color: #f8fafc;
             border-right: 1px solid #cbd5e1;
@@ -385,7 +385,7 @@
         }
         .history-header h3 {
             margin: 0;
-            font-size: 14px;
+            font-size: 17px;
             color: #1e293b;
             font-weight: 600;
             flex-shrink: 0; /* Prevent title from shrinking/wrapping in flex layout */
@@ -417,7 +417,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 13px;
             color: #64748b;
         }
         .history-item-time {
@@ -449,8 +449,8 @@
             background: none;
             border: 1px solid #cbd5e1;
             border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 11px;
+            padding: 3px 8px;
+            font-size: 13px;
             color: #475569;
             cursor: pointer;
             display: flex;
@@ -483,14 +483,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             background: none;
             border: none;
             border-radius: 4px;
             color: #64748b;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 22px;
             padding: 0;
             line-height: 1;
             flex-shrink: 0; /* Prevent button from shrinking */
@@ -539,10 +539,10 @@
         .calibration-item-title {
             font-weight: bold;
             color: #0f172a;
-            font-size: 12px;
+            font-size: 14px;
         }
         .calibration-item-meta {
-            font-size: 10px;
+            font-size: 12px;
             color: #64748b;
             margin-top: 2px;
         }
@@ -560,7 +560,7 @@
         <img src="/static/logo.png" alt="LaserQuant Logo" class="header-logo">
         <div>
             <div class="header-title">Spectroo</div>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Live Spectrum Acquisition</div>
+            <div style="font-size: 13px; color: #94a3b8; margin-top: 1px;">Live Spectrum Acquisition</div>
         </div>
     </div>
     
@@ -1008,7 +1008,7 @@
             ctx.translate(margin.left - 48, margin.top + plotH / 2);
             ctx.rotate(-Math.PI / 2);
             ctx.fillStyle = colors.text;
-            ctx.font = 'bold 10px Arial';
+            ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('Intensity (Counts)', 0, 0);
@@ -1020,7 +1020,7 @@
             // X axis label
             let xLabel = isCalibrated ? 'Wavelength (nm)' : 'Pixel';
             ctx.fillStyle = colors.text;
-            ctx.font = 'bold 10px Arial';
+            ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(xLabel, margin.left + plotW / 2, canvas.height - margin.bottom + 32);
@@ -1031,7 +1031,7 @@
                 ctx.strokeRect(margin.left, margin.top, plotW, plotH);
 
                 ctx.fillStyle = colors.text;
-                ctx.font = '11px Arial';
+                ctx.font = '13px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('Awaiting Frame Data...', margin.left + plotW / 2, margin.top + plotH / 2);
@@ -1050,7 +1050,7 @@
 
             // Horizontal Grid & Y labels
             const yTicks = [0, 1, 2, 3, 4].map(i => i * (yLimit / 4.0));
-            ctx.font = '10px Arial';
+            ctx.font = '14px Arial';
             ctx.fillStyle = colors.text;
 
             yTicks.forEach(yVal => {
@@ -1070,7 +1070,7 @@
                 ctx.lineTo(margin.left, py);
                 ctx.stroke();
 
-                ctx.font = '10px Arial';
+                ctx.font = '14px Arial';
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(Math.round(yVal).toString(), margin.left - 7, py);
@@ -1120,7 +1120,7 @@
 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
-                ctx.font = '10px Arial';
+                ctx.font = '14px Arial';
                 ctx.fillText(Math.round(xVal).toString(), px, canvas.height - margin.bottom + 8);
             });
 
@@ -1279,7 +1279,7 @@
 
                     // Text
                     ctx.fillStyle = colors.text;
-                    ctx.font = '9px Arial';
+                    ctx.font = '11px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
                     const label = isCalibrated ? Math.round(pkX) + ' nm' : 'Px ' + pkX;
@@ -1312,7 +1312,7 @@
                 ctx.stroke();
 
                 ctx.fillStyle = colors.text;
-                ctx.font = '12px Arial';
+                ctx.font = '14px Arial';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
 
@@ -2500,7 +2500,7 @@
                         <div class="calibration-item-meta">
                             RMS: ${item.rms_nm ? item.rms_nm.toFixed(4) + ' nm' : 'N/A'} | degree: ${item.degree}
                         </div>
-                        <div class="calibration-item-meta" style="font-size: 8px; color: #94a3b8;">
+                        <div class="calibration-item-meta" style="font-size: 10px; color: #94a3b8;">
                             ${item.filename}
                         </div>
                     </div>
@@ -2556,9 +2556,9 @@
     <!-- Save Calibration Modal -->
     <div id="save-calibration-overlay" class="overlay">
         <div class="dialog">
-            <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1e293b;">Save Calibration Snapshot</h4>
+            <h4 style="margin: 0 0 12px 0; font-size: 17px; color: #1e293b;">Save Calibration Snapshot</h4>
             <div style="margin-bottom: 16px;">
-                <input type="text" id="save-calibration-label" placeholder="Calibration Label (e.g. Neon lamp)" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; outline: none;">
+                <input type="text" id="save-calibration-label" placeholder="Calibration Label (e.g. Neon lamp)" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; outline: none;">
             </div>
             <div style="display: flex; gap: 8px;">
                 <button id="save-calibration-submit" class="active" style="width: auto; flex-grow: 1;">Save</button>
@@ -2570,8 +2570,8 @@
     <!-- Load Calibration Modal -->
     <div id="load-calibration-overlay" class="overlay">
         <div class="dialog" style="width: 320px;">
-            <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1e293b;">Load Calibration File</h4>
-            <div id="load-calibration-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
+            <h4 style="margin: 0 0 12px 0; font-size: 17px; color: #1e293b;">Load Calibration File</h4>
+            <div id="load-calibration-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px;">
                 <!-- List items loaded dynamically -->
             </div>
             <div style="display: flex; gap: 8px;">
