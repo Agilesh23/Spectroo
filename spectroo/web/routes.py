@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import tempfile
 import time
@@ -10,12 +11,13 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from spectroo.core.exceptions import CameraNotFoundError
+from spectroo.core.exceptions import CameraNotFoundError, CalibrationError
 from spectroo.camera.source import PiCameraFrameSource
 from spectroo.dsp.pipeline import average_frames, run_pipeline, to_greyscale
 from spectroo.dsp.peaks import find_spectrum_peaks
-from spectroo.core.calibration import PolynomialCalibration, apply_calibration
-from spectroo.core.models import HistoryRecord, Peak
+from spectroo.core.calibration import PolynomialCalibration, apply_calibration, fit_calibration
+from spectroo.core.models import HistoryRecord, Peak, CalibrationPoint
+from spectroo.core.config import write_calibration_to_config
 from spectroo.storage.db import save_record as save_spectrum, get_record, get_all_records, delete_record, set_pinned_status
 from spectroo.storage.export import export_csv, export_json
 from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
@@ -48,6 +50,11 @@ class DarkToggleRequest(BaseModel):
 
 class SmoothingToggleRequest(BaseModel):
     enabled: bool
+
+
+class CalibrationPointRequest(BaseModel):
+    pixel_index: int
+    wavelength_nm: float
 
 
 
@@ -559,4 +566,168 @@ def unpin_history_record(record_id: int, request: Request):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def load_state_file(request: Request) -> dict:
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_path = config.get("storage", {}).get("calibration_state_path", "data/calibration_state.json")
+    state_path = os.path.join(config_dir, rel_path)
+
+    if not os.path.exists(state_path):
+        return {"points": [], "fit_result": None, "fit_points": None}
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read calibration state file: {e}")
+        return {"points": [], "fit_result": None, "fit_points": None}
+
+
+def save_state_file(request: Request, state: dict) -> None:
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_path = config.get("storage", {}).get("calibration_state_path", "data/calibration_state.json")
+    state_path = os.path.join(config_dir, rel_path)
+
+    try:
+        os.makedirs(os.path.dirname(state_path), exist_ok=True)
+        with open(state_path, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save calibration state: {e}")
+
+
+@router.get("/api/calibration/state")
+def get_calibration_state(request: Request):
+    return load_state_file(request)
+
+
+@router.post("/api/calibration/point")
+def post_calibration_point(body: CalibrationPointRequest, request: Request):
+    state = load_state_file(request)
+    state.setdefault("points", []).append({
+        "pixel": body.pixel_index,
+        "wavelength": body.wavelength_nm
+    })
+    save_state_file(request, state)
+    return state["points"]
+
+
+@router.delete("/api/calibration/point/{index}")
+def delete_calibration_point(index: int, request: Request):
+    state = load_state_file(request)
+    points = state.setdefault("points", [])
+    if index < 0 or index >= len(points):
+        raise HTTPException(status_code=404, detail="Index out of range")
+    points.pop(index)
+    save_state_file(request, state)
+    return points
+
+
+@router.post("/api/calibration/undo")
+def post_calibration_undo(request: Request):
+    state = load_state_file(request)
+    points = state.setdefault("points", [])
+    if points:
+        points.pop()
+        save_state_file(request, state)
+    return points
+
+
+@router.post("/api/calibration/fit")
+def post_calibration_fit(request: Request):
+    state = load_state_file(request)
+    points_data = state.setdefault("points", [])
+    
+    if len(points_data) < 2:
+        raise HTTPException(status_code=400, detail="Fewer than 2 calibration points supplied.")
+        
+    pts = [
+        CalibrationPoint(pixel_index=p["pixel"], known_wavelength_nm=p["wavelength"])
+        for p in points_data
+    ]
+    
+    pixels = [p.pixel_index for p in pts]
+    if len(pixels) != len(set(pixels)):
+        raise HTTPException(status_code=400, detail="Duplicate pixel indices in calibration points.")
+
+    try:
+        result = fit_calibration(pts, degree_high=3, min_points=2)
+        if np.isnan(result.coefficients).any() or np.isinf(result.coefficients).any() or np.isnan(result.rms_nm):
+            raise CalibrationError("Polynomial fitting failed: singular matrix or invalid coefficients.")
+    except CalibrationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Polynomial fitting failed: {e}")
+        
+    fit_result_data = {
+        "degree": result.degree,
+        "rms_nm": result.rms_nm,
+        "coefficients": result.coefficients
+    }
+    
+    state["fit_result"] = fit_result_data
+    state["fit_points"] = points_data.copy()
+    
+    save_state_file(request, state)
+    return fit_result_data
+
+
+@router.post("/api/calibration/apply")
+def post_calibration_apply(request: Request):
+    state = load_state_file(request)
+    fit_result = state.get("fit_result")
+    fit_points = state.get("fit_points")
+    points = state.get("points", [])
+    
+    if fit_result is None or fit_points is None:
+        raise HTTPException(status_code=400, detail="No fit computed yet")
+        
+    # Check staleness
+    is_stale = False
+    if len(points) != len(fit_points):
+        is_stale = True
+    else:
+        for p1, p2 in zip(points, fit_points):
+            if p1.get("pixel") != p2.get("pixel") or not np.isclose(p1.get("wavelength", 0.0), p2.get("wavelength", 0.0), atol=1e-5):
+                is_stale = True
+                break
+                
+    if is_stale:
+        raise HTTPException(status_code=400, detail="Fit is stale, run fit again")
+
+    coefficients = fit_result["coefficients"]
+    degree = fit_result["degree"]
+    n_points = len(points)
+    config_path = request.app.state.config_path
+    
+    try:
+        write_calibration_to_config(config_path, coefficients, degree, n_points)
+        from spectroo.core.config import load_config
+        new_config = load_config(config_path)
+        request.app.state.config.clear()
+        request.app.state.config.update(new_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"status": "Calibration applied successfully"}
+
+
+@router.post("/api/calibration/clear")
+def post_calibration_clear(request: Request):
+    save_state_file(request, {"points": [], "fit_result": None, "fit_points": None})
+    config_path = request.app.state.config_path
+    
+    try:
+        write_calibration_to_config(config_path, [], 3, 0)
+        from spectroo.core.config import load_config
+        new_config = load_config(config_path)
+        request.app.state.config.clear()
+        request.app.state.config.update(new_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"status": "Calibration cleared"}
+
 

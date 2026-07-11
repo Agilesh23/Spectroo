@@ -307,6 +307,100 @@ async def test_smoothing_toggle(app):
         assert app.state.config["dsp"]["savgol_enabled"] is True
 
 
+@pytest.mark.asyncio
+async def test_calibration_endpoints(app, tmp_path):
+    state_file = tmp_path / "calibration_state.json"
+    app.state.config["storage"]["calibration_state_path"] = str(state_file)
+    
+    async with get_client(app) as client:
+        # 1. GET empty state
+        response = await client.get("/api/calibration/state")
+        assert response.status_code == 200
+        assert response.json() == {"points": [], "fit_result": None, "fit_points": None}
+
+        # 2. POST add point 1
+        response = await client.post("/api/calibration/point", json={"pixel_index": 100, "wavelength_nm": 450.0})
+        assert response.status_code == 200
+        assert response.json() == [{"pixel": 100, "wavelength": 450.0}]
+
+        # Add point 2
+        response = await client.post("/api/calibration/point", json={"pixel_index": 200, "wavelength_nm": 550.0})
+        assert response.status_code == 200
+        assert len(response.json()) == 2
+
+        # 3. DELETE point with invalid index (out of range)
+        response = await client.delete("/api/calibration/point/5")
+        assert response.status_code == 404
+
+        # DELETE point with valid index
+        response = await client.delete("/api/calibration/point/0")
+        assert response.status_code == 200
+        assert response.json() == [{"pixel": 200, "wavelength": 550.0}]
+
+        # 4. POST undo
+        response = await client.post("/api/calibration/undo")
+        assert response.status_code == 200
+        assert response.json() == []
+
+        # POST undo on empty list
+        response = await client.post("/api/calibration/undo")
+        assert response.status_code == 200
+        assert response.json() == []
+
+        # 5. POST fit with <2 points (should fail with 400)
+        await client.post("/api/calibration/point", json={"pixel_index": 100, "wavelength_nm": 450.0})
+        response = await client.post("/api/calibration/fit")
+        assert response.status_code == 400
+        assert "Fewer than 2" in response.json()["detail"]
+
+        # POST fit with duplicate pixels causing fitting error
+        await client.post("/api/calibration/point", json={"pixel_index": 100, "wavelength_nm": 550.0})
+        response = await client.post("/api/calibration/fit")
+        assert response.status_code == 400
+
+        # Clear state
+        await client.post("/api/calibration/clear")
+        
+        # Add 3 valid points for fit
+        await client.post("/api/calibration/point", json={"pixel_index": 100, "wavelength_nm": 400.0})
+        await client.post("/api/calibration/point", json={"pixel_index": 200, "wavelength_nm": 500.0})
+        await client.post("/api/calibration/point", json={"pixel_index": 300, "wavelength_nm": 600.0})
+
+        # POST fit success
+        response = await client.post("/api/calibration/fit")
+        assert response.status_code == 200
+        data = response.json()
+        assert "coefficients" in data
+        assert data["degree"] == 2
+        assert "rms_nm" in data
+
+        # 6. POST apply (success)
+        response = await client.post("/api/calibration/apply")
+        assert response.status_code == 200
+        assert response.json() == {"status": "Calibration applied successfully"}
+        assert len(app.state.config["calibration"]["coefficients"]) == 3
+
+        # Add a point to make fit stale
+        await client.post("/api/calibration/point", json={"pixel_index": 400, "wavelength_nm": 700.0})
+        
+        # POST apply with stale points (should fail with 400)
+        response = await client.post("/api/calibration/apply")
+        assert response.status_code == 400
+        assert "stale" in response.json()["detail"]
+
+        # 7. POST clear
+        response = await client.post("/api/calibration/clear")
+        assert response.status_code == 200
+        assert response.json() == {"status": "Calibration cleared"}
+        assert app.state.config["calibration"]["coefficients"] == []
+
+        # POST apply without fitting first (should fail with 400)
+        response = await client.post("/api/calibration/apply")
+        assert response.status_code == 400
+        assert "No fit" in response.json()["detail"]
+
+
+
 
 
 
