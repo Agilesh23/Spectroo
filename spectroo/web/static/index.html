@@ -598,7 +598,7 @@
                 <li class="dropdown-item active" id="menu-analysis-baseline-corr">Baseline Correction</li>
                 <li class="dropdown-item" id="menu-normalize">Normalize</li>
                 <li class="dropdown-item disabled">Derivative</li>
-                <li class="dropdown-item disabled">Integrate (Area Under Curve)</li>
+                <li class="dropdown-item" id="menu-integrate">Integrate (Area Under Curve)</li>
                 <li class="dropdown-item disabled">FFT/Frequency View</li>
                 <li class="dropdown-item disabled">Compare/Ratio Two Spectra</li>
             </ul>
@@ -731,6 +731,10 @@
         let inspectX = null;
         let inspectIdx = null;
         let isPanning = false;
+        let integrationModeActive = false;
+        let isSelectingIntegration = false;
+        let integrationRangeStart = null;
+        let integrationRangeEnd = null;
         let panStartX = null;
         let panStartXMin = null;
         let panStartXMax = null;
@@ -749,6 +753,119 @@
         // DOM elements
         const canvas = document.getElementById('spectrum-canvas');
         const plotArea = document.getElementById('plot-area');
+
+        function getPlotMetrics() {
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const logicalWidth = canvas.clientWidth;
+            const logicalHeight = canvas.clientHeight;
+            return {
+                margin,
+                logicalWidth,
+                logicalHeight,
+                plotW: logicalWidth - margin.left - margin.right,
+                plotH: logicalHeight - margin.top - margin.bottom
+            };
+        }
+
+        function getVisibleXRange(wavelengths) {
+            const fullMin = getFullMin(wavelengths);
+            const fullMax = getFullMax(wavelengths);
+            return {
+                fullMin,
+                fullMax,
+                xMin: zoomXMin !== null ? zoomXMin : fullMin,
+                xMax: zoomXMax !== null ? zoomXMax : fullMax
+            };
+        }
+
+        function getPlotValueFromMouseX(mouseX, wavelengths) {
+            const { margin, plotW } = getPlotMetrics();
+            if (plotW <= 0) return null;
+
+            const { xMin, xMax } = getVisibleXRange(wavelengths);
+            const clampedX = Math.max(margin.left, Math.min(canvas.clientWidth - margin.right, mouseX));
+            const frac = (clampedX - margin.left) / plotW;
+            return xMin + frac * (xMax - xMin);
+        }
+
+        function isMouseInPlot(mouseX, mouseY) {
+            const { margin, logicalWidth, logicalHeight } = getPlotMetrics();
+            return (
+                mouseX >= margin.left &&
+                mouseX <= logicalWidth - margin.right &&
+                mouseY >= margin.top &&
+                mouseY <= logicalHeight - margin.bottom
+            );
+        }
+
+        function resetIntegrationSelection() {
+            isSelectingIntegration = false;
+            integrationRangeStart = null;
+            integrationRangeEnd = null;
+        }
+
+        function updateIntegrateUI(active) {
+            const menuIntegrate = document.getElementById('menu-integrate');
+            if (active) {
+                if (menuIntegrate) menuIntegrate.classList.add('active');
+            } else {
+                if (menuIntegrate) menuIntegrate.classList.remove('active');
+            }
+        }
+
+        async function finalizeIntegrationSelection() {
+            if (integrationRangeStart === null || integrationRangeEnd === null) {
+                resetIntegrationSelection();
+                integrationModeActive = false;
+                updateIntegrateUI(false);
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                return;
+            }
+
+            const selectedMin = Math.min(integrationRangeStart, integrationRangeEnd);
+            const selectedMax = Math.max(integrationRangeStart, integrationRangeEnd);
+            resetIntegrationSelection();
+            integrationModeActive = false;
+            updateIntegrateUI(false);
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+
+            if (selectedMax <= selectedMin) {
+                alert("Select a wider range to integrate.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/analyze/integrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ range_min: selectedMin, range_max: selectedMax })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert("Integration failed: " + (data.detail || "Unknown error"));
+                    return;
+                }
+
+                const isCalibrated = currentWavelengths &&
+                    currentWavelengths.length > 1 &&
+                    (currentWavelengths[currentWavelengths.length - 1] - currentWavelengths[0]) > 200;
+                const unit = isCalibrated ? 'nm' : 'px';
+                alert(`Integrated area: ${data.area.toFixed(4)}\nRange: ${data.range_min.toFixed(2)}-${data.range_max.toFixed(2)} ${unit}`);
+            } catch (err) {
+                alert("Integration failed: " + err.message);
+            }
+        }
+
+        function startIntegrateSelection() {
+            if (!currentWavelengths || !currentIntensities || currentWavelengths.length < 2 || currentIntensities.length < 2) {
+                alert("Capture or restore a spectrum before integrating.");
+                return;
+            }
+            integrationModeActive = true;
+            resetIntegrationSelection();
+            updateIntegrateUI(true);
+            alert("Drag across the plot to select the integration range.");
+        }
         
         // Resize Canvas
         function resizeCanvas() {
@@ -1066,6 +1183,21 @@
                 ctx.setLineDash([]);
             }
 
+            if (integrationModeActive && integrationRangeStart !== null && integrationRangeEnd !== null) {
+                const selMin = Math.min(integrationRangeStart, integrationRangeEnd);
+                const selMax = Math.max(integrationRangeStart, integrationRangeEnd);
+                const startPx = xMax !== xMin ? margin.left + (selMin - xMin) / (xMax - xMin) * plotW : margin.left;
+                const endPx = xMax !== xMin ? margin.left + (selMax - xMin) / (xMax - xMin) * plotW : margin.left;
+                const rectX = Math.max(margin.left, Math.min(startPx, endPx));
+                const rectW = Math.max(0, Math.min(canvas.width - margin.right, Math.max(startPx, endPx)) - rectX);
+
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.16)';
+                ctx.strokeStyle = 'rgba(37, 99, 235, 0.9)';
+                ctx.lineWidth = 1;
+                ctx.fillRect(rectX, margin.top, rectW, plotH);
+                ctx.strokeRect(rectX, margin.top, rectW, plotH);
+            }
+
             // Curve line
             if (pxArr.length > 0) {
                 ctx.strokeStyle = colors.curve;
@@ -1161,6 +1293,17 @@
 
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (integrationModeActive && e.button === 0 && isMouseInPlot(mouseX, mouseY)) {
+                isSelectingIntegration = true;
+                integrationRangeStart = getPlotValueFromMouseX(mouseX, currentWavelengths);
+                integrationRangeEnd = integrationRangeStart;
+                inspectIdx = null;
+                inspectX = null;
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                return;
+            }
 
             if (e.button === 0) { // Left click pans
                 isPanning = true;
@@ -1183,6 +1326,13 @@
 
         canvas.addEventListener('mousemove', (e) => {
             if (!currentWavelengths || currentWavelengths.length === 0) return;
+            if (isSelectingIntegration) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                integrationRangeEnd = getPlotValueFromMouseX(mouseX, currentWavelengths);
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                return;
+            }
             if (isPanning) {
                 const rect = canvas.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
@@ -1213,6 +1363,10 @@
         });
 
         window.addEventListener('mouseup', () => {
+            if (isSelectingIntegration) {
+                isSelectingIntegration = false;
+                finalizeIntegrationSelection();
+            }
             isPanning = false;
         });
 
@@ -1279,6 +1433,7 @@
         canvas.addEventListener('mousemove', (e) => {
             if (!currentWavelengths || currentWavelengths.length === 0) return;
             if (isPanning) return;
+            if (isSelectingIntegration) return;
             if (!showCrosshair) return;
 
             const rect = canvas.getBoundingClientRect();
@@ -1294,10 +1449,7 @@
             if (mouseX >= margin.left && mouseX <= logicalWidth - margin.right &&
                 mouseY >= margin.top && mouseY <= logicalHeight - margin.bottom) {
 
-                const fullMin = getFullMin(currentWavelengths);
-                const fullMax = getFullMax(currentWavelengths);
-                const xMin = zoomXMin !== null ? zoomXMin : fullMin;
-                const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+                const { xMin, xMax } = getVisibleXRange(currentWavelengths);
 
                 const frac = (mouseX - margin.left) / plotW;
                 const targetVal = xMin + frac * (xMax - xMin);
@@ -1325,6 +1477,7 @@
         });
 
         canvas.addEventListener('mouseleave', () => {
+            if (isSelectingIntegration) return;
             if (inspectIdx !== null) {
                 inspectIdx = null;
                 inspectX = null;
@@ -1969,6 +2122,9 @@
         });
         document.getElementById('menu-normalize').addEventListener('click', () => {
             toggleNormalize();
+        });
+        document.getElementById('menu-integrate').addEventListener('click', () => {
+            startIntegrateSelection();
         });
         document.getElementById('menu-color-spectrum').addEventListener('click', () => {
             toggleColorSpectrum();

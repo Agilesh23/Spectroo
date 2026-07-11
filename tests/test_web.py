@@ -182,6 +182,48 @@ async def test_export_current_no_frame_returns_400(app):
         assert response.status_code == 400
 
 
+async def test_integrate_current_success(app):
+    app.state.current_frame = {
+        "wavelengths": [0.0, 1.0, 2.0],
+        "intensities": [0.0, 1.0, 2.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/analyze/integrate", json={"range_min": 0.0, "range_max": 2.0})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["area"] == pytest.approx(2.0)
+        assert data["range_min"] == pytest.approx(0.0)
+        assert data["range_max"] == pytest.approx(2.0)
+
+
+async def test_integrate_current_clamps_outside_range(app):
+    app.state.current_frame = {
+        "wavelengths": [0.0, 1.0, 2.0],
+        "intensities": [0.0, 1.0, 2.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/analyze/integrate", json={"range_min": -1.0, "range_max": 3.0})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["area"] == pytest.approx(2.0)
+        assert data["range_min"] == pytest.approx(0.0)
+        assert data["range_max"] == pytest.approx(2.0)
+
+
+async def test_integrate_current_rejects_inverted_range(app):
+    app.state.current_frame = {
+        "wavelengths": [0.0, 1.0, 2.0],
+        "intensities": [0.0, 1.0, 2.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/analyze/integrate", json={"range_min": 2.0, "range_max": 1.0})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "range_min must be less than range_max"
+
+
 # 13. test_baseline_toggle
 async def test_baseline_toggle(app):
     async with get_client(app) as client:

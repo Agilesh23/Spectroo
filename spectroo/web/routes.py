@@ -40,6 +40,11 @@ class ExposureRequest(BaseModel):
     exposure_us: int
 
 
+class IntegrateRequest(BaseModel):
+    range_min: float
+    range_max: float
+
+
 class BaselineRequest(BaseModel):
     enabled: bool
 
@@ -394,6 +399,57 @@ def post_exposure(body: ExposureRequest, request: Request):
     config.setdefault("camera", {})["exposure_us"] = clamped_value
 
     return {"exposure_us": clamped_value}
+
+
+@router.post("/api/analyze/integrate")
+def post_analyze_integrate(body: IntegrateRequest, request: Request):
+    logger.info(
+        "User action: Web API integrate requested for range %.3f to %.3f",
+        body.range_min,
+        body.range_max,
+    )
+    if body.range_min >= body.range_max:
+        raise HTTPException(status_code=400, detail="range_min must be less than range_max")
+
+    current_frame = request.app.state.current_frame
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No frame data available to integrate")
+
+    wavelengths = np.asarray(current_frame.get("wavelengths", []), dtype=np.float64)
+    intensities = np.asarray(current_frame.get("intensities", []), dtype=np.float64)
+
+    if wavelengths.size < 2 or intensities.size < 2:
+        raise HTTPException(status_code=400, detail="Current spectrum does not contain enough data points")
+    if wavelengths.size != intensities.size:
+        raise HTTPException(status_code=400, detail="Current spectrum data is invalid")
+
+    sort_idx = np.argsort(wavelengths)
+    wavelengths = wavelengths[sort_idx]
+    intensities = intensities[sort_idx]
+
+    overlap_min = max(body.range_min, float(wavelengths[0]))
+    overlap_max = min(body.range_max, float(wavelengths[-1]))
+    if overlap_min >= overlap_max:
+        raise HTTPException(status_code=400, detail="Selected range does not overlap current spectrum")
+
+    inner_mask = (wavelengths > overlap_min) & (wavelengths < overlap_max)
+    x_vals = np.concatenate((
+        np.array([overlap_min], dtype=np.float64),
+        wavelengths[inner_mask],
+        np.array([overlap_max], dtype=np.float64),
+    ))
+    y_vals = np.concatenate((
+        np.array([np.interp(overlap_min, wavelengths, intensities)], dtype=np.float64),
+        intensities[inner_mask],
+        np.array([np.interp(overlap_max, wavelengths, intensities)], dtype=np.float64),
+    ))
+    area = float(np.trapezoid(y_vals, x_vals))
+
+    return {
+        "area": area,
+        "range_min": overlap_min,
+        "range_max": overlap_max,
+    }
 
 
 @router.post("/api/baseline")
