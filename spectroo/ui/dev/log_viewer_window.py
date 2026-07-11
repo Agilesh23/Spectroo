@@ -54,7 +54,7 @@ class LogTailerThread(QThread):
                         pass
                     self.proc = None
         else:
-            expanded_path = os.path.expanduser(self.log_path)
+            expanded_path = self.log_path
             os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
             if not os.path.exists(expanded_path):
                 with open(expanded_path, "w", encoding="utf-8") as f:
@@ -149,7 +149,8 @@ class LogViewerWindow(QDialog):
         layout.addLayout(controls_layout)
 
         # Initialize thread
-        log_path = "~/spectroo/logs/spectroo.log"
+        _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        log_path = os.path.join(_project_root, "logs", "spectroo.log")
         self.thread = LogTailerThread(log_path, self)
         self.thread.new_line.connect(self._on_new_line)
         self.thread.start()

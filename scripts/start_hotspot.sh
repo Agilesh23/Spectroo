@@ -5,12 +5,13 @@
 
 set -euo pipefail
 
-exec > >(tee -a /home/laserquant/Spectroo/logs/hotspot.log) 2>&1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+mkdir -p "$PROJECT_DIR/logs"
+exec > >(tee -a "$PROJECT_DIR/logs/hotspot.log") 2>&1
 echo "=== start_hotspot.sh invoked at $(date -Iseconds) ==="
 set -x
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG="$PROJECT_DIR/config.toml"
 VENV="$PROJECT_DIR/.venv"
 

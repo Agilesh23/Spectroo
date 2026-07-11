@@ -20,7 +20,7 @@ from spectroo.system.boot_detect import detect_boot_mode, setup_logging
 logger = logging.getLogger("spectroo.main")
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.toml")
-LOG_PATH = os.path.expanduser("~/spectroo/logs/spectroo.log")
+LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "spectroo.log")
 
 
 def run_desktop(config: dict, dev: bool = False) -> None:
