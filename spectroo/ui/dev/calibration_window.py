@@ -371,7 +371,7 @@ class CalibrationPointsTable(QWidget):
             "QPushButton { background-color: #ff4444; color: white; border: none; padding: 4px; border-radius: 2px; }"
             "QPushButton:hover { background-color: #cc0000; }"
         )
-        del_btn.clicked.connect(lambda _, p=pixel: self.point_deleted.emit(p))
+        del_btn.clicked.connect(lambda _, r=row: self.point_deleted.emit(r))
         self.table.setCellWidget(row, 2, del_btn)
 
     def remove_last(self) -> None:
@@ -887,8 +887,10 @@ class CalibrationWindow(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Save Failure", f"Failed to save coefficients to config: {e}")
 
-    def _delete_point(self, pixel: int) -> None:
-        self._points = [p for p in self._points if getattr(p, "pixel_index", getattr(p, "pixel", -1)) != pixel]
+    def _delete_point(self, row: int) -> None:
+        if row < 0 or row >= len(self._points):
+            return
+        self._points.pop(row)
         self.canvas.set_calibration_points(self._points)
 
         # Re-render the points table
