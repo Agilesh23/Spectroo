@@ -31,6 +31,25 @@ fi
 
 echo "[spectroo] Starting hotspot: SSID=$SSID on $INTERFACE"
 
+# Write dnsmasq drop-in config BEFORE hotspot activation so NM's internal
+# dnsmasq picks it up on first launch.
+sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+echo "address=/$MDNS_HOSTNAME/$GATEWAY_IP" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/spectroo.conf > /dev/null
+
+# Stop the standalone dnsmasq service — it binds 0.0.0.0:53 and blocks
+# NetworkManager's internal dnsmasq (needed for ipv4.method=shared DHCP/DNS).
+if systemctl is-active --quiet dnsmasq 2>/dev/null; then
+    echo "[spectroo] Stopping standalone dnsmasq service to avoid port 53 conflict"
+    sudo systemctl stop dnsmasq
+fi
+
+# Kill any orphaned dnsmasq processes still bound to the hotspot gateway
+if sudo ss -tlnp | grep -q ":53.*dnsmasq"; then
+    echo "[spectroo] Killing orphaned dnsmasq processes on port 53"
+    sudo pkill -x dnsmasq || true
+    sleep 0.5
+fi
+
 # Delete existing hotspot connection if present (avoid nmcli duplicate error)
 nmcli connection delete "spectroo-hotspot" 2>/dev/null || true
 
@@ -47,10 +66,6 @@ nmcli connection add \
     wifi-sec.psk "$PASSWORD" \
     ipv4.method shared \
     ipv6.method disabled
-
-# Configure dnsmasq under NetworkManager shared configuration for standard DNS resolution
-sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d
-echo "address=/$MDNS_HOSTNAME/$GATEWAY_IP" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/spectroo.conf > /dev/null
 
 if ! nmcli connection up "spectroo-hotspot"; then
     echo "[spectroo] WARNING: hotspot failed to activate, falling back to previous connection" >&2

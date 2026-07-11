@@ -245,11 +245,18 @@ print(cfg.get('web', {}).get('internal_port', 8000))
         if ! grep -qF "$DNSMASQ_ENTRY" "$DNSMASQ_CONF"; then
             echo "Adding dnsmasq entry '$DNSMASQ_ENTRY' to $DNSMASQ_CONF"
             echo "$DNSMASQ_ENTRY" | $SUDO tee -a "$DNSMASQ_CONF" > /dev/null
-            echo "Restarting dnsmasq to apply changes..."
-            $SUDO systemctl restart dnsmasq || true
         else
             echo "dnsmasq entry for laserquant.spectroo already exists in $DNSMASQ_CONF."
         fi
+    fi
+
+    # Disable the standalone dnsmasq service — it binds 0.0.0.0:53 at boot and
+    # conflicts with NetworkManager's internal dnsmasq (ipv4.method=shared).
+    # The dnsmasq package is still needed for the binary; NM spawns it internally.
+    if systemctl is-enabled --quiet dnsmasq 2>/dev/null; then
+        echo "Disabling standalone dnsmasq service (conflicts with NetworkManager hotspot)..."
+        $SUDO systemctl stop dnsmasq || true
+        $SUDO systemctl disable dnsmasq
     fi
 fi
 
