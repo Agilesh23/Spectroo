@@ -938,3 +938,105 @@ def post_calibration_load(filename: str, request: Request):
     return {"status": "Calibration loaded successfully"}
 
 
+@router.post("/api/compare/reference/from-history/{record_id}")
+def post_compare_reference_from_history(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    record = get_record(db_path, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+    
+    request.app.state.compare_reference = {
+        "wavelengths": record.wavelengths,
+        "intensities": record.intensity,
+        "timestamp": record.timestamp,
+        "label": f"History Record #{record_id} ({record.timestamp})"
+    }
+    return {"status": "success", "reference": request.app.state.compare_reference}
+
+
+@router.post("/api/compare/reference/from-current")
+def post_compare_reference_from_current(request: Request):
+    current_frame = request.app.state.current_frame
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No current frame data available")
+    
+    wavelengths = current_frame.get("wavelengths")
+    intensities = current_frame.get("intensities")
+    
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    request.app.state.compare_reference = {
+        "wavelengths": wavelengths,
+        "intensities": intensities,
+        "timestamp": now_str,
+        "label": f"Current Frame ({now_str})"
+    }
+    return {"status": "success", "reference": request.app.state.compare_reference}
+
+
+@router.get("/api/compare/reference")
+def get_compare_reference(request: Request):
+    ref = getattr(request.app.state, "compare_reference", None)
+    return {"reference": ref}
+
+
+@router.post("/api/compare/ratio")
+def post_compare_ratio(request: Request):
+    ref = getattr(request.app.state, "compare_reference", None)
+    if ref is None:
+        raise HTTPException(status_code=400, detail="No reference spectrum is set")
+    
+    current_frame = request.app.state.current_frame
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No current frame data available")
+    
+    ref_intensities = ref.get("intensities") or []
+    ref_wavelengths = ref.get("wavelengths") or []
+    curr_intensities = current_frame.get("intensities") or []
+    curr_wavelengths = current_frame.get("wavelengths") or []
+    
+    if len(ref_intensities) != len(curr_intensities):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Spectrum length mismatch: reference has {len(ref_intensities)} points, current has {len(curr_intensities)} points."
+        )
+    
+    is_ref_calibrated = ref_wavelengths is not None and len(ref_wavelengths) > 0
+    is_curr_calibrated = curr_wavelengths is not None and len(curr_wavelengths) > 0
+    
+    if is_ref_calibrated != is_curr_calibrated:
+        raise HTTPException(
+            status_code=400,
+            detail="Calibration state mismatch between reference and current spectrum."
+        )
+    
+    if is_ref_calibrated and is_curr_calibrated:
+        try:
+            diff = np.abs(np.array(ref_wavelengths) - np.array(curr_wavelengths))
+            if np.max(diff) > 0.1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Wavelength range mismatch between reference and current spectrum."
+                )
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to compare wavelengths."
+            )
+            
+    # Calculate ratio element-wise
+    ratios = []
+    for c_val, r_val in zip(curr_intensities, ref_intensities):
+        if r_val < 1e-6:
+            ratios.append(None)
+        else:
+            ratios.append(float(c_val / r_val))
+            
+    return {
+        "wavelengths": curr_wavelengths,
+        "ratios": ratios,
+        "reference_label": ref.get("label"),
+        "reference_timestamp": ref.get("timestamp")
+    }
+
+

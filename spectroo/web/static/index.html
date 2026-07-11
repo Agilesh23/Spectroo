@@ -599,7 +599,7 @@
                 <li class="dropdown-item disabled">Derivative</li>
                 <li class="dropdown-item" id="menu-integrate">Integrate (Area Under Curve)</li>
                 <li class="dropdown-item disabled">FFT/Frequency View</li>
-                <li class="dropdown-item disabled">Compare/Ratio Two Spectra</li>
+                <li class="dropdown-item" id="menu-compare-ratio">Compare/Ratio Two Spectra</li>
             </ul>
         </div>
         <div class="menu-item">View
@@ -2126,6 +2126,9 @@
         document.getElementById('menu-wavelength-calibration').addEventListener('click', () => {
             window.location.href = '/static/calibration.html';
         });
+        document.getElementById('menu-compare-ratio').addEventListener('click', () => {
+            window.location.href = '/static/compare.html';
+        });
         document.getElementById('menu-capture-dark').addEventListener('click', async () => {
             if (!confirm("Cover the lens completely to block all light, then click OK to capture dark frame.")) return;
             try {
@@ -2334,6 +2337,7 @@
                         </div>
                         <div class="history-item-actions">
                             <button class="history-action-btn" onclick="restoreHistory(${item.id})">Restore</button>
+                            <button class="history-action-btn" onclick="setHistoryAsReference(${item.id})" style="background-color: #f1f5f9; color: #0f172a; border-color: #cbd5e1;">Set as Ref</button>
                             <button class="history-action-btn" onclick="exportHistory(${item.id}, 'json')">JSON</button>
                             <button class="history-action-btn" onclick="exportHistory(${item.id}, 'csv')">CSV</button>
                             <button class="history-action-btn btn-delete" onclick="deleteHistory(${item.id})">Delete</button>
@@ -2384,10 +2388,25 @@
             window.location.href = `/api/export/${id}?format=${format}`;
         }
 
+        async function setHistoryAsReference(id) {
+            try {
+                const res = await fetch(`/api/compare/reference/from-history/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    alert(`Reference successfully set to History Record #${id}`);
+                } else {
+                    const data = await res.json();
+                    alert("Failed to set reference: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error setting reference: " + err.message);
+            }
+        }
+
         window.togglePin = togglePin;
         window.restoreHistory = restoreHistory;
         window.deleteHistory = deleteHistory;
         window.exportHistory = exportHistory;
+        window.setHistoryAsReference = setHistoryAsReference;
 
         toolbarHistory.addEventListener('click', () => {
             const isActive = historyPanel.classList.toggle('active');

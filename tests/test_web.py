@@ -632,6 +632,142 @@ async def test_fit_residuals_offset_point(app, tmp_path):
         assert max_residual > 0.01
 
 
+@pytest.mark.asyncio
+async def test_compare_ratio_no_reference_returns_400(app):
+    async with get_client(app) as client:
+        app.state.compare_reference = None
+        app.state.current_frame = {
+            "wavelengths": [400.0, 500.0],
+            "intensities": [10.0, 20.0],
+            "peaks": []
+        }
+        response = await client.post("/api/compare/ratio")
+        assert response.status_code == 400
+        assert "No reference spectrum is set" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_compare_reference_from_history(app, tmp_path):
+    db_file = tmp_path / "test_history.db"
+    app.state.config.setdefault("history", {})["db_path"] = str(db_file)
+    
+    from spectroo.storage.db import init_db, save_record
+    from spectroo.core.models import HistoryRecord
+    init_db(str(db_file))
+    
+    spec = HistoryRecord(
+        id=None,
+        pixel_indices=[0, 1],
+        intensity=[50.0, 100.0],
+        wavelengths=[400.0, 500.0],
+        exposure_us=20000,
+        peaks=[],
+        png_path="",
+        calibration_rms_at_capture=0.0,
+        timestamp="2026-07-11T12:00:00"
+    )
+    save_record(str(db_file), spec)
+    
+    async with get_client(app) as client:
+        response = await client.post("/api/compare/reference/from-history/1")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["reference"]["intensities"] == [50.0, 100.0]
+        assert data["reference"]["wavelengths"] == [400.0, 500.0]
+        
+        get_res = await client.get("/api/compare/reference")
+        assert get_res.status_code == 200
+        assert get_res.json()["reference"]["intensities"] == [50.0, 100.0]
+
+
+@pytest.mark.asyncio
+async def test_compare_reference_from_current(app):
+    app.state.current_frame = {
+        "wavelengths": [450.0, 550.0],
+        "intensities": [30.0, 60.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/compare/reference/from-current")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["reference"]["intensities"] == [30.0, 60.0]
+        assert data["reference"]["wavelengths"] == [450.0, 550.0]
+        assert "Current Frame" in data["reference"]["label"]
+
+
+@pytest.mark.asyncio
+async def test_compare_ratio_success(app):
+    app.state.compare_reference = {
+        "wavelengths": [400.0, 500.0],
+        "intensities": [10.0, 20.0],
+        "label": "Ref",
+        "timestamp": "2026"
+    }
+    app.state.current_frame = {
+        "wavelengths": [400.0, 500.0],
+        "intensities": [25.0, 10.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/compare/ratio")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["wavelengths"] == [400.0, 500.0]
+        assert data["ratios"] == [2.5, 0.5]
+        assert data["reference_label"] == "Ref"
+
+
+@pytest.mark.asyncio
+async def test_compare_ratio_zero_division_safety(app):
+    app.state.compare_reference = {
+        "wavelengths": [400.0, 500.0],
+        "intensities": [0.0, 1e-7],
+        "label": "Ref",
+        "timestamp": "2026"
+    }
+    app.state.current_frame = {
+        "wavelengths": [400.0, 500.0],
+        "intensities": [25.0, 10.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/compare/ratio")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ratios"] == [None, None]
+
+
+@pytest.mark.asyncio
+async def test_compare_ratio_mismatched_lengths_returns_400(app):
+    app.state.compare_reference = {
+        "wavelengths": [400.0, 500.0],
+        "intensities": [10.0, 20.0],
+        "label": "Ref",
+        "timestamp": "2026"
+    }
+    app.state.current_frame = {
+        "wavelengths": [400.0, 500.0, 600.0],
+        "intensities": [25.0, 10.0, 5.0],
+        "peaks": []
+    }
+    async with get_client(app) as client:
+        response = await client.post("/api/compare/ratio")
+        assert response.status_code == 400
+        assert "Spectrum length mismatch" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_get_compare_reference_none(app):
+    app.state.compare_reference = None
+    async with get_client(app) as client:
+        response = await client.get("/api/compare/reference")
+        assert response.status_code == 200
+        assert response.json()["reference"] is None
+
+
 
 
 

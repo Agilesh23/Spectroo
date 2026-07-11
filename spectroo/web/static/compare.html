@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectroo - Compare / Ratio Spectra</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+        .header-bar {
+            width: 100%;
+            background-color: #0f172a;
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            color: #ffffff;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header-logo {
+            height: 72px;
+            width: auto;
+            margin-right: 9px;
+        }
+        .header-title {
+            font-size: 17px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: #f1f5f9;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            height: calc(100vh - 84px);
+        }
+        .left-panel {
+            flex-grow: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background-color: #fafafa;
+            border-right: 1px solid #cbd5e1;
+        }
+        .plot-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .right-panel {
+            width: 320px;
+            min-width: 320px;
+            max-width: 320px;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .panel {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        .panel-header {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        button {
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 6px 10px;
+            background-color: #fafafa;
+            color: #333333;
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            transition: background-color 0.1s, border-color 0.1s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #f0f0f0;
+            border-color: #b0b0b0;
+        }
+        button:active:not(:disabled) {
+            background-color: #e5e5e5;
+        }
+        button.active {
+            background-color: #0066cc;
+            color: #ffffff;
+            border-color: #0055bb;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #fafafa;
+            border-color: #cccccc;
+            color: #999999;
+        }
+        .ref-status-card {
+            background-color: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 11px;
+            color: #475569;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .ref-status-active {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Bar -->
+    <div class="header-bar">
+        <img src="/static/logo.png" class="header-logo" alt="LaserQuant Logo">
+        <div>
+            <div class="header-title">Spectroo</div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Spectrum Comparison &amp; Ratio</div>
+        </div>
+        <div style="margin-left: auto;">
+            <button id="back-btn" class="active" style="width: auto; padding: 6px 12px;">Back to Spectrum</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Plot Area -->
+        <div class="left-panel">
+            <div class="plot-container">
+                <canvas id="ratio-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="right-panel">
+            <!-- Reference Configuration Panel -->
+            <div class="panel">
+                <div class="panel-header">Active Reference Spectrum</div>
+                <div class="panel-body">
+                    <div id="ref-status" class="ref-status-card">
+                        No reference spectrum set.
+                    </div>
+                    <button id="set-current-ref-btn" style="margin-bottom: 8px;">
+                        Set Current as Reference
+                    </button>
+                </div>
+            </div>
+
+            <!-- Analysis Execution Panel -->
+            <div class="panel">
+                <div class="panel-header">Analysis</div>
+                <div class="panel-body">
+                    <button id="compute-ratio-btn" class="active">
+                        Compute Ratio
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('ratio-canvas');
+        const refStatus = document.getElementById('ref-status');
+        const setCurrentRefBtn = document.getElementById('set-current-ref-btn');
+        const computeRatioBtn = document.getElementById('compute-ratio-btn');
+        const backBtn = document.getElementById('back-btn');
+
+        let currentRatioData = null;
+        let activeReference = null;
+
+        const colors = {
+            bg: '#ffffff',
+            grid: '#eeeeee',
+            axis: '#555555',
+            text: '#333333',
+            plot: '#6366f1' // Indigo color for ratio curve
+        };
+
+        // Wire Back Button
+        backBtn.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Load active reference info on init
+        async function fetchReference() {
+            try {
+                const res = await fetch('/api/compare/reference');
+                if (res.ok) {
+                    const data = await res.json();
+                    activeReference = data.reference;
+                    updateReferenceUI();
+                }
+            } catch (err) {
+                console.error("Error fetching active reference:", err);
+            }
+        }
+
+        function updateReferenceUI() {
+            if (activeReference) {
+                refStatus.classList.add('ref-status-active');
+                refStatus.innerHTML = `
+                    <strong>Reference Set</strong><br>
+                    Label: ${activeReference.label || 'N/A'}<br>
+                    Timestamp: ${activeReference.timestamp || 'N/A'}<br>
+                    Size: ${activeReference.intensities ? activeReference.intensities.length : 0} pts
+                `;
+            } else {
+                refStatus.classList.remove('ref-status-active');
+                refStatus.innerHTML = `No reference spectrum set.`;
+            }
+        }
+
+        // Set Current as Reference
+        setCurrentRefBtn.addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/compare/reference/from-current', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    activeReference = data.reference;
+                    updateReferenceUI();
+                    alert("Current spectrum successfully set as the reference.");
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to set reference: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error setting reference: " + err.message);
+            }
+        });
+
+        // Compute Ratio
+        computeRatioBtn.addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/compare/ratio', { method: 'POST' });
+                if (res.ok) {
+                    currentRatioData = await res.json();
+                    drawPlot();
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to compute ratio: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error computing ratio: " + err.message);
+            }
+        });
+
+        // Draw Plot
+        function drawPlot() {
+            if (!canvas) return;
+            const parent = canvas.parentElement;
+            const logicalWidth = parent.clientWidth;
+            const logicalHeight = parent.clientHeight;
+            
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = logicalWidth * dpr;
+            canvas.height = logicalHeight * dpr;
+            canvas.style.width = logicalWidth + 'px';
+            canvas.style.height = logicalHeight + 'px';
+            
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+            ctx.scale(dpr, dpr);
+            
+            ctx.fillStyle = colors.bg;
+            ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+            
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const plotW = logicalWidth - margin.left - margin.right;
+            const plotH = logicalHeight - margin.top - margin.bottom;
+            
+            if (plotW <= 0 || plotH <= 0) return;
+
+            // Draw axis lines
+            ctx.strokeStyle = colors.axis;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, logicalHeight - margin.bottom);
+            ctx.lineTo(logicalWidth - margin.right, logicalHeight - margin.bottom);
+            ctx.stroke();
+
+            // Handle "No data" case
+            if (!currentRatioData || !currentRatioData.ratios || currentRatioData.ratios.length === 0) {
+                ctx.fillStyle = colors.text;
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("No ratio data computed yet. Click 'Compute Ratio' to calculate.", logicalWidth / 2, logicalHeight / 2);
+                return;
+            }
+
+            const ratios = currentRatioData.ratios;
+            const wavelengths = currentRatioData.wavelengths || [];
+            const isCalibrated = wavelengths && wavelengths.length === ratios.length;
+
+            // Determine data limits
+            let validRatios = ratios.filter(r => r !== null && !isNaN(r));
+            if (validRatios.length === 0) {
+                ctx.fillStyle = colors.text;
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("All reference values are near zero. Ratio is undefined.", logicalWidth / 2, logicalHeight / 2);
+                return;
+            }
+
+            let yMin = Math.min(...validRatios);
+            let yMax = Math.max(...validRatios);
+            if (yMin === yMax) {
+                yMin = 0;
+                yMax = yMax === 0 ? 1.0 : yMax * 1.5;
+            }
+            const yLimit = yMax * 1.1;
+
+            // Draw horizontal gridlines & Y ticks
+            const yTicks = [0, yLimit * 0.25, yLimit * 0.5, yLimit * 0.75, yLimit];
+            ctx.font = '10px Arial';
+            yTicks.forEach(yVal => {
+                const py = logicalHeight - margin.bottom - (yVal / yLimit) * plotH;
+                
+                ctx.strokeStyle = colors.grid;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, py);
+                ctx.lineTo(logicalWidth - margin.right, py);
+                ctx.stroke();
+                
+                ctx.fillStyle = colors.text;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(yVal.toFixed(2), margin.left - 8, py);
+            });
+
+            // Draw vertical ticks & X gridlines
+            const nPoints = ratios.length;
+            const xMin = isCalibrated ? wavelengths[0] : 0;
+            const xMax = isCalibrated ? wavelengths[wavelengths.length - 1] : nPoints - 1;
+            const rangeX = xMax - xMin;
+
+            if (rangeX > 0) {
+                const numTicks = 6;
+                for (let i = 0; i <= numTicks; i++) {
+                    const tickVal = xMin + (i * rangeX) / numTicks;
+                    const px = margin.left + (i * plotW) / numTicks;
+
+                    ctx.strokeStyle = colors.grid;
+                    ctx.beginPath();
+                    ctx.moveTo(px, margin.top);
+                    ctx.lineTo(px, logicalHeight - margin.bottom);
+                    ctx.stroke();
+
+                    ctx.fillStyle = colors.text;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(isCalibrated ? tickVal.toFixed(1) : Math.round(tickVal).toString(), px, logicalHeight - margin.bottom + 8);
+                }
+            }
+
+            // Draw Ratio Curve
+            ctx.strokeStyle = colors.plot;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            let first = true;
+
+            for (let i = 0; i < nPoints; i++) {
+                const val = ratios[i];
+                if (val === null || isNaN(val)) {
+                    // Break line if reference was near zero (null ratio)
+                    first = true;
+                    continue;
+                }
+
+                const px = margin.left + (i / (nPoints - 1)) * plotW;
+                const py = logicalHeight - margin.bottom - (val / yLimit) * plotH;
+
+                if (first) {
+                    ctx.moveTo(px, py);
+                    first = false;
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.stroke();
+
+            // Label X Axis
+            ctx.fillStyle = colors.text;
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(isCalibrated ? "Wavelength (nm)" : "Pixel Index", margin.left + plotW / 2, logicalHeight - 15);
+
+            // Label Y Axis
+            ctx.save();
+            ctx.translate(margin.left - 45, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillText("Ratio (Current / Reference)", 0, 0);
+            ctx.restore();
+        }
+
+        // Initialize
+        async function init() {
+            await fetchReference();
+            drawPlot();
+        }
+
+        window.onload = init;
+        window.addEventListener('resize', drawPlot);
+    </script>
+</body>
+</html>
