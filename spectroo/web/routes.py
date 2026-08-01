@@ -1,6 +1,8 @@
 import os
+import json
 import logging
 import tempfile
+import time
 from datetime import datetime, timezone
 from typing import Optional
 import numpy as np
@@ -9,13 +11,14 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from spectroo.core.exceptions import CameraNotFoundError
+from spectroo.core.exceptions import CameraNotFoundError, CalibrationError
 from spectroo.camera.source import PiCameraFrameSource
-from spectroo.dsp.pipeline import average_frames, run_pipeline
+from spectroo.dsp.pipeline import average_frames, run_pipeline, to_greyscale
 from spectroo.dsp.peaks import find_spectrum_peaks
-from spectroo.core.calibration import PolynomialCalibration, apply_calibration
-from spectroo.core.models import HistoryRecord, Peak
-from spectroo.storage.db import save_record as save_spectrum, get_record
+from spectroo.core.calibration import PolynomialCalibration, apply_calibration, fit_calibration
+from spectroo.core.models import HistoryRecord, Peak, CalibrationPoint
+from spectroo.core.config import write_calibration_to_config
+from spectroo.storage.db import save_record as save_spectrum, get_record, get_all_records, delete_record, set_pinned_status
 from spectroo.storage.export import export_csv, export_json
 from spectroo.system.temp import get_cpu_temp_c, is_cpu_temp_warning
 from spectroo.system.shutdown import request_shutdown, request_reboot
@@ -37,8 +40,34 @@ class ExposureRequest(BaseModel):
     exposure_us: int
 
 
+class IntegrateRequest(BaseModel):
+    range_min: float
+    range_max: float
+
+
 class BaselineRequest(BaseModel):
     enabled: bool
+
+
+class DarkToggleRequest(BaseModel):
+    enabled: bool
+
+
+class SmoothingToggleRequest(BaseModel):
+    enabled: bool
+
+
+class NormalizeToggleRequest(BaseModel):
+    enabled: bool
+
+
+class CalibrationPointRequest(BaseModel):
+    pixel_index: int
+    wavelength_nm: float
+
+
+class CalibrationSaveRequest(BaseModel):
+    label: Optional[str] = "Untitled"
 
 
 
@@ -70,6 +99,9 @@ def get_status(request: Request):
         "live_active": live_active,
         "calibrated": calibrated,
         "dark_loaded": dark_loaded,
+        "dark_subtraction_enabled": config.get("dsp", {}).get("dark_subtraction_enabled", True),
+        "savgol_enabled": config.get("dsp", {}).get("savgol_enabled", True),
+        "normalize_enabled": config.get("dsp", {}).get("normalize_enabled", False),
         "cpu_temp": temp,
         "cpu_temp_warn": is_cpu_temp_warning(temp),
         "baseline_enabled": config.get("dsp", {}).get("baseline_enabled", True),
@@ -152,6 +184,27 @@ def post_capture(body: CaptureRequest, request: Request):
         # Keep track of peaks and exposure in state for saving later
         request.app.state.current_peaks = peaks_list
         request.app.state.current_exposure = exposure_us
+
+        # Automatically save single captures to history
+        db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+        from spectroo.storage.db import init_db
+        try:
+            init_db(db_path)
+        except Exception:
+            pass
+
+        record = HistoryRecord(
+            id=None,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            exposure_us=exposure_us,
+            pixel_indices=list(range(len(intensities))),
+            intensity=intensities.tolist(),
+            wavelengths=wavelengths.tolist(),
+            peaks=peaks_list,
+            png_path="",
+            calibration_rms_at_capture=None
+        )
+        save_spectrum(db_path, record, max_entries=20)
 
     finally:
         source.close()
@@ -348,6 +401,57 @@ def post_exposure(body: ExposureRequest, request: Request):
     return {"exposure_us": clamped_value}
 
 
+@router.post("/api/analyze/integrate")
+def post_analyze_integrate(body: IntegrateRequest, request: Request):
+    logger.info(
+        "User action: Web API integrate requested for range %.3f to %.3f",
+        body.range_min,
+        body.range_max,
+    )
+    if body.range_min >= body.range_max:
+        raise HTTPException(status_code=400, detail="range_min must be less than range_max")
+
+    current_frame = request.app.state.current_frame
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No frame data available to integrate")
+
+    wavelengths = np.asarray(current_frame.get("wavelengths", []), dtype=np.float64)
+    intensities = np.asarray(current_frame.get("intensities", []), dtype=np.float64)
+
+    if wavelengths.size < 2 or intensities.size < 2:
+        raise HTTPException(status_code=400, detail="Current spectrum does not contain enough data points")
+    if wavelengths.size != intensities.size:
+        raise HTTPException(status_code=400, detail="Current spectrum data is invalid")
+
+    sort_idx = np.argsort(wavelengths)
+    wavelengths = wavelengths[sort_idx]
+    intensities = intensities[sort_idx]
+
+    overlap_min = max(body.range_min, float(wavelengths[0]))
+    overlap_max = min(body.range_max, float(wavelengths[-1]))
+    if overlap_min >= overlap_max:
+        raise HTTPException(status_code=400, detail="Selected range does not overlap current spectrum")
+
+    inner_mask = (wavelengths > overlap_min) & (wavelengths < overlap_max)
+    x_vals = np.concatenate((
+        np.array([overlap_min], dtype=np.float64),
+        wavelengths[inner_mask],
+        np.array([overlap_max], dtype=np.float64),
+    ))
+    y_vals = np.concatenate((
+        np.array([np.interp(overlap_min, wavelengths, intensities)], dtype=np.float64),
+        intensities[inner_mask],
+        np.array([np.interp(overlap_max, wavelengths, intensities)], dtype=np.float64),
+    ))
+    area = float(np.trapezoid(y_vals, x_vals))
+
+    return {
+        "area": area,
+        "range_min": overlap_min,
+        "range_max": overlap_max,
+    }
+
+
 @router.post("/api/baseline")
 def post_baseline(body: BaselineRequest, request: Request):
     logger.info("User action: Web API baseline correction toggled to %s", body.enabled)
@@ -379,6 +483,71 @@ async def restart_pipeline(request: Request):
     return {"ok": True}
 
 
+@router.post("/api/dark/capture")
+def post_dark_capture(request: Request):
+    logger.info("User action: Web API dark frame capture requested")
+    config = request.app.state.config
+
+    if request.app.state.live_active:
+        raise HTTPException(status_code=409, detail="Live mode active — stop live before dark capture")
+
+    exposure_us = config.get("camera", {}).get("exposure_us", 200000)
+    res = tuple(config.get("camera", {}).get("resolution", (2592, 200)))
+
+    try:
+        source = PiCameraFrameSource(resolution=res, exposure_us=exposure_us)
+    except CameraNotFoundError as e:
+        raise HTTPException(status_code=503, detail="Camera not available") from e
+
+    try:
+        frames = []
+        for _ in range(4):
+            frames.append(source.capture_frame())
+            time.sleep(0.01)
+
+        averaged = average_frames(frames)
+        grey = to_greyscale(averaged)
+
+        dark_path = config.get("storage", {}).get("dark_frame_path", "")
+        if dark_path:
+            os.makedirs(os.path.dirname(dark_path), exist_ok=True)
+            np.save(dark_path, grey)
+            logger.info(f"Dark frame saved successfully to: {dark_path}")
+        else:
+            raise HTTPException(status_code=500, detail="Dark frame path not specified in configuration.")
+    except Exception as e:
+        logger.error(f"Error during dark capture: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        source.close()
+
+    return {"status": "Dark frame captured and saved successfully"}
+
+
+@router.post("/api/dark/toggle")
+def post_dark_toggle(body: DarkToggleRequest, request: Request):
+    logger.info("User action: Web API dark subtraction toggled to %s", body.enabled)
+    config = request.app.state.config
+    config.setdefault("dsp", {})["dark_subtraction_enabled"] = body.enabled
+    return {"dark_subtraction_enabled": body.enabled}
+
+
+@router.post("/api/smoothing/toggle")
+def post_smoothing_toggle(body: SmoothingToggleRequest, request: Request):
+    logger.info("User action: Web API smoothing toggled to %s", body.enabled)
+    config = request.app.state.config
+    config.setdefault("dsp", {})["savgol_enabled"] = body.enabled
+    return {"savgol_enabled": body.enabled}
+
+
+@router.post("/api/normalize/toggle")
+def post_normalize_toggle(body: NormalizeToggleRequest, request: Request):
+    logger.info("User action: Web API normalization toggled to %s", body.enabled)
+    config = request.app.state.config
+    config.setdefault("dsp", {})["normalize_enabled"] = body.enabled
+    return {"normalize_enabled": body.enabled}
+
+
 @router.get("/logs", response_class=HTMLResponse)
 def get_logs(request: Request):
     if not getattr(request.app.state, "dev", False):
@@ -388,4 +557,486 @@ def get_logs(request: Request):
         with open(static_file_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read(), status_code=200)
     return HTMLResponse(content="<h1>Spectroo v3 - Logs</h1><p>Template logs.html not found.</p>", status_code=404)
+
+
+@router.get("/api/history")
+def get_history(request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    from spectroo.storage.db import init_db
+    try:
+        init_db(db_path)
+    except Exception:
+        pass
+    records = get_all_records(db_path)
+    
+    serialized = []
+    for r in records:
+        ints = r.intensity
+        sparkline = []
+        if ints:
+            step = max(1, len(ints) // 100)
+            sparkline = ints[::step][:100]
+            
+        serialized.append({
+            "id": r.id,
+            "timestamp": r.timestamp,
+            "exposure_us": r.exposure_us,
+            "pinned": r.pinned,
+            "peaks_count": len(r.peaks),
+            "sparkline": sparkline
+        })
+    return serialized
+
+
+@router.post("/api/history/{record_id}/restore")
+def post_restore_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    record = get_record(db_path, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+        
+    peaks_px = [p.pixel_index for p in record.peaks]
+    request.app.state.current_frame = {
+        "wavelengths": record.wavelengths,
+        "intensities": record.intensity,
+        "peaks": peaks_px
+    }
+    request.app.state.current_peaks = record.peaks
+    request.app.state.current_exposure = record.exposure_us
+    return request.app.state.current_frame
+
+
+@router.delete("/api/history/{record_id}")
+def delete_history_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    try:
+        delete_record(db_path, record_id)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/history/{record_id}/pin")
+def pin_history_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    try:
+        set_pinned_status(db_path, record_id, True)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/history/{record_id}/unpin")
+def unpin_history_record(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    try:
+        set_pinned_status(db_path, record_id, False)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def load_state_file(request: Request) -> dict:
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_path = config.get("storage", {}).get("calibration_state_path", "data/calibration_state.json")
+    state_path = os.path.join(config_dir, rel_path)
+
+    if not os.path.exists(state_path):
+        return {"points": [], "fit_result": None, "fit_points": None}
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read calibration state file: {e}")
+        return {"points": [], "fit_result": None, "fit_points": None}
+
+
+def save_state_file(request: Request, state: dict) -> None:
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_path = config.get("storage", {}).get("calibration_state_path", "data/calibration_state.json")
+    state_path = os.path.join(config_dir, rel_path)
+
+    try:
+        os.makedirs(os.path.dirname(state_path), exist_ok=True)
+        with open(state_path, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save calibration state: {e}")
+
+
+@router.get("/api/calibration/state")
+def get_calibration_state(request: Request):
+    return load_state_file(request)
+
+
+@router.post("/api/calibration/point")
+def post_calibration_point(body: CalibrationPointRequest, request: Request):
+    state = load_state_file(request)
+    state.setdefault("points", []).append({
+        "pixel": body.pixel_index,
+        "wavelength": body.wavelength_nm
+    })
+    save_state_file(request, state)
+    return state["points"]
+
+
+@router.delete("/api/calibration/point/{index}")
+def delete_calibration_point(index: int, request: Request):
+    state = load_state_file(request)
+    points = state.setdefault("points", [])
+    if index < 0 or index >= len(points):
+        raise HTTPException(status_code=404, detail="Index out of range")
+    points.pop(index)
+    save_state_file(request, state)
+    return points
+
+
+@router.post("/api/calibration/undo")
+def post_calibration_undo(request: Request):
+    state = load_state_file(request)
+    points = state.setdefault("points", [])
+    if points:
+        points.pop()
+        save_state_file(request, state)
+    return points
+
+
+@router.post("/api/calibration/fit")
+def post_calibration_fit(request: Request):
+    state = load_state_file(request)
+    points_data = state.setdefault("points", [])
+    
+    if len(points_data) < 2:
+        raise HTTPException(status_code=400, detail="Fewer than 2 calibration points supplied.")
+        
+    pts = [
+        CalibrationPoint(pixel_index=p["pixel"], known_wavelength_nm=p["wavelength"])
+        for p in points_data
+    ]
+    
+    pixels = [p.pixel_index for p in pts]
+    if len(pixels) != len(set(pixels)):
+        raise HTTPException(status_code=400, detail="Duplicate pixel indices in calibration points.")
+
+    try:
+        result = fit_calibration(pts, degree_high=3, min_points=2)
+        if np.isnan(result.coefficients).any() or np.isinf(result.coefficients).any() or np.isnan(result.rms_nm):
+            raise CalibrationError("Polynomial fitting failed: singular matrix or invalid coefficients.")
+    except CalibrationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Polynomial fitting failed: {e}")
+        
+    residuals = [
+        float(np.polyval(result.coefficients, p["pixel"]) - p["wavelength"])
+        for p in points_data
+    ]
+
+    fit_result_data = {
+        "degree": result.degree,
+        "rms_nm": result.rms_nm,
+        "coefficients": result.coefficients,
+        "residuals": residuals
+    }
+    
+    state["fit_result"] = fit_result_data
+    state["fit_points"] = points_data.copy()
+    
+    save_state_file(request, state)
+    return fit_result_data
+
+
+@router.post("/api/calibration/apply")
+def post_calibration_apply(request: Request):
+    state = load_state_file(request)
+    fit_result = state.get("fit_result")
+    fit_points = state.get("fit_points")
+    points = state.get("points", [])
+    
+    if fit_result is None or fit_points is None:
+        raise HTTPException(status_code=400, detail="No fit computed yet")
+        
+    # Check staleness
+    is_stale = False
+    if len(points) != len(fit_points):
+        is_stale = True
+    else:
+        for p1, p2 in zip(points, fit_points):
+            if p1.get("pixel") != p2.get("pixel") or not np.isclose(p1.get("wavelength", 0.0), p2.get("wavelength", 0.0), atol=1e-5):
+                is_stale = True
+                break
+                
+    if is_stale:
+        raise HTTPException(status_code=400, detail="Fit is stale, run fit again")
+
+    coefficients = fit_result["coefficients"]
+    degree = fit_result["degree"]
+    n_points = len(points)
+    config_path = request.app.state.config_path
+    
+    try:
+        write_calibration_to_config(config_path, coefficients, degree, n_points)
+        from spectroo.core.config import load_config
+        new_config = load_config(config_path)
+        request.app.state.config.clear()
+        request.app.state.config.update(new_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"status": "Calibration applied successfully"}
+
+
+@router.post("/api/calibration/clear")
+def post_calibration_clear(request: Request):
+    save_state_file(request, {"points": [], "fit_result": None, "fit_points": None})
+    config_path = request.app.state.config_path
+    
+    try:
+        write_calibration_to_config(config_path, [], 3, 0)
+        from spectroo.core.config import load_config
+        new_config = load_config(config_path)
+        request.app.state.config.clear()
+        request.app.state.config.update(new_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"status": "Calibration cleared"}
+
+
+@router.post("/api/calibration/save")
+def post_calibration_save(body: CalibrationSaveRequest, request: Request):
+    config = request.app.state.config
+    calib = config.get("calibration", {})
+    coefficients = calib.get("coefficients", [])
+    
+    if not coefficients:
+        raise HTTPException(status_code=400, detail="No active calibration to save")
+        
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_dir = config.get("storage", {}).get("calibrations_dir", "data/calibrations")
+    calibrations_dir = os.path.abspath(os.path.join(config_dir, rel_dir))
+    os.makedirs(calibrations_dir, exist_ok=True)
+    
+    # Load rms_nm from state if available
+    state = load_state_file(request)
+    fit_result = state.get("fit_result")
+    rms_nm = fit_result.get("rms_nm") if fit_result else None
+    
+    label = body.label or "Untitled"
+    now_utc = datetime.now(timezone.utc)
+    ts = now_utc.strftime("%Y-%m-%dT%H-%M-%S")
+    filename = f"calibration_{ts}.json"
+    file_path = os.path.join(calibrations_dir, filename)
+    
+    payload = {
+        "label": label,
+        "coefficients": coefficients,
+        "degree": calib.get("degree", 3),
+        "n_points": calib.get("n_points", 0),
+        "rms_nm": rms_nm,
+        "saved_at": now_utc.isoformat()
+    }
+    
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to write calibration snapshot to {file_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save calibration snapshot: {e}")
+        
+    return {"filename": filename, "data": payload}
+
+
+@router.get("/api/calibration/list")
+def get_calibration_list(request: Request):
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_dir = config.get("storage", {}).get("calibrations_dir", "data/calibrations")
+    calibrations_dir = os.path.abspath(os.path.join(config_dir, rel_dir))
+    
+    if not os.path.exists(calibrations_dir):
+        return []
+        
+    results = []
+    try:
+        files = os.listdir(calibrations_dir)
+    except Exception as e:
+        logger.error(f"Failed to list directory {calibrations_dir}: {e}")
+        return []
+        
+    for filename in files:
+        if not filename.endswith(".json"):
+            continue
+        file_path = os.path.join(calibrations_dir, filename)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # Ensure basic fields are present
+            results.append({
+                "filename": filename,
+                "label": data.get("label", "Untitled"),
+                "saved_at": data.get("saved_at", ""),
+                "rms_nm": data.get("rms_nm"),
+                "n_points": data.get("n_points", 0),
+                "degree": data.get("degree", 3)
+            })
+        except Exception as e:
+            logger.error(f"Failed to parse calibration snapshot file {filename}: {e}")
+            continue
+            
+    # Sort newest-first based on saved_at string comparison
+    results.sort(key=lambda x: x["saved_at"], reverse=True)
+    return results
+
+
+@router.post("/api/calibration/load/{filename:path}")
+def post_calibration_load(filename: str, request: Request):
+    # Path-sanitize
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid snapshot filename")
+        
+    config = request.app.state.config
+    config_dir = os.path.dirname(request.app.state.config_path)
+    rel_dir = config.get("storage", {}).get("calibrations_dir", "data/calibrations")
+    calibrations_dir = os.path.abspath(os.path.join(config_dir, rel_dir))
+    file_path = os.path.join(calibrations_dir, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Calibration snapshot not found")
+        
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to parse snapshot JSON {filename}: {e}")
+        raise HTTPException(status_code=400, detail="Malformed JSON content in snapshot file")
+        
+    coefficients = data.get("coefficients")
+    degree = data.get("degree")
+    n_points = data.get("n_points")
+    
+    if coefficients is None or degree is None or n_points is None:
+        raise HTTPException(status_code=400, detail="Snapshot is missing required calibration parameters")
+        
+    config_path = request.app.state.config_path
+    try:
+        write_calibration_to_config(config_path, coefficients, degree, n_points)
+        from spectroo.core.config import load_config
+        new_config = load_config(config_path)
+        request.app.state.config.clear()
+        request.app.state.config.update(new_config)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return {"status": "Calibration loaded successfully"}
+
+
+@router.post("/api/compare/reference/from-history/{record_id}")
+def post_compare_reference_from_history(record_id: int, request: Request):
+    config = request.app.state.config
+    db_path = config.get("history", {}).get("db_path", "data/spectroo.db")
+    record = get_record(db_path, record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+    
+    request.app.state.compare_reference = {
+        "wavelengths": record.wavelengths,
+        "intensities": record.intensity,
+        "timestamp": record.timestamp,
+        "label": f"History Record #{record_id} ({record.timestamp})"
+    }
+    return {"status": "success", "reference": request.app.state.compare_reference}
+
+
+@router.post("/api/compare/reference/from-current")
+def post_compare_reference_from_current(request: Request):
+    current_frame = request.app.state.current_frame
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No current frame data available")
+    
+    wavelengths = current_frame.get("wavelengths")
+    intensities = current_frame.get("intensities")
+    
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    request.app.state.compare_reference = {
+        "wavelengths": wavelengths,
+        "intensities": intensities,
+        "timestamp": now_str,
+        "label": f"Current Frame ({now_str})"
+    }
+    return {"status": "success", "reference": request.app.state.compare_reference}
+
+
+@router.get("/api/compare/reference")
+def get_compare_reference(request: Request):
+    ref = getattr(request.app.state, "compare_reference", None)
+    return {"reference": ref}
+
+
+@router.post("/api/compare/ratio")
+def post_compare_ratio(request: Request):
+    ref = getattr(request.app.state, "compare_reference", None)
+    if ref is None:
+        raise HTTPException(status_code=400, detail="No reference spectrum is set")
+    
+    current_frame = request.app.state.current_frame
+    if current_frame is None:
+        raise HTTPException(status_code=400, detail="No current frame data available")
+    
+    ref_intensities = ref.get("intensities") or []
+    ref_wavelengths = ref.get("wavelengths") or []
+    curr_intensities = current_frame.get("intensities") or []
+    curr_wavelengths = current_frame.get("wavelengths") or []
+    
+    if len(ref_intensities) != len(curr_intensities):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Spectrum length mismatch: reference has {len(ref_intensities)} points, current has {len(curr_intensities)} points."
+        )
+    
+    is_ref_calibrated = ref_wavelengths is not None and len(ref_wavelengths) > 0
+    is_curr_calibrated = curr_wavelengths is not None and len(curr_wavelengths) > 0
+    
+    if is_ref_calibrated != is_curr_calibrated:
+        raise HTTPException(
+            status_code=400,
+            detail="Calibration state mismatch between reference and current spectrum."
+        )
+    
+    if is_ref_calibrated and is_curr_calibrated:
+        try:
+            diff = np.abs(np.array(ref_wavelengths) - np.array(curr_wavelengths))
+            if np.max(diff) > 0.1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Wavelength range mismatch between reference and current spectrum."
+                )
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to compare wavelengths."
+            )
+            
+    # Calculate ratio element-wise
+    ratios = []
+    for c_val, r_val in zip(curr_intensities, ref_intensities):
+        if r_val < 1e-6:
+            ratios.append(None)
+        else:
+            ratios.append(float(c_val / r_val))
+            
+    return {
+        "wavelengths": curr_wavelengths,
+        "ratios": ratios,
+        "reference_label": ref.get("label"),
+        "reference_timestamp": ref.get("timestamp")
+    }
+
 

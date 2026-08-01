@@ -94,7 +94,8 @@ def run_pipeline(
     band = apply_flip(band, optics["flip_spectrum"])
 
     # 6. Dark subtraction
-    if dark_frame_1d is not None:
+    dark_sub_enabled = dsp_cfg.get("dark_subtraction_enabled", True)
+    if dark_frame_1d is not None and dark_sub_enabled:
         if dark_frame_1d.ndim == 2:
             dark_tilted = apply_tilt_correction(dark_frame_1d, optics["tilt_angle_deg"])
             dark_band = extract_band(dark_tilted, optics["center_y"], dsp_cfg["band_half_height"])
@@ -102,16 +103,17 @@ def run_pipeline(
         band = subtract_dark(band, dark_frame_1d)
 
     # Log dark frame state once on change
-    dark_loaded_now = dark_frame_1d is not None
+    dark_loaded_now = (dark_frame_1d is not None and dark_sub_enabled)
     with _pipeline_state_lock:
         if dark_loaded_now != _pipeline_state["dark_loaded"]:
             _pipeline_state["dark_loaded"] = dark_loaded_now
             logger.info("DSP: Dark frame subtraction %s", "enabled" if dark_loaded_now else "disabled")
 
     # 7. Savitzky-Golay smoothing
-    band = smooth_savgol(
-        band, dsp_cfg["savgol_window"], dsp_cfg["savgol_polyorder"]
-    )
+    if dsp_cfg.get("savgol_enabled", True):
+        band = smooth_savgol(
+            band, dsp_cfg["savgol_window"], dsp_cfg["savgol_polyorder"]
+        )
 
     # 8. Baseline subtraction (skipped when baseline_enabled is False)
     if dsp_cfg.get("baseline_enabled", True):
@@ -148,6 +150,13 @@ def run_pipeline(
         if flat_loaded_now != _pipeline_state["flat_loaded"]:
             _pipeline_state["flat_loaded"] = flat_loaded_now
             logger.info("DSP: Flat-field correction %s", "enabled" if flat_loaded_now else "disabled")
+
+    # 9.5 Normalize (min-max scaling to [0, 1])
+    if dsp_cfg.get("normalize_enabled", False):
+        b_min = np.min(band)
+        b_max = np.max(band)
+        if b_max > b_min:
+            band = (band - b_min) / (b_max - b_min)
 
     # 10. Wavelength mapping
     pixel_indices = np.arange(len(band))

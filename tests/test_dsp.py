@@ -474,3 +474,42 @@ def test_corrections_loading_and_pipeline_flags(tmp_path):
     assert spec_only_flat.dark_frame_loaded is False
     assert spec_only_flat.flat_field_loaded is True
 
+
+def test_run_pipeline_normalize_enabled_flag():
+    """Verify normalize_enabled=True scales intensity to [0, 1], False leaves it unchanged."""
+    # Create a frame with varying intensity so min != max
+    f1 = np.ones((8, 6, 3), dtype=np.float32) * 10.0
+    f1[4, 0, :] = 5.0    # lower value at one pixel
+    f1[4, 5, :] = 100.0  # higher value at another pixel
+    frames = [f1]
+    optics = {"tilt_angle_deg": 0.0, "center_y": 4, "flip_spectrum": False}
+    base_dsp = {
+        "band_half_height": 1,
+        "savgol_window": 5,
+        "savgol_polyorder": 2,
+        "baseline_method": "sg_only",
+        "baseline_window": 5,
+        "baseline_polyorder": 2,
+        "baseline_enabled": False,  # disable baseline so intensities stay positive
+    }
+    peaks_cfg = {"prominence_pct": 0.1, "prominence_min": 0.5, "min_distance_px": 2}
+
+    # Run with normalize disabled (default)
+    dsp_off = {**base_dsp, "normalize_enabled": False}
+    spec_off = run_pipeline(frames, optics, dsp_off, peaks_cfg, exposure_us=200000)
+
+    # Run with normalize enabled
+    dsp_on = {**base_dsp, "normalize_enabled": True}
+    spec_on = run_pipeline(frames, optics, dsp_on, peaks_cfg, exposure_us=200000)
+
+    # Normalized output should have min ≈ 0 and max ≈ 1
+    assert np.min(spec_on.intensity) == pytest.approx(0.0, abs=1e-6)
+    assert np.max(spec_on.intensity) == pytest.approx(1.0, abs=1e-6)
+
+    # Non-normalized output should NOT be in [0, 1] (original values are much larger)
+    assert np.max(spec_off.intensity) > 1.0
+
+    # Without the key at all — should default to False (no normalization)
+    spec_default = run_pipeline(frames, optics, base_dsp, peaks_cfg, exposure_us=200000)
+    np.testing.assert_array_almost_equal(spec_default.intensity, spec_off.intensity)
+

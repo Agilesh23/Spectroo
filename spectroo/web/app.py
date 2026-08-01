@@ -10,6 +10,7 @@ def create_app(config: dict, config_path: str = None, dev: bool = False) -> Fast
     app.state.live_active = False
     app.state.ws_client_connected = False
     app.state.current_frame = None   # dict | None: latest frame data
+    app.state.compare_reference = None # dict | None: active comparison reference
 
     if config_path is None:
         # Default fallback to root config.toml

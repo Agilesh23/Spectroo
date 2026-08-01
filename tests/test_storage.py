@@ -9,6 +9,9 @@ from spectroo.storage.db import (
     init_db,
     save_record,
     get_record,
+    get_all_records,
+    delete_record,
+    set_pinned_status,
 )
 from spectroo.storage.export import (
     export_csv,
@@ -157,3 +160,72 @@ def test_export_json(tmp_path):
     assert data["peaks"][0]["intensity"] == pytest.approx(20.0)
     assert data["peaks"][0]["prominence"] == pytest.approx(9.5)
     assert data["calibration_rms_at_capture"] == pytest.approx(0.15)
+
+
+def test_fifo_cap_pinned_not_evicted(temp_db):
+    # Save a pinned record
+    rec_pinned = make_dummy_record(timestamp="2026-06-22T12:00:00Z")
+    rec_pinned.pinned = True
+    pinned_id = save_record(temp_db, rec_pinned, max_entries=20)
+
+    # Save 20 unpinned records
+    unpinned_ids = []
+    for i in range(20):
+        rec = make_dummy_record(timestamp=f"2026-06-22T12:01:{i:02d}Z")
+        unpinned_ids.append(save_record(temp_db, rec, max_entries=20))
+
+    # Verify all are in the DB
+    assert get_record(temp_db, pinned_id) is not None
+    for uid in unpinned_ids:
+        assert get_record(temp_db, uid) is not None
+
+    # Save a 21st unpinned record (should trigger eviction of oldest unpinned, i.e., unpinned_ids[0])
+    rec21 = make_dummy_record(timestamp="2026-06-22T12:02:00Z")
+    id21 = save_record(temp_db, rec21, max_entries=20)
+
+    # The pinned record should STILL be present!
+    assert get_record(temp_db, pinned_id) is not None
+    # The oldest unpinned record should be deleted!
+    assert get_record(temp_db, unpinned_ids[0]) is None
+    # The 2nd unpinned record and the 21st unpinned record should be present!
+    assert get_record(temp_db, unpinned_ids[1]) is not None
+    assert get_record(temp_db, id21) is not None
+
+
+def test_get_all_records_retrieves_sorted(temp_db):
+    rec1 = make_dummy_record(timestamp="2026-06-22T12:00:01Z")
+    rec2 = make_dummy_record(timestamp="2026-06-22T12:00:02Z")
+    
+    id1 = save_record(temp_db, rec1)
+    id2 = save_record(temp_db, rec2)
+    
+    all_recs = get_all_records(temp_db)
+    assert len(all_recs) == 2
+    # Should be sorted by ID DESC
+    assert all_recs[0].id == id2
+    assert all_recs[1].id == id1
+
+
+def test_delete_record(temp_db):
+    rec = make_dummy_record()
+    rec_id = save_record(temp_db, rec)
+    assert get_record(temp_db, rec_id) is not None
+    
+    delete_record(temp_db, rec_id)
+    assert get_record(temp_db, rec_id) is None
+
+
+def test_set_pinned_status(temp_db):
+    rec = make_dummy_record()
+    rec_id = save_record(temp_db, rec)
+    
+    loaded = get_record(temp_db, rec_id)
+    assert loaded.pinned is False
+    
+    set_pinned_status(temp_db, rec_id, True)
+    loaded = get_record(temp_db, rec_id)
+    assert loaded.pinned is True
+    
+    set_pinned_status(temp_db, rec_id, False)
+    loaded = get_record(temp_db, rec_id)
+    assert loaded.pinned is False

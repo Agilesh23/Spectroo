@@ -46,3 +46,4 @@ class HistoryRecord:
     peaks: list[Peak]
     png_path: str
     calibration_rms_at_capture: float | None
+    pinned: bool = False

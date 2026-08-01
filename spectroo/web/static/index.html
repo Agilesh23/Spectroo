@@ -24,7 +24,7 @@
             display: flex;
             flex-direction: row;
             flex-grow: 1;
-            height: calc(100vh - 28px);
+            height: calc(100vh - 210px);
         }
         .plot-area {
             flex-grow: 1;
@@ -39,9 +39,9 @@
             height: 100%;
         }
         .control-panel {
-            width: 200px;
-            min-width: 200px;
-            max-width: 200px;
+            width: 240px;
+            min-width: 240px;
+            max-width: 240px;
             background-color: #ffffff;
             border-left: 1px solid #dcdcdc;
             display: flex;
@@ -49,20 +49,183 @@
             overflow-y: auto;
             padding: 12px 10px;
         }
-        .section-header {
-            font-size: 10px;
+        .icon-toolbar {
+            width: 100%;
+            height: 38px;
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 6px;
+            user-select: none;
+            z-index: 999;
+        }
+        .toolbar-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            background-color: transparent;
+            cursor: pointer;
+            position: relative;
+            color: #475569;
+            padding: 0;
+        }
+        .toolbar-btn:hover:not(:disabled) {
+            background-color: #e2e8f0;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .toolbar-btn:active:not(:disabled) {
+            background-color: #cbd5e1;
+        }
+        .toolbar-btn.active {
+            background-color: #cbd5e1;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+        .toolbar-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background-color: #cbd5e1;
+            margin: 0 4px;
+        }
+        /* Toolbar Tooltips */
+        .toolbar-tooltip {
+            position: fixed;
+            background-color: #1e293b;
+            color: #ffffff;
+            font-size: 16px;
+            padding: 5.2px 7.8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            z-index: 1002;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.08s ease;
+        }
+        .toolbar-tooltip.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .header-bar {
+            width: 100%;
+            background-color: #0f172a;
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            color: #ffffff;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header-logo {
+            height: 72px;
+            width: auto;
+            margin-right: 9px;
+        }
+        .header-title {
+            font-size: 17px;
             font-weight: bold;
-            color: #666666;
-            margin-top: 10px;
-            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            color: #f1f5f9;
+        }
+        .menu-bar {
+            width: 100%;
+            height: 38px;
+            background-color: #e2e8f0;
+            border-bottom: 1px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 14px;
+            user-select: none;
+            z-index: 1000;
+            position: relative;
+        }
+        .menu-item {
+            position: relative;
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #334155;
+            font-weight: 500;
+        }
+        .menu-item:hover {
+            background-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% - 1px);
+            left: 0;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            border-radius: 4px;
+            min-width: 180px;
+            padding: 4px 0;
+            margin-top: 0;
+            list-style: none;
+            z-index: 1001;
+        }
+        .menu-item:hover .dropdown-menu {
+            display: block;
+        }
+        .dropdown-item {
+            padding: 6px 16px;
+            cursor: pointer;
+            color: #334155;
+            white-space: nowrap;
+            display: block;
+        }
+        .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .dropdown-item.disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+            background-color: transparent !important;
+        }
+        .dropdown-item.active {
+            font-weight: bold;
+            background-color: #f1f5f9;
+        }
+        .dropdown-item.active::before {
+            content: "✓ ";
+            color: #0066cc;
+        }
+        .panel {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        .panel-header {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .section-header.first {
-            margin-top: 0;
-        }
-        .separator {
-            border-top: 1px solid #eeeeee;
-            margin: 10px 0;
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
         }
         .btn-group {
             display: flex;
@@ -72,10 +235,10 @@
         button {
             border: 1px solid #cccccc;
             border-radius: 3px;
-            padding: 5px 8px;
+            padding: 6px 10px;
             background-color: #fafafa;
             color: #333333;
-            font-size: 11px;
+            font-size: 13px;
             cursor: pointer;
             text-align: center;
             width: 100%;
@@ -105,7 +268,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 13px;
             color: #555555;
             margin-top: 6px;
             margin-bottom: 8px;
@@ -113,26 +276,26 @@
         input[type="number"] {
             border: 1px solid #cccccc;
             border-radius: 3px;
-            padding: 4px;
+            padding: 5px;
             background-color: #ffffff;
             color: #333333;
-            font-size: 11px;
-            width: 80px;
+            font-size: 13px;
+            width: 90px;
             outline: none;
         }
         input[type="number"]:focus {
             border-color: #0066cc;
         }
         .status-bar {
-            height: 28px;
-            min-height: 28px;
+            height: 34px;
+            min-height: 34px;
             background-color: #ffffff;
             border-top: 1px solid #dcdcdc;
             display: flex;
             align-items: center;
             padding: 0 10px;
             gap: 25px;
-            font-size: 11px;
+            font-size: 13px;
             color: #555555;
         }
         .status-field {
@@ -195,51 +358,325 @@
                 margin-bottom: 6px !important;
             }
         }
+        .history-panel {
+            position: fixed;
+            top: 182px;
+            left: -420px;
+            width: 400px;
+            height: calc(100vh - 182px);
+            background-color: #f8fafc;
+            border-right: 1px solid #cbd5e1;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1500;
+            display: flex;
+            flex-direction: column;
+        }
+        .history-panel.active {
+            left: 0;
+        }
+        .history-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #cbd5e1;
+            background-color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .history-header h3 {
+            margin: 0;
+            font-size: 17px;
+            color: #1e293b;
+            font-weight: 600;
+            flex-shrink: 0; /* Prevent title from shrinking/wrapping in flex layout */
+        }
+        .history-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .history-item {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .history-item.pinned-item {
+            border-color: #93c5fd;
+            background-color: #eff6ff;
+        }
+        .history-item-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #64748b;
+        }
+        .history-item-time {
+            font-weight: 500;
+        }
+        .history-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-item-sparkline {
+            height: 40px;
+            width: 100%;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .history-item-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .history-action-btn {
+            background: none;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 13px;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .history-action-btn:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .history-action-btn.btn-delete:hover {
+            background-color: #fef2f2;
+            color: #ef4444;
+            border-color: #fca5a5;
+        }
+        .pin-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #94a3b8;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pin-btn.pinned {
+            color: #3b82f6;
+        }
+        .history-panel .close-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 22px;
+            padding: 0;
+            line-height: 1;
+            flex-shrink: 0; /* Prevent button from shrinking */
+            transition: background-color 0.1s, color 0.1s;
+        }
+        .history-panel .close-btn:hover {
+            background-color: #e2e8f0;
+            color: #0f172a;
+        }
+        
+        /* Modal dialog and overlay styling matching calibration.html pattern */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .dialog {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 280px;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+        }
+        .calibration-list-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #cbd5e1;
+            transition: background-color 0.1s;
+        }
+        .calibration-list-item:last-child {
+            border-bottom: none;
+        }
+        .calibration-list-item:hover {
+            background-color: #f1f5f9;
+        }
+        .calibration-item-title {
+            font-weight: bold;
+            color: #0f172a;
+            font-size: 14px;
+        }
+        .calibration-item-meta {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
+    <div id="history-panel" class="history-panel">
+        <div class="history-header">
+            <h3>Spectrum History</h3>
+            <button id="close-history-panel" class="close-btn">&times;</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+    </div>
+    <div class="header-bar">
+        <img src="/static/logo.png" alt="LaserQuant Logo" class="header-logo">
+        <div>
+            <div class="header-title">Spectroo</div>
+            <div style="font-size: 13px; color: #94a3b8; margin-top: 1px;">Live Spectrum Acquisition</div>
+        </div>
+    </div>
+    
+    <div class="menu-bar">
+        <div class="menu-item">File
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-save-spectrum">Save Spectrum</li>
+                <li class="dropdown-item" id="menu-export-json">Export JSON</li>
+                <li class="dropdown-item" id="menu-export-csv">Export CSV</li>
+                <li class="dropdown-item" id="menu-recent-files">Recent Files</li>
+            </ul>
+        </div>
+        <div class="menu-item">Acquisition
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-single-capture">Single Capture</li>
+                <li class="dropdown-item" id="menu-start-stop-live">Start/Stop Live</li>
+                <li class="dropdown-item" id="menu-exposure-settings">Exposure Settings</li>
+                <li class="dropdown-item" id="menu-capture-dark">Capture Dark Frame</li>
+                <li class="dropdown-item active" id="menu-toggle-dark">Toggle Dark Subtraction</li>
+            </ul>
+        </div>
+        <div class="menu-item">Calibration
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-wavelength-calibration">Wavelength Calibration</li>
+                <li class="dropdown-item" id="menu-load-calibration">Load Calibration File</li>
+                <li class="dropdown-item" id="menu-save-calibration">Save Calibration File</li>
+                <li class="dropdown-item" id="menu-clear-calibration">Clear Calibration</li>
+            </ul>
+        </div>
+        <div class="menu-item">Analysis
+            <ul class="dropdown-menu">
+                <li class="dropdown-item active" id="menu-peak-detection">Peak Detection</li>
+                <li class="dropdown-item active" id="menu-smoothing">Smoothing</li>
+                <li class="dropdown-item active" id="menu-analysis-baseline-corr">Baseline Correction</li>
+                <li class="dropdown-item" id="menu-normalize">Normalize</li>
+                <li class="dropdown-item" id="menu-integrate">Integrate (Area Under Curve)</li>
+                <li class="dropdown-item" id="menu-compare-ratio">Compare/Ratio Two Spectra</li>
+            </ul>
+        </div>
+        <div class="menu-item">View
+            <ul class="dropdown-menu">
+                <li class="dropdown-item active" id="menu-color-spectrum">Colour Spectrum</li>
+                <li class="dropdown-item active" id="menu-baseline-corr">Baseline Corr</li>
+                <li class="dropdown-item active" id="menu-show-grid">Show Grid</li>
+                <li class="dropdown-item active" id="menu-show-crosshair">Show Crosshair</li>
+                <li class="dropdown-item" id="menu-zoom-reset">Zoom Reset</li>
+            </ul>
+        </div>
+        <div class="menu-item">System
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-shutdown">Shutdown</li>
+                <li class="dropdown-item" id="menu-restart-system">Restart System</li>
+            </ul>
+        </div>
+        <div class="menu-item">Help
+            <ul class="dropdown-menu">
+                <li class="dropdown-item" id="menu-about">About</li>
+                <li class="dropdown-item" id="menu-documentation">User Guide</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <div class="icon-toolbar">
+        <button class="toolbar-btn active" id="toolbar-baseline" data-tooltip="Toggle Baseline Correction">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </button>
+        <button class="toolbar-btn active" id="toolbar-color" data-tooltip="Toggle Colour Spectrum">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        </button>
+        <button class="toolbar-btn active" id="toolbar-crosshair" data-tooltip="Toggle Crosshair">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button class="toolbar-btn" id="toolbar-history" data-tooltip="History">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </button>
+        
+        <div class="toolbar-separator"></div>
+        
+        <button class="toolbar-btn" id="toolbar-export-json" data-tooltip="Export JSON" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <button class="toolbar-btn" id="toolbar-export-csv" data-tooltip="Export CSV" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </button>
+    </div>
+
     <div class="app-container">
         <div class="plot-area" id="plot-area">
             <canvas id="spectrum-canvas"></canvas>
         </div>
         <div class="control-panel">
-            <img src="/static/logo.png" alt="LaserQuant Logo" style="height: 32px; width: auto; align-self: center; margin-bottom: 12px;">
-            <div class="section-header first">MODE</div>
-            <div class="btn-group">
-                <button id="mode-single-btn" class="active">Single</button>
-                <button id="mode-live-btn">Live</button>
+            <div class="panel">
+                <div class="panel-header">MODE</div>
+                <div class="panel-body">
+                    <div class="btn-group" style="margin-bottom: 0;">
+                        <button id="mode-single-btn" class="active">Single</button>
+                        <button id="mode-live-btn">Live</button>
+                    </div>
+                </div>
             </div>
             
-            <div class="separator"></div>
-            
-            <div class="section-header">ACQUISITION</div>
-            <button id="capture-btn" style="margin-bottom: 6px;">Capture</button>
-            <button id="stop-btn" disabled style="margin-bottom: 6px;">Stop</button>
-            <div class="input-row">
-                <span>Exposure (µs):</span>
-                <input type="number" id="exposure-input" value="200000" min="110" max="3066979">
+            <div class="panel">
+                <div class="panel-header">ACQUISITION</div>
+                <div class="panel-body">
+                    <button id="capture-btn" style="margin-bottom: 6px;">Capture</button>
+                    <button id="stop-btn" disabled style="margin-bottom: 6px;">Stop</button>
+                    <div class="input-row" style="margin-bottom: 0; margin-top: 6px;">
+                        <span>Exposure (µs):</span>
+                        <input type="number" id="exposure-input" value="20000" min="110" max="3066979">
+                    </div>
+                </div>
             </div>
-            
-            <div class="separator"></div>
-            
-            <div class="section-header">DISPLAY</div>
-            <button id="plot-mode-btn" class="active" style="margin-bottom: 6px;">Colour Spectrum</button>
-            <button id="baseline-btn" class="active">Baseline Corr</button>
-            
-            <div class="separator"></div>
-            
-            <div class="section-header">DATA</div>
-            <button id="export-json-btn" disabled style="margin-bottom: 6px;">Export JSON</button>
-            <button id="export-csv-btn" disabled>Export CSV</button>
-            
-            <div class="separator"></div>
-            <div class="section-header">SYSTEM</div>
-            <button id="shutdown-btn">Shutdown</button>
-            <span id="shutdown-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
-            <button id="reboot-btn" style="margin-top: 6px;">Reboot System</button>
-            <span id="reboot-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
-            <button id="restart-btn" style="margin-top: 6px;">Restart System</button>
-            <span id="restart-status" style="font-size: 11px; margin-top: 4px; display: block;"></span>
         </div>
     </div>
     
@@ -249,6 +686,7 @@
         <span id="dark-status" class="status-field">Dark Frame: Not Loaded</span>
         <span id="peaks-status" class="status-field">Peaks: None</span>
         <span id="temp-status" class="status-field">CPU Temp: --°C</span>
+        <span id="action-status" class="status-field" style="display: none;"></span>
         <span class="status-stretch"></span>
     </div>
 
@@ -261,6 +699,8 @@
         let currentPeaks = [];
         let fillMode = 'color'; // 'color' | 'plain'
         let showPeaks = true;
+        let showGrid = true;
+        let showCrosshair = true;
         let lastRecordId = null;
         let selectedMode = 'single';
         let streamingActive = false;
@@ -289,6 +729,10 @@
         let inspectX = null;
         let inspectIdx = null;
         let isPanning = false;
+        let integrationModeActive = false;
+        let isSelectingIntegration = false;
+        let integrationRangeStart = null;
+        let integrationRangeEnd = null;
         let panStartX = null;
         let panStartXMin = null;
         let panStartXMax = null;
@@ -307,18 +751,159 @@
         // DOM elements
         const canvas = document.getElementById('spectrum-canvas');
         const plotArea = document.getElementById('plot-area');
+        const toolbarTooltip = document.createElement('div');
+        toolbarTooltip.className = 'toolbar-tooltip';
+        document.body.appendChild(toolbarTooltip);
+
+        function hideToolbarTooltip() {
+            toolbarTooltip.classList.remove('visible');
+        }
+
+        function positionToolbarTooltip(anchor) {
+            const anchorRect = anchor.getBoundingClientRect();
+            const gap = 4;
+            const viewportPadding = 8;
+
+            toolbarTooltip.textContent = anchor.getAttribute('data-tooltip') || '';
+            toolbarTooltip.classList.add('visible');
+
+            const tooltipRect = toolbarTooltip.getBoundingClientRect();
+
+            let left = anchorRect.left - tooltipRect.width - gap;
+            let top = anchorRect.top - tooltipRect.height - gap;
+
+            if (left < viewportPadding) {
+                left = anchorRect.right + gap;
+            }
+            if (top < viewportPadding) {
+                top = anchorRect.bottom + gap;
+            }
+            if (left + tooltipRect.width > window.innerWidth - viewportPadding) {
+                left = Math.max(viewportPadding, window.innerWidth - tooltipRect.width - viewportPadding);
+            }
+            if (top + tooltipRect.height > window.innerHeight - viewportPadding) {
+                top = Math.max(viewportPadding, window.innerHeight - tooltipRect.height - viewportPadding);
+            }
+
+            toolbarTooltip.style.left = `${left}px`;
+            toolbarTooltip.style.top = `${top}px`;
+        }
+
+        function getPlotMetrics() {
+            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
+            const logicalWidth = canvas.clientWidth;
+            const logicalHeight = canvas.clientHeight;
+            return {
+                margin,
+                logicalWidth,
+                logicalHeight,
+                plotW: logicalWidth - margin.left - margin.right,
+                plotH: logicalHeight - margin.top - margin.bottom
+            };
+        }
+
+        function getVisibleXRange(wavelengths) {
+            const fullMin = getFullMin(wavelengths);
+            const fullMax = getFullMax(wavelengths);
+            return {
+                fullMin,
+                fullMax,
+                xMin: zoomXMin !== null ? zoomXMin : fullMin,
+                xMax: zoomXMax !== null ? zoomXMax : fullMax
+            };
+        }
+
+        function getPlotValueFromMouseX(mouseX, wavelengths) {
+            const { margin, plotW } = getPlotMetrics();
+            if (plotW <= 0) return null;
+
+            const { xMin, xMax } = getVisibleXRange(wavelengths);
+            const clampedX = Math.max(margin.left, Math.min(canvas.clientWidth - margin.right, mouseX));
+            const frac = (clampedX - margin.left) / plotW;
+            return xMin + frac * (xMax - xMin);
+        }
+
+        function isMouseInPlot(mouseX, mouseY) {
+            const { margin, logicalWidth, logicalHeight } = getPlotMetrics();
+            return (
+                mouseX >= margin.left &&
+                mouseX <= logicalWidth - margin.right &&
+                mouseY >= margin.top &&
+                mouseY <= logicalHeight - margin.bottom
+            );
+        }
+
+        function resetIntegrationSelection() {
+            isSelectingIntegration = false;
+            integrationRangeStart = null;
+            integrationRangeEnd = null;
+        }
+
+        function updateIntegrateUI(active) {
+            const menuIntegrate = document.getElementById('menu-integrate');
+            if (active) {
+                if (menuIntegrate) menuIntegrate.classList.add('active');
+            } else {
+                if (menuIntegrate) menuIntegrate.classList.remove('active');
+            }
+        }
+
+        async function finalizeIntegrationSelection() {
+            if (integrationRangeStart === null || integrationRangeEnd === null) {
+                resetIntegrationSelection();
+                integrationModeActive = false;
+                updateIntegrateUI(false);
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                return;
+            }
+
+            const selectedMin = Math.min(integrationRangeStart, integrationRangeEnd);
+            const selectedMax = Math.max(integrationRangeStart, integrationRangeEnd);
+            resetIntegrationSelection();
+            integrationModeActive = false;
+            updateIntegrateUI(false);
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+
+            if (selectedMax <= selectedMin) {
+                alert("Select a wider range to integrate.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/analyze/integrate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ range_min: selectedMin, range_max: selectedMax })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert("Integration failed: " + (data.detail || "Unknown error"));
+                    return;
+                }
+
+                const isCalibrated = currentWavelengths &&
+                    currentWavelengths.length > 1 &&
+                    (currentWavelengths[currentWavelengths.length - 1] - currentWavelengths[0]) > 200;
+                const unit = isCalibrated ? 'nm' : 'px';
+                alert(`Integrated area: ${data.area.toFixed(4)}\nRange: ${data.range_min.toFixed(2)}-${data.range_max.toFixed(2)} ${unit}`);
+            } catch (err) {
+                alert("Integration failed: " + err.message);
+            }
+        }
+
+        function startIntegrateSelection() {
+            if (!currentWavelengths || !currentIntensities || currentWavelengths.length < 2 || currentIntensities.length < 2) {
+                alert("Capture or restore a spectrum before integrating.");
+                return;
+            }
+            integrationModeActive = true;
+            resetIntegrationSelection();
+            updateIntegrateUI(true);
+            alert("Drag across the plot to select the integration range.");
+        }
         
         // Resize Canvas
         function resizeCanvas() {
-            const cssWidth = plotArea.clientWidth;
-            const cssHeight = plotArea.clientHeight;
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = cssWidth * dpr;
-            canvas.height = cssHeight * dpr;
-            canvas.style.width = cssWidth + "px";
-            canvas.style.height = cssHeight + "px";
-            const ctx = canvas.getContext('2d');
-            ctx.scale(dpr, dpr);
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
         }
         window.addEventListener('resize', resizeCanvas);
@@ -389,13 +974,26 @@
             currentPeaks = peaks;
 
             const rawCanvas = document.getElementById('spectrum-canvas');
+            const dpr = window.devicePixelRatio || 1;
+            const parent = rawCanvas.parentElement;
+            const logicalWidth = parent.clientWidth;
+            const logicalHeight = parent.clientHeight;
+
+            rawCanvas.width = logicalWidth * dpr;
+            rawCanvas.height = logicalHeight * dpr;
+            rawCanvas.style.width = logicalWidth + 'px';
+            rawCanvas.style.height = logicalHeight + 'px';
+
             const canvas = {
-                width: rawCanvas.clientWidth,
-                height: rawCanvas.clientHeight,
+                width: logicalWidth,
+                height: logicalHeight,
                 getContext: (t) => rawCanvas.getContext(t)
             };
 
             const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+            ctx.scale(dpr, dpr);
+
             ctx.fillStyle = colors.bg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -410,7 +1008,7 @@
             ctx.translate(margin.left - 48, margin.top + plotH / 2);
             ctx.rotate(-Math.PI / 2);
             ctx.fillStyle = colors.text;
-            ctx.font = 'bold 10px Arial';
+            ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('Intensity (Counts)', 0, 0);
@@ -422,7 +1020,7 @@
             // X axis label
             let xLabel = isCalibrated ? 'Wavelength (nm)' : 'Pixel';
             ctx.fillStyle = colors.text;
-            ctx.font = 'bold 10px Arial';
+            ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(xLabel, margin.left + plotW / 2, canvas.height - margin.bottom + 32);
@@ -433,7 +1031,7 @@
                 ctx.strokeRect(margin.left, margin.top, plotW, plotH);
 
                 ctx.fillStyle = colors.text;
-                ctx.font = '11px Arial';
+                ctx.font = '13px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('Awaiting Frame Data...', margin.left + plotW / 2, margin.top + plotH / 2);
@@ -452,17 +1050,19 @@
 
             // Horizontal Grid & Y labels
             const yTicks = [0, 1, 2, 3, 4].map(i => i * (yLimit / 4.0));
-            ctx.font = '10px Arial';
+            ctx.font = '14px Arial';
             ctx.fillStyle = colors.text;
 
             yTicks.forEach(yVal => {
                 const py = canvas.height - margin.bottom - (yVal / yLimit) * plotH;
-                ctx.strokeStyle = colors.grid;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(margin.left, py);
-                ctx.lineTo(canvas.width - margin.right, py);
-                ctx.stroke();
+                if (showGrid) {
+                    ctx.strokeStyle = colors.grid;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(margin.left, py);
+                    ctx.lineTo(canvas.width - margin.right, py);
+                    ctx.stroke();
+                }
 
                 ctx.strokeStyle = colors.axis;
                 ctx.beginPath();
@@ -470,7 +1070,7 @@
                 ctx.lineTo(margin.left, py);
                 ctx.stroke();
 
-                ctx.font = '10px Arial';
+                ctx.font = '14px Arial';
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(Math.round(yVal).toString(), margin.left - 7, py);
@@ -503,12 +1103,14 @@
                 const px = margin.left + (xVal - xMin) / (xMax - xMin) * plotW;
                 if (px < margin.left || px > canvas.width - margin.right) return;
 
-                ctx.strokeStyle = colors.grid;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(px, margin.top);
-                ctx.lineTo(px, canvas.height - margin.bottom);
-                ctx.stroke();
+                if (showGrid) {
+                    ctx.strokeStyle = colors.grid;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(px, margin.top);
+                    ctx.lineTo(px, canvas.height - margin.bottom);
+                    ctx.stroke();
+                }
 
                 ctx.strokeStyle = colors.axis;
                 ctx.beginPath();
@@ -518,7 +1120,7 @@
 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
-                ctx.font = '10px Arial';
+                ctx.font = '14px Arial';
                 ctx.fillText(Math.round(xVal).toString(), px, canvas.height - margin.bottom + 8);
             });
 
@@ -595,7 +1197,7 @@
             }
 
             // Inspect/Cursor crosshair lines (behind the curve)
-            if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
+            if (!isPanning && showCrosshair && inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
                 const inspectW = wavelengths[inspectIdx];
                 const inspectY = intensities[inspectIdx];
                 const px = xMax !== xMin ? margin.left + (inspectW - xMin) / (xMax - xMin) * plotW : margin.left;
@@ -618,6 +1220,21 @@
                 ctx.stroke();
 
                 ctx.setLineDash([]);
+            }
+
+            if (integrationModeActive && integrationRangeStart !== null && integrationRangeEnd !== null) {
+                const selMin = Math.min(integrationRangeStart, integrationRangeEnd);
+                const selMax = Math.max(integrationRangeStart, integrationRangeEnd);
+                const startPx = xMax !== xMin ? margin.left + (selMin - xMin) / (xMax - xMin) * plotW : margin.left;
+                const endPx = xMax !== xMin ? margin.left + (selMax - xMin) / (xMax - xMin) * plotW : margin.left;
+                const rectX = Math.max(margin.left, Math.min(startPx, endPx));
+                const rectW = Math.max(0, Math.min(canvas.width - margin.right, Math.max(startPx, endPx)) - rectX);
+
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.16)';
+                ctx.strokeStyle = 'rgba(37, 99, 235, 0.9)';
+                ctx.lineWidth = 1;
+                ctx.fillRect(rectX, margin.top, rectW, plotH);
+                ctx.strokeRect(rectX, margin.top, rectW, plotH);
             }
 
             // Curve line
@@ -662,7 +1279,7 @@
 
                     // Text
                     ctx.fillStyle = colors.text;
-                    ctx.font = '9px Arial';
+                    ctx.font = '11px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'bottom';
                     const label = isCalibrated ? Math.round(pkX) + ' nm' : 'Px ' + pkX;
@@ -673,7 +1290,7 @@
             ctx.restore();
 
             // Readout box in top-left corner of chart area
-            if (inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
+            if (!isPanning && showCrosshair && inspectIdx !== null && wavelengths && intensities && inspectIdx < wavelengths.length) {
                 const inspectW = wavelengths[inspectIdx];
                 const inspectY = intensities[inspectIdx];
 
@@ -695,7 +1312,7 @@
                 ctx.stroke();
 
                 ctx.fillStyle = colors.text;
-                ctx.font = '12px Arial';
+                ctx.font = '14px Arial';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'top';
 
@@ -717,28 +1334,28 @@
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            const margin = { left: 65, right: 35, top: 35, bottom: 50 };
-            const plotW = canvas.clientWidth - margin.left - margin.right;
-
-            if (e.button === 2) { // Right click reset
-                e.preventDefault();
-                zoomXMin = null;
-                zoomXMax = null;
-                inspectX = null;
+            if (integrationModeActive && e.button === 0 && isMouseInPlot(mouseX, mouseY)) {
+                isSelectingIntegration = true;
+                integrationRangeStart = getPlotValueFromMouseX(mouseX, currentWavelengths);
+                integrationRangeEnd = integrationRangeStart;
                 inspectIdx = null;
+                inspectX = null;
                 drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
                 return;
             }
 
-            const isPanClick = e.button === 1 || (e.button === 0 && e.ctrlKey);
-            if (isPanClick) {
+            if (e.button === 0) { // Left click pans
                 isPanning = true;
                 panStartX = mouseX;
                 const fullMin = getFullMin(currentWavelengths);
                 const fullMax = getFullMax(currentWavelengths);
                 panStartXMin = zoomXMin !== null ? zoomXMin : fullMin;
                 panStartXMax = zoomXMax !== null ? zoomXMax : fullMax;
-                return;
+                
+                // Clear inspection index during pan start
+                inspectIdx = null;
+                inspectX = null;
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
             }
         });
 
@@ -748,6 +1365,13 @@
 
         canvas.addEventListener('mousemove', (e) => {
             if (!currentWavelengths || currentWavelengths.length === 0) return;
+            if (isSelectingIntegration) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                integrationRangeEnd = getPlotValueFromMouseX(mouseX, currentWavelengths);
+                drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+                return;
+            }
             if (isPanning) {
                 const rect = canvas.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
@@ -778,6 +1402,10 @@
         });
 
         window.addEventListener('mouseup', () => {
+            if (isSelectingIntegration) {
+                isSelectingIntegration = false;
+                finalizeIntegrationSelection();
+            }
             isPanning = false;
         });
 
@@ -800,14 +1428,29 @@
 
             const t = Math.max(0.0, Math.min(1.0, mouseX / plotW));
             const center = xMin + t * (xMax - xMin);
-            const newHalf = (xMax - xMin) * factor / 2;
+            const newSpan = (xMax - xMin) * factor;
 
-            let newMin = Math.max(fullMin, center - newHalf);
-            let newMax = Math.min(fullMax, center + newHalf);
+            let newMin = center - t * newSpan;
+            let newMax = center + (1.0 - t) * newSpan;
 
-            if (newMax - newMin < 5) return;
+            if (newMin < fullMin) {
+                newMin = fullMin;
+                newMax = newMin + newSpan;
+            }
+            if (newMax > fullMax) {
+                newMax = fullMax;
+                newMin = newMax - newSpan;
+            }
 
-            if (newMin <= fullMin && newMax >= fullMax) {
+            const isCalibrated = (currentWavelengths[currentWavelengths.length - 1] - currentWavelengths[0]) > 200;
+            const minSpan = isCalibrated ? 10.0 : 86.0;
+
+            if (newSpan < minSpan && factor < 1.0) {
+                // Prevent zooming in further than minSpan
+                return;
+            }
+
+            if (newSpan >= (fullMax - fullMin)) {
                 zoomXMin = null;
                 zoomXMax = null;
             } else {
@@ -829,6 +1472,8 @@
         canvas.addEventListener('mousemove', (e) => {
             if (!currentWavelengths || currentWavelengths.length === 0) return;
             if (isPanning) return;
+            if (isSelectingIntegration) return;
+            if (!showCrosshair) return;
 
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
@@ -843,10 +1488,7 @@
             if (mouseX >= margin.left && mouseX <= logicalWidth - margin.right &&
                 mouseY >= margin.top && mouseY <= logicalHeight - margin.bottom) {
 
-                const fullMin = getFullMin(currentWavelengths);
-                const fullMax = getFullMax(currentWavelengths);
-                const xMin = zoomXMin !== null ? zoomXMin : fullMin;
-                const xMax = zoomXMax !== null ? zoomXMax : fullMax;
+                const { xMin, xMax } = getVisibleXRange(currentWavelengths);
 
                 const frac = (mouseX - margin.left) / plotW;
                 const targetVal = xMin + frac * (xMax - xMin);
@@ -874,6 +1516,7 @@
         });
 
         canvas.addEventListener('mouseleave', () => {
+            if (isSelectingIntegration) return;
             if (inspectIdx !== null) {
                 inspectIdx = null;
                 inspectX = null;
@@ -915,12 +1558,16 @@
                 updateCpuTemp(status.cpu_temp, status.cpu_temp_warn);
             }
             if (status.baseline_enabled !== undefined) {
-                const baselineBtn = document.getElementById('baseline-btn');
-                if (status.baseline_enabled) {
-                    baselineBtn.classList.add('active');
-                } else {
-                    baselineBtn.classList.remove('active');
-                }
+                updateBaselineUI(status.baseline_enabled);
+            }
+            if (status.dark_subtraction_enabled !== undefined) {
+                updateDarkUI(status.dark_subtraction_enabled);
+            }
+            if (status.savgol_enabled !== undefined) {
+                updateSmoothingUI(status.savgol_enabled);
+            }
+            if (status.normalize_enabled !== undefined) {
+                updateNormalizeUI(status.normalize_enabled);
             }
         }
 
@@ -978,13 +1625,20 @@
         const captureBtn = document.getElementById('capture-btn');
         const stopBtn = document.getElementById('stop-btn');
         const exposureInput = document.getElementById('exposure-input');
-        const plotModeBtn = document.getElementById('plot-mode-btn');
-        const baselineBtn = document.getElementById('baseline-btn');
-        const exportJsonBtn = document.getElementById('export-json-btn');
-        const exportCsvBtn = document.getElementById('export-csv-btn');
-        const shutdownBtn = document.getElementById('shutdown-btn');
-        const rebootBtn = document.getElementById('reboot-btn');
-        const restartBtn = document.getElementById('restart-btn');
+        const plotModeBtn = null;
+        const baselineBtn = null;
+        const exportJsonBtn = null;
+        const exportCsvBtn = null;
+
+        // Icon Toolbar wiring
+        const toolbarCapture = null;
+        const toolbarLive = null;
+        const toolbarExportJson = document.getElementById('toolbar-export-json');
+        const toolbarExportCsv = document.getElementById('toolbar-export-csv');
+        const toolbarHistory = document.getElementById('toolbar-history');
+        const toolbarCrosshair = document.getElementById('toolbar-crosshair');
+        const toolbarColor = document.getElementById('toolbar-color');
+        const toolbarBaseline = document.getElementById('toolbar-baseline');
 
         function setSelectedMode(mode) {
             selectedMode = mode;
@@ -1012,9 +1666,32 @@
                 captureBtn.disabled = active;
                 stopBtn.disabled = true;
             }
+
+            if (toolbarCapture) toolbarCapture.disabled = active;
+            if (toolbarLive) {
+                if (active) {
+                    toolbarLive.classList.add('active');
+                    toolbarLive.setAttribute('data-tooltip', 'Stop Live');
+                    toolbarLive.querySelector('.icon-play').style.display = 'none';
+                    toolbarLive.querySelector('.icon-stop').style.display = 'block';
+                } else {
+                    toolbarLive.classList.remove('active');
+                    toolbarLive.setAttribute('data-tooltip', 'Start Live');
+                    toolbarLive.querySelector('.icon-play').style.display = 'block';
+                    toolbarLive.querySelector('.icon-stop').style.display = 'none';
+                }
+            }
+
             if (!active) {
                 document.getElementById('fps-status').innerText = 'FPS: 0.0';
             }
+        }
+
+        function setExportEnabled(enabled) {
+            if (exportJsonBtn) exportJsonBtn.disabled = !enabled;
+            if (exportCsvBtn) exportCsvBtn.disabled = !enabled;
+            toolbarExportJson.disabled = !enabled;
+            toolbarExportCsv.disabled = !enabled;
         }
 
         modeSingleBtn.addEventListener('click', async () => {
@@ -1096,8 +1773,7 @@
                 
                 // Draw frame
                 drawSpectrum(data.wavelengths, data.intensities, data.peaks);
-                exportJsonBtn.disabled = false;
-                exportCsvBtn.disabled = false;
+                setExportEnabled(true);
                 
                 // Check calibration status and update peaks label
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
@@ -1146,8 +1822,7 @@
                 
                 const data = await res.json();
                 drawSpectrum(data.wavelengths, data.intensities, data.peaks);
-                exportJsonBtn.disabled = false;
-                exportCsvBtn.disabled = false;
+                setExportEnabled(true);
                 
                 const isCalibrated = (data.wavelengths[data.wavelengths.length - 1] - data.wavelengths[0]) > 200;
                 updatePeaksStatus(data.peaks, isCalibrated);
@@ -1195,22 +1870,32 @@
             }
         });
 
-        // Display Toggles
-        plotModeBtn.addEventListener('click', () => {
+        // Shared Toggles and Handlers
+        function toggleColorSpectrum() {
+            const menuColorSpectrum = document.getElementById('menu-color-spectrum');
             if (fillMode === 'color') {
                 fillMode = 'plain';
-                plotModeBtn.classList.remove('active');
-                plotModeBtn.innerText = 'Plain Spectrum';
+                if (plotModeBtn) {
+                    plotModeBtn.classList.remove('active');
+                    plotModeBtn.innerText = 'Plain Spectrum';
+                }
+                menuColorSpectrum.classList.remove('active');
+                toolbarColor.classList.remove('active');
             } else {
                 fillMode = 'color';
-                plotModeBtn.classList.add('active');
-                plotModeBtn.innerText = 'Colour Spectrum';
+                if (plotModeBtn) {
+                    plotModeBtn.classList.add('active');
+                    plotModeBtn.innerText = 'Colour Spectrum';
+                }
+                menuColorSpectrum.classList.add('active');
+                toolbarColor.classList.add('active');
             }
             drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
-        });
+        }
 
-        baselineBtn.addEventListener('click', async () => {
-            const currentActive = baselineBtn.classList.contains('active');
+        async function toggleBaselineCorrection() {
+            const menuBaselineCorr = document.getElementById('menu-baseline-corr');
+            const currentActive = toolbarBaseline.classList.contains('active');
             const targetActive = !currentActive;
             
             try {
@@ -1220,87 +1905,528 @@
                     body: JSON.stringify({ enabled: targetActive })
                 });
                 const data = await res.json();
-                if (data.baseline_enabled) {
-                    baselineBtn.classList.add('active');
-                } else {
-                    baselineBtn.classList.remove('active');
-                }
+                updateBaselineUI(data.baseline_enabled);
             } catch (err) {
                 console.error("Error toggling baseline:", err);
             }
-        });
+        }
+
+        function updateBaselineUI(enabled) {
+            const menuBaselineCorr = document.getElementById('menu-baseline-corr');
+            const menuAnalysisBaselineCorr = document.getElementById('menu-analysis-baseline-corr');
+            const baselineBtn = document.getElementById('baseline-btn');
+            if (enabled) {
+                if (baselineBtn) baselineBtn.classList.add('active');
+                if (menuBaselineCorr) menuBaselineCorr.classList.add('active');
+                if (menuAnalysisBaselineCorr) menuAnalysisBaselineCorr.classList.add('active');
+                toolbarBaseline.classList.add('active');
+            } else {
+                if (baselineBtn) baselineBtn.classList.remove('active');
+                if (menuBaselineCorr) menuBaselineCorr.classList.remove('active');
+                if (menuAnalysisBaselineCorr) menuAnalysisBaselineCorr.classList.remove('active');
+                toolbarBaseline.classList.remove('active');
+            }
+        }
+
+        async function toggleDarkSubtraction() {
+            const menuToggleDark = document.getElementById('menu-toggle-dark');
+            const currentActive = menuToggleDark ? menuToggleDark.classList.contains('active') : true;
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/dark/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                updateDarkUI(data.dark_subtraction_enabled);
+            } catch (err) {
+                console.error("Error toggling dark subtraction:", err);
+            }
+        }
+
+        function updateDarkUI(enabled) {
+            const menuToggleDark = document.getElementById('menu-toggle-dark');
+            if (enabled) {
+                if (menuToggleDark) menuToggleDark.classList.add('active');
+            } else {
+                if (menuToggleDark) menuToggleDark.classList.remove('active');
+            }
+        }
+
+        async function toggleSmoothing() {
+            const menuSmoothing = document.getElementById('menu-smoothing');
+            const currentActive = menuSmoothing ? menuSmoothing.classList.contains('active') : true;
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/smoothing/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                updateSmoothingUI(data.savgol_enabled);
+            } catch (err) {
+                console.error("Error toggling smoothing:", err);
+            }
+        }
+
+        function updateSmoothingUI(enabled) {
+            const menuSmoothing = document.getElementById('menu-smoothing');
+            if (enabled) {
+                if (menuSmoothing) menuSmoothing.classList.add('active');
+            } else {
+                if (menuSmoothing) menuSmoothing.classList.remove('active');
+            }
+        }
+
+        async function toggleNormalize() {
+            const menuNormalize = document.getElementById('menu-normalize');
+            const currentActive = menuNormalize ? menuNormalize.classList.contains('active') : false;
+            const targetActive = !currentActive;
+            
+            try {
+                const res = await fetch('/api/normalize/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: targetActive })
+                });
+                const data = await res.json();
+                updateNormalizeUI(data.normalize_enabled);
+            } catch (err) {
+                console.error("Error toggling normalization:", err);
+            }
+        }
+
+        function updateNormalizeUI(enabled) {
+            const menuNormalize = document.getElementById('menu-normalize');
+            if (enabled) {
+                if (menuNormalize) menuNormalize.classList.add('active');
+            } else {
+                if (menuNormalize) menuNormalize.classList.remove('active');
+            }
+        }
+
+        function exportCurrent(format) {
+            window.location.href = `/api/export/current?format=${format}`;
+        }
+
+        // Display Toggles
+        if (plotModeBtn) {
+            plotModeBtn.addEventListener('click', toggleColorSpectrum);
+        }
+
+        if (baselineBtn) {
+            baselineBtn.addEventListener('click', toggleBaselineCorrection);
+        }
 
         // Export handlers
-        exportJsonBtn.addEventListener('click', () => {
-            window.location.href = `/api/export/current?format=json`;
-        });
+        if (exportJsonBtn) {
+            exportJsonBtn.addEventListener('click', () => exportCurrent('json'));
+        }
 
-        exportCsvBtn.addEventListener('click', () => {
-            window.location.href = `/api/export/current?format=csv`;
-        });
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', () => exportCurrent('csv'));
+        }
 
-        shutdownBtn.addEventListener('click', async () => {
-            if (!confirm("Are you sure you want to shut down the system?")) {
+        // System Menu confirm handlers
+        async function runShutdown() {
+            if (confirm("Are you sure you want to shut down the system? Unsaved data will be lost.")) {
+                try {
+                    const res = await fetch('/api/shutdown', { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok && data.ok) {
+                        const actionStatus = document.getElementById('action-status');
+                        if (actionStatus) {
+                            actionStatus.innerText = 'Shutting down...';
+                            actionStatus.style.display = '';
+                        }
+                    } else {
+                        alert("Shutdown failed.");
+                    }
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            }
+        }
+
+        async function runRestart() {
+            if (confirm("Are you sure you want to restart the system? Unsaved data will be lost.")) {
+                try {
+                    const res = await fetch('/api/restart', { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok && data.ok) {
+                        alert("Pipeline/system restarted successfully.");
+                        fetchStatus();
+                    } else {
+                        alert("Restart failed.");
+                    }
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            }
+        }
+
+        async function saveSpectrum() {
+            if (!currentWavelengths) {
+                alert("No spectrum data to save");
                 return;
             }
-            const statusEl = document.getElementById('shutdown-status');
-            shutdownBtn.disabled = true;
-            statusEl.innerText = 'Shutting down...';
             try {
-                const res = await fetch('/api/shutdown', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    statusEl.innerText = 'Shutdown initiated.';
+                const res = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label: "Web Spectrum" })
+                });
+                if (res.ok) {
+                    alert("Spectrum saved to database history");
+                    fetchStatus();
                 } else {
-                    statusEl.innerText = 'Shutdown failed.';
-                    shutdownBtn.disabled = false;
+                    alert("Failed to save spectrum");
                 }
             } catch (err) {
-                statusEl.innerText = `Error: ${err.message}`;
-                shutdownBtn.disabled = false;
+                console.error("Error saving spectrum:", err);
+            }
+        }
+
+        // Menu item click wiring
+        document.getElementById('menu-recent-files').addEventListener('click', () => {
+            const isActive = historyPanel.classList.toggle('active');
+            if (isActive) {
+                fetchHistory();
             }
         });
+        document.getElementById('menu-save-spectrum').addEventListener('click', saveSpectrum);
+        document.getElementById('menu-export-json').addEventListener('click', () => {
+            if (!toolbarExportJson.disabled) exportCurrent('json');
+        });
+        document.getElementById('menu-export-csv').addEventListener('click', () => {
+            if (!toolbarExportCsv.disabled) exportCurrent('csv');
+        });
+        document.getElementById('menu-single-capture').addEventListener('click', () => {
+            if (!captureBtn.disabled) captureBtn.click();
+        });
+        document.getElementById('menu-start-stop-live').addEventListener('click', async () => {
+            if (selectedMode === 'single') {
+                setSelectedMode('live');
+                await startLive();
+            } else {
+                await stopLive();
+                setSelectedMode('single');
+            }
+        });
+        document.getElementById('menu-exposure-settings').addEventListener('click', () => {
+            exposureInput.focus();
+            exposureInput.select();
+        });
+        document.getElementById('menu-wavelength-calibration').addEventListener('click', () => {
+            window.location.href = '/static/calibration.html';
+        });
+        document.getElementById('menu-compare-ratio').addEventListener('click', () => {
+            window.location.href = '/static/compare.html';
+        });
+        document.getElementById('menu-capture-dark').addEventListener('click', async () => {
+            if (!confirm("Cover the lens completely to block all light, then click OK to capture dark frame.")) return;
+            try {
+                const res = await fetch('/api/dark/capture', { method: 'POST' });
+                if (res.status === 409) {
+                    alert("Live mode active — stop live before dark capture");
+                    return;
+                }
+                if (res.status === 503) {
+                    alert("Camera not available");
+                    return;
+                }
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.status || "Dark frame captured successfully");
+                    fetchStatus();
+                } else {
+                    alert("Failed to capture dark frame: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        });
+        document.getElementById('menu-peak-detection').addEventListener('click', () => {
+            showPeaks = !showPeaks;
+            const menuPeakDetection = document.getElementById('menu-peak-detection');
+            if (showPeaks) {
+                menuPeakDetection.classList.add('active');
+            } else {
+                menuPeakDetection.classList.remove('active');
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-toggle-dark').addEventListener('click', () => {
+            toggleDarkSubtraction();
+        });
+        document.getElementById('menu-smoothing').addEventListener('click', () => {
+            toggleSmoothing();
+        });
+        document.getElementById('menu-normalize').addEventListener('click', () => {
+            toggleNormalize();
+        });
+        document.getElementById('menu-integrate').addEventListener('click', () => {
+            startIntegrateSelection();
+        });
+        document.getElementById('menu-color-spectrum').addEventListener('click', () => {
+            toggleColorSpectrum();
+        });
+        document.getElementById('menu-baseline-corr').addEventListener('click', () => {
+            toggleBaselineCorrection();
+        });
+        document.getElementById('menu-analysis-baseline-corr').addEventListener('click', () => {
+            toggleBaselineCorrection();
+        });
+        document.getElementById('menu-show-grid').addEventListener('click', () => {
+            showGrid = !showGrid;
+            const menuShowGrid = document.getElementById('menu-show-grid');
+            if (showGrid) {
+                menuShowGrid.classList.add('active');
+            } else {
+                menuShowGrid.classList.remove('active');
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-show-crosshair').addEventListener('click', () => {
+            showCrosshair = !showCrosshair;
+            const menuShowCrosshair = document.getElementById('menu-show-crosshair');
+            if (showCrosshair) {
+                menuShowCrosshair.classList.add('active');
+                toolbarCrosshair.classList.add('active');
+            } else {
+                menuShowCrosshair.classList.remove('active');
+                toolbarCrosshair.classList.remove('active');
+            }
+            if (!showCrosshair) {
+                inspectIdx = null;
+                inspectX = null;
+            }
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-zoom-reset').addEventListener('click', () => {
+            zoomXMin = null;
+            zoomXMax = null;
+            inspectX = null;
+            inspectIdx = null;
+            drawSpectrum(currentWavelengths, currentIntensities, currentPeaks);
+        });
+        document.getElementById('menu-shutdown').addEventListener('click', runShutdown);
+        document.getElementById('menu-restart-system').addEventListener('click', runRestart);
+        document.getElementById('menu-about').addEventListener('click', () => {
+            alert("Spectroo v3\nVersion 3.0.0\nPowered by LaserQuant");
+        });
+        document.getElementById('menu-documentation').addEventListener('click', () => {
+            window.location.href = '/static/help.html';
+        });
 
-        rebootBtn.addEventListener('click', async () => {
-            if (!confirm("Are you sure you want to reboot the system?")) {
+        // Toolbar button listeners
+        if (toolbarCapture) {
+            toolbarCapture.addEventListener('click', () => {
+                if (!toolbarCapture.disabled) {
+                    if (selectedMode === 'live') {
+                        setSelectedMode('single');
+                    }
+                    captureBtn.click();
+                }
+            });
+        }
+        
+        if (toolbarLive) {
+            toolbarLive.addEventListener('click', async () => {
+                if (streamingActive) {
+                    await stopLive();
+                    setSelectedMode('single');
+                } else {
+                    setSelectedMode('live');
+                    await startLive();
+                }
+            });
+        }
+        
+        toolbarExportJson.addEventListener('click', () => {
+            if (!toolbarExportJson.disabled) {
+                exportCurrent('json');
+            }
+        });
+        
+        toolbarExportCsv.addEventListener('click', () => {
+            if (!toolbarExportCsv.disabled) {
+                exportCurrent('csv');
+            }
+        });
+        document.querySelectorAll('.toolbar-btn[data-tooltip]').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                if (btn.disabled) return;
+                positionToolbarTooltip(btn);
+            });
+            btn.addEventListener('mousemove', () => {
+                if (toolbarTooltip.classList.contains('visible')) {
+                    positionToolbarTooltip(btn);
+                }
+            });
+            btn.addEventListener('mouseleave', hideToolbarTooltip);
+            btn.addEventListener('blur', hideToolbarTooltip);
+        });
+        window.addEventListener('scroll', hideToolbarTooltip, true);
+        window.addEventListener('resize', hideToolbarTooltip);
+        const historyPanel = document.getElementById('history-panel');
+        const historyList = document.getElementById('history-list');
+        const closeHistoryPanel = document.getElementById('close-history-panel');
+
+        function generateSparklineSvg(sparklineData) {
+            if (!sparklineData || sparklineData.length === 0) return '';
+            const width = 320;
+            const height = 40;
+            const maxVal = Math.max(1, Math.max(...sparklineData));
+            const points = sparklineData.map((val, i) => {
+                const x = (i / (sparklineData.length - 1)) * width;
+                const y = height - (val / maxVal) * height;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            
+            return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="none">
+                <polyline fill="none" stroke="#3b82f6" stroke-width="1.5" points="${points}" />
+            </svg>`;
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) throw new Error("Failed to fetch history");
+                const data = await res.json();
+                renderHistory(data);
+            } catch (err) {
+                console.error("Error fetching history:", err);
+                historyList.innerHTML = `<div style="padding: 16px; color: #ef4444; font-size: 12px; text-align: center;">Error loading history: ${err.message}</div>`;
+            }
+        }
+
+        function renderHistory(items) {
+            if (!items || items.length === 0) {
+                historyList.innerHTML = '<div style="padding: 24px; color: #94a3b8; font-size: 12px; text-align: center;">No saved captures.</div>';
                 return;
             }
-            const statusEl = document.getElementById('reboot-status');
-            rebootBtn.disabled = true;
-            statusEl.innerText = 'Rebooting...';
+
+            historyList.innerHTML = items.map(item => {
+                const dt = new Date(item.timestamp);
+                const timeStr = dt.toLocaleString();
+                const pinClass = item.pinned ? 'pinned' : '';
+                const pinTooltip = item.pinned ? 'Unpin spectrum' : 'Pin spectrum';
+                
+                const pinIcon = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="${item.pinned ? 'currentColor' : 'none'}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+
+                return `
+                    <div class="history-item ${item.pinned ? 'pinned-item' : ''}" data-id="${item.id}">
+                        <div class="history-item-top">
+                            <span class="history-item-time">${timeStr}</span>
+                            <div class="history-item-meta">
+                                <span>${item.exposure_us / 1000} ms</span>
+                                <button class="pin-btn ${pinClass}" onclick="togglePin(${item.id}, ${item.pinned})" title="${pinTooltip}">
+                                    ${pinIcon}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="history-item-sparkline">
+                            ${generateSparklineSvg(item.sparkline)}
+                        </div>
+                        <div class="history-item-actions">
+                            <button class="history-action-btn" onclick="restoreHistory(${item.id})">Restore</button>
+                            <button class="history-action-btn" onclick="setHistoryAsReference(${item.id})" style="background-color: #f1f5f9; color: #0f172a; border-color: #cbd5e1;">Set as Ref</button>
+                            <button class="history-action-btn" onclick="exportHistory(${item.id}, 'json')">JSON</button>
+                            <button class="history-action-btn" onclick="exportHistory(${item.id}, 'csv')">CSV</button>
+                            <button class="history-action-btn btn-delete" onclick="deleteHistory(${item.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function togglePin(id, currentPinned) {
+            const endpoint = currentPinned ? 'unpin' : 'pin';
             try {
-                const res = await fetch('/api/reboot', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    statusEl.innerText = 'Reboot initiated.';
-                } else {
-                    statusEl.innerText = 'Reboot failed.';
-                    rebootBtn.disabled = false;
+                const res = await fetch(`/api/history/${id}/${endpoint}`, { method: 'POST' });
+                if (res.ok) {
+                    fetchHistory();
                 }
             } catch (err) {
-                statusEl.innerText = `Error: ${err.message}`;
-                rebootBtn.disabled = false;
+                console.error("Error toggling pin:", err);
+            }
+        }
+
+        async function restoreHistory(id) {
+            try {
+                const res = await fetch(`/api/history/${id}/restore`, { method: 'POST' });
+                if (!res.ok) throw new Error("Failed to restore record");
+                const data = await res.json();
+                
+                drawSpectrum(data.wavelengths, data.intensities, data.peaks);
+                setExportEnabled(true);
+            } catch (err) {
+                alert("Error restoring spectrum: " + err.message);
+            }
+        }
+
+        async function deleteHistory(id) {
+            if (!confirm("Are you sure you want to delete this capture from history?")) return;
+            try {
+                const res = await fetch(`/api/history/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchHistory();
+                }
+            } catch (err) {
+                console.error("Error deleting history:", err);
+            }
+        }
+
+        function exportHistory(id, format) {
+            window.location.href = `/api/export/${id}?format=${format}`;
+        }
+
+        async function setHistoryAsReference(id) {
+            try {
+                const res = await fetch(`/api/compare/reference/from-history/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    alert(`Reference successfully set to History Record #${id}`);
+                } else {
+                    const data = await res.json();
+                    alert("Failed to set reference: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error setting reference: " + err.message);
+            }
+        }
+
+        window.togglePin = togglePin;
+        window.restoreHistory = restoreHistory;
+        window.deleteHistory = deleteHistory;
+        window.exportHistory = exportHistory;
+        window.setHistoryAsReference = setHistoryAsReference;
+
+        toolbarHistory.addEventListener('click', () => {
+            const isActive = historyPanel.classList.toggle('active');
+            if (isActive) {
+                fetchHistory();
             }
         });
 
-        restartBtn.addEventListener('click', async () => {
-            const statusEl = document.getElementById('restart-status');
-            restartBtn.disabled = true;
-            statusEl.innerText = 'Restarting pipeline...';
-            try {
-                const res = await fetch('/api/restart', { method: 'POST' });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    statusEl.innerText = 'Pipeline restarted.';
-                    restartBtn.disabled = false;
-                } else {
-                    statusEl.innerText = 'Restart failed.';
-                    restartBtn.disabled = false;
-                }
-            } catch (err) {
-                statusEl.innerText = `Error: ${err.message}`;
-                restartBtn.disabled = false;
-            }
+        closeHistoryPanel.addEventListener('click', () => {
+            historyPanel.classList.remove('active');
+        });
+        
+        toolbarCrosshair.addEventListener('click', () => {
+            document.getElementById('menu-show-crosshair').click();
+        });
+        
+        toolbarColor.addEventListener('click', () => {
+            toggleColorSpectrum();
+        });
+        
+        toolbarBaseline.addEventListener('click', () => {
+            toggleBaselineCorrection();
         });
 
         // Periodic polling for status when not streaming
@@ -1310,6 +2436,148 @@
             }
         }, 5000);
 
+        // Calibration Menu Action Handling
+        const saveCalOverlay = document.getElementById('save-calibration-overlay');
+        const loadCalOverlay = document.getElementById('load-calibration-overlay');
+        const saveCalLabel = document.getElementById('save-calibration-label');
+        const loadCalListContainer = document.getElementById('load-calibration-list');
+
+        document.getElementById('menu-save-calibration').addEventListener('click', () => {
+            saveCalLabel.value = '';
+            saveCalOverlay.style.display = 'flex';
+        });
+
+        document.getElementById('save-calibration-cancel').addEventListener('click', () => {
+            saveCalOverlay.style.display = 'none';
+        });
+
+        document.getElementById('save-calibration-submit').addEventListener('click', async () => {
+            const label = saveCalLabel.value.trim() || 'Untitled';
+            try {
+                const res = await fetch('/api/calibration/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label })
+                });
+                
+                if (res.ok) {
+                    alert("Calibration snapshot saved successfully.");
+                    saveCalOverlay.style.display = 'none';
+                    fetchStatus();
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to save calibration: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error saving calibration: " + err.message);
+            }
+        });
+
+        document.getElementById('menu-load-calibration').addEventListener('click', async () => {
+            loadCalOverlay.style.display = 'flex';
+            await fetchCalibrationFileList();
+        });
+
+        document.getElementById('load-calibration-cancel-btn').addEventListener('click', () => {
+            loadCalOverlay.style.display = 'none';
+        });
+
+        async function fetchCalibrationFileList() {
+            loadCalListContainer.innerHTML = '<div style="padding: 12px; color: #64748b; text-align: center;">Loading...</div>';
+            try {
+                const res = await fetch('/api/calibration/list');
+                if (!res.ok) throw new Error("Failed to fetch list");
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    loadCalListContainer.innerHTML = '<div style="padding: 16px; color: #94a3b8; text-align: center;">No saved calibration snapshots found.</div>';
+                    return;
+                }
+                
+                loadCalListContainer.innerHTML = data.map(item => `
+                    <div class="calibration-list-item" onclick="loadCalibrationFile('${item.filename}')">
+                        <div class="calibration-item-title">${item.label || 'Untitled'}</div>
+                        <div class="calibration-item-meta">
+                            RMS: ${item.rms_nm ? item.rms_nm.toFixed(4) + ' nm' : 'N/A'} | degree: ${item.degree}
+                        </div>
+                        <div class="calibration-item-meta" style="font-size: 10px; color: #94a3b8;">
+                            ${item.filename}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                loadCalListContainer.innerHTML = `<div style="padding: 12px; color: #ef4444; text-align: center;">Error: ${err.message}</div>`;
+            }
+        }
+
+        async function loadCalibrationFile(filename) {
+            try {
+                const res = await fetch(`/api/calibration/load/${filename}`, { method: 'POST' });
+                if (res.ok) {
+                    alert("Calibration loaded and applied successfully.");
+                    loadCalOverlay.style.display = 'none';
+                    
+                    fetchStatus();
+                    // Trigger capture to show updated spectrum wavelengths
+                    if (!streamingActive) {
+                        captureBtn.click();
+                    }
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to load calibration: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error loading calibration: " + err.message);
+            }
+        }
+        window.loadCalibrationFile = loadCalibrationFile;
+
+        document.getElementById('menu-clear-calibration').addEventListener('click', async () => {
+            if (!confirm("Are you sure you want to clear the active calibration and revert to default pixels?")) return;
+            try {
+                const res = await fetch('/api/calibration/clear', { method: 'POST' });
+                if (res.ok) {
+                    alert("Calibration cleared successfully.");
+                    fetchStatus();
+                    if (!streamingActive) {
+                        captureBtn.click();
+                    }
+                } else {
+                    const errData = await res.json();
+                    alert("Failed to clear calibration: " + (errData.detail || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error clearing calibration: " + err.message);
+            }
+        });
+
     </script>
+
+    <!-- Save Calibration Modal -->
+    <div id="save-calibration-overlay" class="overlay">
+        <div class="dialog">
+            <h4 style="margin: 0 0 12px 0; font-size: 17px; color: #1e293b;">Save Calibration Snapshot</h4>
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="save-calibration-label" placeholder="Calibration Label (e.g. Neon lamp)" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; outline: none;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="save-calibration-submit" class="active" style="width: auto; flex-grow: 1;">Save</button>
+                <button id="save-calibration-cancel" style="width: auto; flex-grow: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Calibration Modal -->
+    <div id="load-calibration-overlay" class="overlay">
+        <div class="dialog" style="width: 320px;">
+            <h4 style="margin: 0 0 12px 0; font-size: 17px; color: #1e293b;">Load Calibration File</h4>
+            <div id="load-calibration-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px;">
+                <!-- List items loaded dynamically -->
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="load-calibration-cancel-btn" style="width: 100%;">Cancel</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

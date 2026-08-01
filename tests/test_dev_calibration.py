@@ -80,6 +80,30 @@ def test_on_undo_removes_point(cal_window):
     assert len(cal_window._points) == 0
 
 
+def test_delete_point_removes_only_matching_row_with_duplicate_pixels(cal_window):
+    pt1 = CalibrationPoint(100, 450.0)
+    pt1.pixel = 100
+    pt1.wavelength = 450.0
+
+    pt2 = CalibrationPoint(100, 550.0)
+    pt2.pixel = 100
+    pt2.wavelength = 550.0
+
+    cal_window._points = [pt1, pt2]
+    cal_window.canvas.set_calibration_points(cal_window._points)
+    cal_window.table.clear_points()
+    cal_window.table.add_point(pt1)
+    cal_window.table.add_point(pt2)
+
+    cal_window._delete_point(0)
+
+    assert len(cal_window._points) == 1
+    remaining = cal_window._points[0]
+    assert getattr(remaining, "pixel_index", getattr(remaining, "pixel", -1)) == 100
+    assert getattr(remaining, "known_wavelength_nm", getattr(remaining, "wavelength", 0.0)) == 550.0
+    assert cal_window.table.table.rowCount() == 1
+
+
 def test_on_run_fit_with_insufficient_points(monkeypatch, cal_window):
     """Calls _on_run_fit() with zero points; asserts no fit is stored (shows warning)."""
     called_warnings = []

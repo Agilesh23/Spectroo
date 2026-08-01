@@ -161,7 +161,7 @@ async def log_stream_generator(log_path: str):
             except Exception:
                 pass
     else:
-        expanded_path = os.path.expanduser(log_path)
+        expanded_path = log_path
         os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
         if not os.path.exists(expanded_path):
             with open(expanded_path, "w", encoding="utf-8") as f:
@@ -195,7 +195,9 @@ async def logs_stream(websocket: WebSocket):
         raise HTTPException(status_code=403, detail="Developer mode is not enabled")
 
     await websocket.accept()
-    log_path = "~/spectroo/logs/spectroo.log"
+    import os as _os
+    _project_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    log_path = _os.path.join(_project_root, "logs", "spectroo.log")
     
     try:
         async for line in log_stream_generator(log_path):

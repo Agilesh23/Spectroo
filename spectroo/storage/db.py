@@ -31,10 +31,16 @@ def init_db(db_path: str) -> None:
                     wavelengths TEXT,
                     peaks TEXT NOT NULL,
                     png_path TEXT NOT NULL,
-                    calibration_rms_at_capture REAL
+                    calibration_rms_at_capture REAL,
+                    pinned INTEGER DEFAULT 0
                 )
             """
             )
+            # Migration check: if table exists but doesn't have pinned column, add it
+            cursor.execute("PRAGMA table_info(history)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if columns and "pinned" not in columns:
+                cursor.execute("ALTER TABLE history ADD COLUMN pinned INTEGER DEFAULT 0")
             conn.commit()
         finally:
             conn.close()
@@ -53,7 +59,8 @@ def save_record(
 ) -> int:
     """Insert the record (serialize array/peak fields to JSON).
 
-    If total row count exceeds max_entries, delete oldest rows. Return new row id.
+    If total unpinned row count exceeds max_entries, delete the oldest unpinned rows.
+    Return new row id.
     """
     conn = None
     try:
@@ -83,8 +90,8 @@ def save_record(
             """
             INSERT INTO history (
                 timestamp, exposure_us, pixel_indices, intensity, wavelengths,
-                peaks, png_path, calibration_rms_at_capture
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                peaks, png_path, calibration_rms_at_capture, pinned
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 record.timestamp,
@@ -95,19 +102,18 @@ def save_record(
                 peaks_json,
                 record.png_path,
                 record.calibration_rms_at_capture,
+                1 if record.pinned else 0,
             ),
         )
         new_id = cursor.lastrowid
 
-        # Enforce FIFO limits
-        cursor.execute("SELECT COUNT(*) FROM history")
-        count = cursor.fetchone()[0]
-        if count > max_entries:
-            prune_count = count - max_entries
-            cursor.execute(
-                f"DELETE FROM history WHERE id IN (SELECT id FROM history ORDER BY id ASC LIMIT ?)",
-                (prune_count,),
-            )
+        # Enforce FIFO limits: keep at most max_entries unpinned entries
+        cursor.execute("SELECT id FROM history WHERE pinned = 0 ORDER BY id ASC")
+        unpinned_ids = [row[0] for row in cursor.fetchall()]
+        if len(unpinned_ids) > max_entries:
+            prune_count = len(unpinned_ids) - max_entries
+            to_delete = unpinned_ids[:prune_count]
+            cursor.executemany("DELETE FROM history WHERE id = ?", [(tid,) for tid in to_delete])
 
         conn.commit()
         return new_id
@@ -139,7 +145,7 @@ def get_record(db_path: str, record_id: int) -> HistoryRecord | None:
         cursor.execute(
             """
             SELECT id, timestamp, exposure_us, pixel_indices, intensity,
-                   wavelengths, peaks, png_path, calibration_rms_at_capture
+                   wavelengths, peaks, png_path, calibration_rms_at_capture, pinned
               FROM history WHERE id = ?
         """,
             (record_id,),
@@ -158,6 +164,7 @@ def get_record(db_path: str, record_id: int) -> HistoryRecord | None:
             peaks_json,
             png_path,
             calibration_rms,
+            pinned_val,
         ) = row
 
         pixel_indices = json.loads(pixel_indices_json)
@@ -189,9 +196,110 @@ def get_record(db_path: str, record_id: int) -> HistoryRecord | None:
             peaks=peaks,
             png_path=png_path,
             calibration_rms_at_capture=calibration_rms,
+            pinned=bool(pinned_val) if pinned_val is not None else False,
         )
     except sqlite3.Error as e:
         raise StorageUnavailableError(f"Database query error: {e}") from e
+    finally:
+        if conn:
+            conn.close()
+
+
+def get_all_records(db_path: str) -> list[HistoryRecord]:
+    """Retrieve all history records from the database, sorted by id DESC."""
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, timestamp, exposure_us, pixel_indices, intensity,
+                   wavelengths, peaks, png_path, calibration_rms_at_capture, pinned
+              FROM history ORDER BY id DESC
+        """
+        )
+        rows = cursor.fetchall()
+        records = []
+        for row in rows:
+            (
+                r_id,
+                timestamp,
+                exposure_us,
+                pixel_indices_json,
+                intensity_json,
+                wavelengths_json,
+                peaks_json,
+                png_path,
+                calibration_rms,
+                pinned_val,
+            ) = row
+
+            pixel_indices = json.loads(pixel_indices_json)
+            intensity = json.loads(intensity_json)
+            wavelengths = (
+                json.loads(wavelengths_json)
+                if wavelengths_json is not None
+                else None
+            )
+
+            peaks_raw = json.loads(peaks_json)
+            peaks = [
+                Peak(
+                    pixel_index=p["pixel_index"],
+                    wavelength_nm=p["wavelength_nm"],
+                    intensity=p["intensity"],
+                    prominence=p["prominence"],
+                )
+                for p in peaks_raw
+            ]
+
+            records.append(
+                HistoryRecord(
+                    id=r_id,
+                    timestamp=timestamp,
+                    exposure_us=exposure_us,
+                    pixel_indices=pixel_indices,
+                    intensity=intensity,
+                    wavelengths=wavelengths,
+                    peaks=peaks,
+                    png_path=png_path,
+                    calibration_rms_at_capture=calibration_rms,
+                    pinned=bool(pinned_val) if pinned_val is not None else False,
+                )
+            )
+        return records
+    except sqlite3.Error as e:
+        raise StorageUnavailableError(f"Database query error: {e}") from e
+    finally:
+        if conn:
+            conn.close()
+
+
+def delete_record(db_path: str, record_id: int) -> None:
+    """Delete a record from history."""
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM history WHERE id = ?", (record_id,))
+        conn.commit()
+    except sqlite3.Error as e:
+        raise StorageUnavailableError(f"Database delete error: {e}") from e
+    finally:
+        if conn:
+            conn.close()
+
+
+def set_pinned_status(db_path: str, record_id: int, pinned: bool) -> None:
+    """Set the pinned status of a record."""
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE history SET pinned = ? WHERE id = ?", (1 if pinned else 0, record_id))
+        conn.commit()
+    except sqlite3.Error as e:
+        raise StorageUnavailableError(f"Database update error: {e}") from e
     finally:
         if conn:
             conn.close()

@@ -371,7 +371,7 @@ class CalibrationPointsTable(QWidget):
             "QPushButton { background-color: #ff4444; color: white; border: none; padding: 4px; border-radius: 2px; }"
             "QPushButton:hover { background-color: #cc0000; }"
         )
-        del_btn.clicked.connect(lambda _, p=pixel: self.point_deleted.emit(p))
+        del_btn.clicked.connect(lambda _, r=row: self.point_deleted.emit(r))
         self.table.setCellWidget(row, 2, del_btn)
 
     def remove_last(self) -> None:
@@ -871,62 +871,8 @@ class CalibrationWindow(QDialog):
             base_dir = os.path.dirname(base_dir)
 
         try:
-            # Try parsing with tomli_w if available, otherwise manual fallback update
-            try:
-                import tomli_w
-                import tomllib
-
-                with open(config_path, "rb") as f:
-                    data = tomllib.load(f)
-                if "calibration" not in data:
-                    data["calibration"] = {}
-                data["calibration"]["coefficients"] = coefs_low_to_high
-                data["calibration"]["degree"] = degree
-                data["calibration"]["n_points"] = n_points
-
-                with open(config_path, "wb") as f:
-                    tomli_w.dump(data, f)
-            except ImportError:
-                # Manual replacement preserving structural comments
-                with open(config_path, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-
-                cal_idx = -1
-                for i, line in enumerate(lines):
-                    if line.strip().startswith("[calibration]"):
-                        cal_idx = i
-                        break
-
-                coef_str = "[" + ", ".join(f"{c:.6e}" for c in coefs_low_to_high) + "]"
-                new_lines_section = [
-                    f"coefficients = {coef_str}\n",
-                    f"degree = {degree}\n",
-                    f"n_points = {n_points}\n"
-                ]
-
-                if cal_idx != -1:
-                    end_idx = len(lines)
-                    for i in range(cal_idx + 1, len(lines)):
-                        if lines[i].strip().startswith("[") and not lines[i].strip().startswith("[calibration]"):
-                            end_idx = i
-                            break
-                    section_lines = lines[cal_idx+1:end_idx]
-                    filtered_lines = []
-                    for line in section_lines:
-                        is_replace = False
-                        if "=" in line:
-                            key = line.split("=")[0].strip()
-                            if key in ["coefficients", "degree", "n_points"]:
-                                is_replace = True
-                        if not is_replace:
-                            filtered_lines.append(line)
-                    filtered_lines.extend(new_lines_section)
-                    new_lines = lines[:cal_idx+1] + filtered_lines + lines[end_idx:]
-                else:
-                    new_lines = lines + ["\n[calibration]\n"] + new_lines_section
-
-                with open(config_path, "w", encoding="utf-8") as f:
-                    f.writelines(new_lines)
+            from spectroo.core.config import write_calibration_to_config
+            write_calibration_to_config(config_path, coefs_low_to_high, degree, n_points)
 
             # Update config dict in memory
             if "calibration" not in self._config:
@@ -941,8 +887,10 @@ class CalibrationWindow(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Save Failure", f"Failed to save coefficients to config: {e}")
 
-    def _delete_point(self, pixel: int) -> None:
-        self._points = [p for p in self._points if getattr(p, "pixel_index", getattr(p, "pixel", -1)) != pixel]
+    def _delete_point(self, row: int) -> None:
+        if row < 0 or row >= len(self._points):
+            return
+        self._points.pop(row)
         self.canvas.set_calibration_points(self._points)
 
         # Re-render the points table

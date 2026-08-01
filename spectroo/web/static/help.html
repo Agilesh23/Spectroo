@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectroo - Help &amp; User Guide</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+        .header-bar {
+            width: 100%;
+            background-color: #0f172a;
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            color: #ffffff;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header-logo {
+            height: 72px;
+            width: auto;
+            margin-right: 9px;
+        }
+        .header-title {
+            font-size: 17px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: #f1f5f9;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            height: calc(100vh - 84px);
+            padding: 24px;
+            background-color: #fafafa;
+            overflow-y: auto;
+        }
+        .help-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 24px 32px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #1e293b;
+            font-size: 26px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h3 {
+            color: #334155;
+            font-size: 19px;
+            margin-top: 24px;
+            margin-bottom: 10px;
+        }
+        p, li {
+            font-size: 16px;
+            color: #475569;
+            line-height: 1.6;
+        }
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        button {
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 7px 12px;
+            background-color: #fafafa;
+            color: #333333;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            outline: none;
+            transition: background-color 0.1s, border-color 0.1s;
+        }
+        button:hover {
+            background-color: #f0f0f0;
+            border-color: #b0b0b0;
+        }
+        button.active {
+            background-color: #0066cc;
+            color: #ffffff;
+            border-color: #0055bb;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #0f172a;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Bar -->
+    <div class="header-bar">
+        <img src="/static/logo.png" class="header-logo" alt="LaserQuant Logo">
+        <div>
+            <div class="header-title">Spectroo</div>
+            <div style="font-size: 13px; color: #94a3b8; margin-top: 1px;">Help &amp; User Guide</div>
+        </div>
+        <div style="margin-left: auto;">
+            <button id="back-btn" class="active" style="width: auto; padding: 6px 12px;">Back to Spectrum</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div class="help-content">
+            <h2>Spectroo User Guide</h2>
+            
+            <h3>1. Acquiring Spectra</h3>
+            <ul>
+                <li><strong>Single Capture:</strong> Acquires a single snapshot of the spectrum at the current exposure time.</li>
+                <li><strong>Live Stream:</strong> Continuously captures and plots the spectrum in real time. Ideal for laser alignment or observing real-time fluctuations.</li>
+                <li><strong>Exposure Settings:</strong> Adjusts the camera's sensor exposure time in microseconds. Increase exposure to capture faint signals, or decrease it if peaks are clipping at the top.</li>
+                <li><strong>Dark Frame Subtraction:</strong> Subtracts background thermal noise. Cover the sensor completely to capture a dark frame, and toggle dark subtraction to improve signal quality.</li>
+            </ul>
+
+            <h3>2. Toolbar Controls</h3>
+            <ul>
+                <li><strong>Baseline Correction:</strong> Automatically identifies and subtracts slow-moving signal offsets, pinning the base of your peaks to zero.</li>
+                <li><strong>Colour Spectrum:</strong> Overlays a visual colored ribbon matching the calibrated wavelengths (violet to red) across the spectrum plot.</li>
+                <li><strong>Show Crosshair:</strong> Displays exact Wavelength/Pixel and Intensity values under your cursor for precise manual measurement.</li>
+                <li><strong>History Panel:</strong> Restores previous captures, deletes obsolete ones, and exports records to JSON or CSV formats.</li>
+            </ul>
+
+            <h3>3. Analysis Operations</h3>
+            <ul>
+                <li><strong>Peak Detection:</strong> Automatically tags local intensity peaks with their corresponding coordinate values.</li>
+                <li><strong>Smoothing:</strong> Reduces high-frequency electronic noise, rendering a cleaner line without affecting raw peak locations.</li>
+                <li><strong>Normalize:</strong> Scales the spectrum's intensity range using min-max scaling, shifting the minimum values to 0 and scaling the highest peak to 1.0 (or 100%). This allows easy comparison between spectra taken at different exposures.</li>
+                <li><strong>Integrate (AUC):</strong> Computes the Area Under the Curve. Click and drag on the plot to select boundaries.</li>
+            </ul>
+
+            <h3>4. Wavelength Calibration Wizard</h3>
+            <p>Wavelength calibration maps the camera's raw pixel indices to physical wavelengths in nanometers (nm).</p>
+            <ol>
+                <li>Click <strong>Wavelength Calibration</strong> in the menu to open the wizard.</li>
+                <li>Identify a peak with a known physical wavelength (e.g., from a neon calibration lamp).</li>
+                <li>Click the peak on the plot, select its marker, and enter the known wavelength (in nm).</li>
+                <li>Repeat for at least two peaks across the spectrum.</li>
+                <li>Click <strong>Fit Calibration</strong> to calculate the mapping (Residual RMS error is displayed).</li>
+                <li>Click <strong>Apply Calibration</strong> to save it permanently to the device's settings (so that it persists even after a reboot).</li>
+            </ol>
+
+            <h3>5. Spectrum Comparison &amp; Ratio</h3>
+            <p>Compares the active spectrum against a reference to measure relative transmittance, absorption, or changes.</p>
+            <ol>
+                <li>Set a reference spectrum: either click <strong>Set as Ref</strong> on a saved capture in the History panel, or open the Comparison page and click <strong>Set Current as Reference</strong>.</li>
+                <li>Click <strong>Compute Ratio</strong> on the comparison page.</li>
+                <li>The plot will display <code>Ratio = Current Intensity / Reference Intensity</code>. Reference values near zero are safely ignored.</li>
+            </ol>
+
+            <h3>6. Basic Troubleshooting</h3>
+            <ul>
+                <li><strong>Flat or Zero Signal:</strong> Check that the device is powered on, the lens cap is removed, and exposure is set above zero.</li>
+                <li><strong>Flat-Topped Peaks:</strong> The sensor is saturated. Lower the exposure time or insert an optical attenuator.</li>
+                <li><strong>No peaks detected:</strong> Ensure peak detection is enabled, and adjust exposure or peak parameters if needed.</li>
+                <li><strong>Mismatched ratio sizes:</strong> Ensure the calibration has not changed between setting the reference and taking the current spectrum.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const backBtn = document.getElementById('back-btn');
+        backBtn.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+    </script>
+</body>
+</html>

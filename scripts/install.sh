@@ -67,6 +67,7 @@ elif command -v apt-get &> /dev/null; then
         "avahi-daemon"
         "iptables"
         "iptables-persistent"
+        "dnsmasq"
     )
     
     SUDO=""
@@ -132,9 +133,9 @@ if [ "$ENABLE_BOOT" == "true" ]; then
         
         # Create a temporary file with substituted values
         TEMP_SERVICE=$(mktemp)
-        sed -e "s|User=spectroo|User=$INVOKING_USER|g" \
-            -e "s|WorkingDirectory=/home/spectroo/spectroo_v3|WorkingDirectory=$PROJECT_ROOT|g" \
-            -e "s|ExecStart=/home/spectroo/spectroo_v3/scripts/boot_detect.sh|ExecStart=$PROJECT_ROOT/scripts/boot_detect.sh|g" \
+        sed -e "s|User=laserquant|User=$INVOKING_USER|g" \
+            -e "s|WorkingDirectory=/home/laserquant/Spectroo|WorkingDirectory=$PROJECT_ROOT|g" \
+            -e "s|ExecStart=/home/laserquant/Spectroo/scripts/boot_detect.sh|ExecStart=$PROJECT_ROOT/scripts/boot_detect.sh|g" \
             "$SERVICE_SOURCE" > "$TEMP_SERVICE"
             
         echo "Copying service file to $SERVICE_DEST..."
@@ -236,10 +237,33 @@ print(cfg.get('web', {}).get('internal_port', 8000))
         echo "Persisting iptables rules..."
         $SUDO netfilter-persistent save
     fi
+
+    # Configure dnsmasq resolve entry
+    DNSMASQ_CONF="/etc/dnsmasq.conf"
+    DNSMASQ_ENTRY="address=/laserquant.spectroo/10.42.0.1"
+    if [ -f "$DNSMASQ_CONF" ]; then
+        if ! grep -qF "$DNSMASQ_ENTRY" "$DNSMASQ_CONF"; then
+            echo "Adding dnsmasq entry '$DNSMASQ_ENTRY' to $DNSMASQ_CONF"
+            echo "$DNSMASQ_ENTRY" | $SUDO tee -a "$DNSMASQ_CONF" > /dev/null
+        else
+            echo "dnsmasq entry for laserquant.spectroo already exists in $DNSMASQ_CONF."
+        fi
+    fi
+
+    # Disable the standalone dnsmasq service — it binds 0.0.0.0:53 at boot and
+    # conflicts with NetworkManager's internal dnsmasq (ipv4.method=shared).
+    # The dnsmasq package is still needed for the binary; NM spawns it internally.
+    if systemctl is-enabled --quiet dnsmasq 2>/dev/null; then
+        echo "Disabling standalone dnsmasq service (conflicts with NetworkManager hotspot)..."
+        $SUDO systemctl stop dnsmasq || true
+        $SUDO systemctl disable dnsmasq
+    fi
 fi
 
 # 6. Print Final Instructions
 echo "=== Installation Completed Successfully ==="
+echo ""
+echo "Dashboard will be available at http://laserquant.spectroo (no port needed)"
 echo ""
 echo "To run the application manually:"
 echo ""
@@ -253,5 +277,5 @@ echo "3. Run FastAPI Server (Web mode):"
 echo "   python main.py --mode web"
 echo ""
 echo "Configuration files live at: config.toml"
-echo "Log output matches: ~/spectroo/logs/spectroo.log"
+echo "Log output: <project_root>/logs/spectroo.log"
 echo ""
