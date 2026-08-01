@@ -17,10 +17,12 @@ from spectroo.core.config import load_config
 from spectroo.core.exceptions import SpectrooError
 from spectroo.system.boot_detect import detect_boot_mode, setup_logging
 
-logger = logging.getLogger("spectroo.main")
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+os.chdir(PROJECT_ROOT)
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.toml")
-LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "spectroo.log")
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.toml")
+LOG_PATH = os.path.join(PROJECT_ROOT, "logs", "spectroo.log")
+
 
 
 def run_desktop(config: dict, dev: bool = False) -> None:

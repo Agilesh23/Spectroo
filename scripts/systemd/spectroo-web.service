@@ -1,5 +1,5 @@
 [Unit]
-Description=Spectroo v3 Spectrometer Application
+Description=Spectroo v3 Spectrometer (Web Server Mode)
 After=network-online.target
 Wants=network-online.target
 
@@ -17,4 +17,3 @@ Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
-

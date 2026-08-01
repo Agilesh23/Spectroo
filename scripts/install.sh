@@ -116,8 +116,19 @@ pip install -e .
 
 if [ "$ENABLE_BOOT" == "true" ]; then
     echo "Enabling boot service..."
-    SERVICE_SOURCE="$SCRIPT_DIR/systemd/spectroo.service"
-    SERVICE_DEST="/etc/systemd/system/spectroo.service"
+    
+    # Detect boot mode to pick primary service unit
+    BOOT_MODE=$(python3 "$PROJECT_ROOT/main.py" --detect-mode 2>/dev/null || echo "web")
+    if [ "$BOOT_MODE" == "desktop" ]; then
+        SERVICE_SOURCE="$SCRIPT_DIR/systemd/spectroo-desktop.service"
+        SERVICE_NAME="spectroo-desktop.service"
+    else
+        SERVICE_SOURCE="$SCRIPT_DIR/systemd/spectroo-web.service"
+        SERVICE_NAME="spectroo-web.service"
+    fi
+    
+    SERVICE_DEST="/etc/systemd/system/$SERVICE_NAME"
+    SPECTROO_ALIAS_DEST="/etc/systemd/system/spectroo.service"
     POLKIT_SOURCE="$SCRIPT_DIR/systemd/10-spectroo-network.rules"
     POLKIT_DEST="/etc/polkit-1/rules.d/10-spectroo-network.rules"
     
@@ -133,13 +144,22 @@ if [ "$ENABLE_BOOT" == "true" ]; then
         
         # Create a temporary file with substituted values
         TEMP_SERVICE=$(mktemp)
-        sed -e "s|User=laserquant|User=$INVOKING_USER|g" \
-            -e "s|WorkingDirectory=/home/laserquant/Spectroo|WorkingDirectory=$PROJECT_ROOT|g" \
-            -e "s|ExecStart=/home/laserquant/Spectroo/scripts/boot_detect.sh|ExecStart=$PROJECT_ROOT/scripts/boot_detect.sh|g" \
+        sed -e "s|@SERVICE_USER@|$INVOKING_USER|g" \
+            -e "s|@PROJECT_DIR@|$PROJECT_ROOT|g" \
             "$SERVICE_SOURCE" > "$TEMP_SERVICE"
+
+        # Placeholder-leak guard check
+        if grep -E -q "@[A-Z_]+@" "$TEMP_SERVICE"; then
+            echo "ERROR: Unresolved template placeholders remain in generated service file:" >&2
+            grep -E -n "@[A-Z_]+@" "$TEMP_SERVICE" >&2
+            rm -f "$TEMP_SERVICE"
+            exit 1
+        fi
             
+        chmod +x "$SCRIPT_DIR/boot_detect.sh" "$SCRIPT_DIR/start_hotspot.sh" "$SCRIPT_DIR/xsession/.xinitrc" || true
         echo "Copying service file to $SERVICE_DEST..."
         $SUDO cp "$TEMP_SERVICE" "$SERVICE_DEST"
+        $SUDO ln -sf "$SERVICE_DEST" "$SPECTROO_ALIAS_DEST"
         rm "$TEMP_SERVICE"
         
         # Copy PolKit rules file for NetworkManager permissions
@@ -158,8 +178,8 @@ if [ "$ENABLE_BOOT" == "true" ]; then
         # Reload daemon and enable service
         echo "Registering systemd service..."
         $SUDO systemctl daemon-reload
-        $SUDO systemctl enable spectroo.service
-        echo "Systemd service 'spectroo.service' enabled successfully for user '$INVOKING_USER'."
+        $SUDO systemctl enable "$SERVICE_NAME"
+        echo "Systemd service '$SERVICE_NAME' (aliased to 'spectroo.service') enabled successfully for user '$INVOKING_USER'."
     else
         echo "ERROR: Root privileges (sudo) required to enable systemd boot service." >&2
         exit 1

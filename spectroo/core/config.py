@@ -1,5 +1,6 @@
 """Configuration file loader for Spectroo v3."""
 
+import os
 import tomllib
 from spectroo.core.exceptions import ConfigError
 
@@ -10,9 +11,16 @@ def load_config(path: str = "config.toml") -> dict:
     Raises:
         ConfigError: If the file is missing, unreadable, or fails to parse.
     """
+    if not os.path.isabs(path) and not os.path.exists(path):
+        proj_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        alt_path = os.path.join(proj_root, path)
+        if os.path.exists(alt_path):
+            path = alt_path
+
     try:
         with open(path, "rb") as f:
             return tomllib.load(f)
+
     except FileNotFoundError as e:
         raise ConfigError(f"Configuration file not found: {path}") from e
     except tomllib.TOMLDecodeError as e:

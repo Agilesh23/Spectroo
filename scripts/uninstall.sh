@@ -38,22 +38,23 @@ for arg in "$@"; do
     fi
 done
 
-# 3. Stop and disable systemd service
-echo "Stopping and disabling systemd service..."
-SERVICE_FILE="/etc/systemd/system/spectroo.service"
-if systemctl is-active --quiet spectroo.service 2>/dev/null || systemctl is-enabled --quiet spectroo.service 2>/dev/null; then
-    $SUDO systemctl stop spectroo.service || true
-    $SUDO systemctl disable spectroo.service || true
-    echo "  Stopped and disabled spectroo.service."
-else
-    echo "  spectroo.service not found or already stopped."
-fi
+# 3. Stop and disable systemd services
+echo "Stopping and disabling systemd services..."
+SERVICES=("spectroo.service" "spectroo-web.service" "spectroo-desktop.service")
 
-if [ -f "$SERVICE_FILE" ]; then
-    $SUDO rm -f "$SERVICE_FILE"
-    $SUDO systemctl daemon-reload
-    echo "  Removed service file at $SERVICE_FILE."
-fi
+for SVC in "${SERVICES[@]}"; do
+    if systemctl is-active --quiet "$SVC" 2>/dev/null || systemctl is-enabled --quiet "$SVC" 2>/dev/null; then
+        $SUDO systemctl stop "$SVC" || true
+        $SUDO systemctl disable "$SVC" || true
+        echo "  Stopped and disabled $SVC."
+    fi
+    SVC_FILE="/etc/systemd/system/$SVC"
+    if [ -f "$SVC_FILE" ] || [ -L "$SVC_FILE" ]; then
+        $SUDO rm -f "$SVC_FILE"
+        echo "  Removed service file/link at $SVC_FILE."
+    fi
+done
+$SUDO systemctl daemon-reload
 
 # 4. Remove PolKit rule
 echo "Removing PolKit rules..."
