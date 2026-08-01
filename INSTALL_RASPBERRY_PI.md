@@ -15,6 +15,30 @@ This manual provides clear, step-by-step, copy-pasteable instructions for settin
 * **OS:** Raspberry Pi OS 64-bit (Debian 12 "Bookworm" or later recommended).
 * **Python Version:** Python **3.11** or higher.
 
+## ⚡ Fast Automated Installation (Recommended)
+
+For a fully automated setup on a fresh Raspberry Pi OS install, clone the repository and run the automated installer script:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Agilesh23/Spectroo.git
+cd Spectroo
+
+# 2. Make the installer script executable and run it
+chmod +x scripts/install.sh
+sudo ./scripts/install.sh
+```
+
+### Installation Flags
+* **Enable Auto-Boot Service:** Launches Spectroo automatically when the Pi boots up:
+  ```bash
+  sudo ./scripts/install.sh --enable-boot-service
+  ```
+* **Skip APT Packages:** Skips system package installation if already installed or offline:
+  ```bash
+  sudo ./scripts/install.sh --skip-apt
+  ```
+
 ---
 
 ## 🔄 2. Update System Packages
