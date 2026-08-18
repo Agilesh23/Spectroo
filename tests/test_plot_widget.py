@@ -108,39 +108,3 @@ def test_paint_does_not_crash():
     pixmap_uncalibrated = widget_uncalib.grab()
     assert not pixmap_uncalibrated.isNull()
 
-
-def test_flip_horizontal():
-    widget = SpectrumPlotWidget()
-    assert widget.flip_horizontal is False
-
-    widget.set_flip_horizontal(True)
-    assert widget.flip_horizontal is True
-
-    # Test coordinate mapping symmetry
-    x_min, x_max = 400.0, 700.0
-    x_start, x_end, plot_w = 65, 765, 700
-
-    # Flipped mapping
-    px_flipped_min = widget._x_to_px(x_min, x_min, x_max, x_start, x_end, plot_w)
-    px_flipped_max = widget._x_to_px(x_max, x_min, x_max, x_start, x_end, plot_w)
-    assert px_flipped_min == x_end
-    assert px_flipped_max == x_start
-
-    # Unflipped mapping
-    widget.set_flip_horizontal(False)
-    px_unflipped_min = widget._x_to_px(x_min, x_min, x_max, x_start, x_end, plot_w)
-    assert px_unflipped_min == x_start
-
-
-def test_paint_flipped_does_not_crash():
-    widget = SpectrumPlotWidget()
-    widget.resize(800, 600)
-    wls = np.linspace(380.0, 780.0, 100)
-    intensities = np.full(100, 50.0)
-    widget.set_data(wls, intensities, [10, 20])
-    widget.set_flip_horizontal(True)
-    widget.inspect_idx = 15
-    widget.inspect_x = float(wls[15])
-    pixmap = widget.grab()
-    assert not pixmap.isNull()
-

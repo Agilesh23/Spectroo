@@ -19,7 +19,7 @@ frame_stack = 1                    # pending T7
 
 [optics]                            # one-time, locked via startup calibration
 tilt_angle_deg = 0.0
-flip_spectrum = false
+flip_spectrum = true
 center_y = 63
 
 [dsp]
