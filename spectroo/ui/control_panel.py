@@ -107,7 +107,7 @@ class ControlPanel(QWidget):
         exposure_layout = QHBoxLayout()
         exposure_label = QLabel("Exposure (µs):")
         exposure_label.setStyleSheet("font-size: 11px; color: #555555;")
-        self.exposure_input = QLineEdit("50000")
+        self.exposure_input = QLineEdit("10000")
         self.exposure_input.setFixedWidth(80)
         self.exposure_input.editingFinished.connect(self._on_exposure_finished)
         exposure_layout.addWidget(exposure_label)

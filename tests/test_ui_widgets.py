@@ -80,7 +80,7 @@ def test_set_mode_single():
 
 def test_exposure_input_default():
     panel = ControlPanel()
-    assert panel.exposure_input.text() == "50000"
+    assert panel.exposure_input.text() == "10000"
 
 
 def test_shutdown_button_exists():

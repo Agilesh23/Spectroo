@@ -470,28 +470,28 @@ class SpectrumPlotWidget(QWidget):
                     painter.setPen(QPen(self.inspect_line_color, 1.5, Qt.DashLine))
                     painter.drawLine(QPointF(px, y_start), QPointF(px, y_end))
 
-                    card_w = 105
-                    card_h = 52
+                    card_w = 140
+                    card_h = 58
                     card_x = px + 10
-                    card_y = py - 60
+                    card_y = py - 65
 
                     if card_x + card_w > x_end:
-                        card_x = px - 115
+                        card_x = px - 150
                     if card_y < y_start:
                         card_y = py + 10
 
                     card_rect = QRectF(card_x, card_y, card_w, card_h)
 
-                    painter.setPen(QPen(QColor("#cccccc"), 1))
+                    painter.setPen(QPen(QColor("#cbd5e1"), 1))
                     painter.setBrush(QBrush(QColor("#ffffff")))
                     painter.drawRoundedRect(card_rect, 4, 4)
 
                     painter.setFont(QFont("Arial", 8))
                     painter.setPen(QPen(self.text_color, 1))
                     tooltip_str = (
-                        f"{inspect_w:.1f} nm\n{inspect_y:.1f} cts\nPx {idx}"
+                        f"Pixel: {idx}\nWavelength: {inspect_w:.1f} nm\nIntensity: {inspect_y:.1f}"
                         if is_calibrated
-                        else f"Px {idx}\n{inspect_y:.1f} cts"
+                        else f"Pixel: {idx}\nIntensity: {inspect_y:.1f}"
                     )
                     painter.drawText(card_rect, Qt.AlignCenter, tooltip_str)
 
