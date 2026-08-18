@@ -88,6 +88,7 @@ class SpectrumPlotWidget(QWidget):
 
         # Display mode
         self.fill_mode: str = "color"   # "color" | "plain"
+        self.flip_horizontal: bool = False
         self.inspect_x: float | None = None
         self.inspect_idx: int | None = None
 
@@ -122,6 +123,27 @@ class SpectrumPlotWidget(QWidget):
             self.fill_mode = mode
             self.update()
 
+    def set_flip_horizontal(self, flipped: bool) -> None:
+        self.flip_horizontal = bool(flipped)
+        self.update()
+
+    def _x_to_px(self, x_val: float, x_min: float, x_max: float, x_start: float, x_end: float, plot_w: float) -> float:
+        if x_max == x_min:
+            return x_start
+        if self.flip_horizontal:
+            return x_end - (x_val - x_min) / (x_max - x_min) * plot_w
+        return x_start + (x_val - x_min) / (x_max - x_min) * plot_w
+
+    def _px_to_x(self, px: float, x_min: float, x_max: float, x_start: float, plot_w: float) -> float:
+        if plot_w <= 0:
+            return x_min
+        if self.flip_horizontal:
+            x_end = x_start + plot_w
+            frac = (x_end - px) / float(plot_w)
+        else:
+            frac = (px - x_start) / float(plot_w)
+        return x_min + frac * (x_max - x_min)
+
     def _get_zoom_range(self) -> tuple[float, float]:
         if self.wavelengths is None:
             return (0.0, 2591.0)
@@ -138,9 +160,8 @@ class SpectrumPlotWidget(QWidget):
         plot_w = self.width() - self.margin_left - self.margin_right
         if plot_w <= 0:
             return
-        mouse_x = event.x() - self.margin_left
-        t = max(0.0, min(1.0, mouse_x / plot_w))
-        center = xmin + t * (xmax - xmin)
+        x_start = self.margin_left
+        center = self._px_to_x(event.x(), xmin, xmax, x_start, plot_w)
         new_half = (xmax - xmin) * factor / 2
         full_min = float(self.wavelengths[0])
         full_max = float(self.wavelengths[-1])
@@ -164,7 +185,7 @@ class SpectrumPlotWidget(QWidget):
             xmin0, xmax0 = self._pan_start_zoom
             plot_w = self.width() - self.margin_left - self.margin_right
             data_per_px = (xmax0 - xmin0) / plot_w if plot_w > 0 else 1
-            shift = -dx * data_per_px
+            shift = dx * data_per_px if self.flip_horizontal else -dx * data_per_px
             full_min = float(self.wavelengths[0])
             full_max = float(self.wavelengths[-1])
             rng = xmax0 - xmin0
@@ -218,8 +239,7 @@ class SpectrumPlotWidget(QWidget):
                 click_x = x_start + plot_w
 
             xmin, xmax = self._get_zoom_range()
-            frac = (click_x - x_start) / float(plot_w)
-            target = xmin + frac * (xmax - xmin)
+            target = self._px_to_x(click_x, xmin, xmax, x_start, plot_w)
 
             idx = np.abs(self.wavelengths - target).argmin()
 
@@ -324,7 +344,7 @@ class SpectrumPlotWidget(QWidget):
         for x_val in x_ticks:
             if x_max == x_min:
                 continue
-            px = x_start + (x_val - x_min) / (x_max - x_min) * plot_w
+            px = self._x_to_px(x_val, x_min, x_max, x_start, x_end, plot_w)
             if px < x_start or px > x_end:
                 continue
             painter.setPen(QPen(self.grid_color, 1, Qt.SolidLine))
@@ -351,7 +371,10 @@ class SpectrumPlotWidget(QWidget):
         sub_int = self.intensities[start_idx:end_idx + 1]
 
         if x_max != x_min:
-            px_arr = x_start + (sub_wl - x_min) / (x_max - x_min) * plot_w
+            if self.flip_horizontal:
+                px_arr = x_end - (sub_wl - x_min) / (x_max - x_min) * plot_w
+            else:
+                px_arr = x_start + (sub_wl - x_min) / (x_max - x_min) * plot_w
         else:
             px_arr = np.full_like(sub_wl, x_start)
         py_arr = y_end - (sub_int / y_limit) * plot_h
@@ -373,7 +396,10 @@ class SpectrumPlotWidget(QWidget):
             full_xmax = float(self.wavelengths[-1])
             for stop_i in range(num_stops + 1):
                 t = stop_i / float(num_stops)
-                stop_val = x_min + t * (x_max - x_min)
+                if self.flip_horizontal:
+                    stop_val = x_max - t * (x_max - x_min)
+                else:
+                    stop_val = x_min + t * (x_max - x_min)
                 if is_calibrated:
                     wl = stop_val
                 else:
@@ -409,7 +435,7 @@ class SpectrumPlotWidget(QWidget):
                     continue
                 pk_y = self.intensities[idx]
                 if x_max != x_min:
-                    px = x_start + (pk_x - x_min) / (x_max - x_min) * plot_w
+                    px = self._x_to_px(pk_x, x_min, x_max, x_start, x_end, plot_w)
                 else:
                     px = x_start
                 py = y_end - (pk_y / y_limit) * plot_h
@@ -436,7 +462,7 @@ class SpectrumPlotWidget(QWidget):
                 if x_min <= inspect_w <= x_max:
                     inspect_y = self.intensities[idx]
                     if x_max != x_min:
-                        px = x_start + (inspect_w - x_min) / (x_max - x_min) * plot_w
+                        px = self._x_to_px(inspect_w, x_min, x_max, x_start, x_end, plot_w)
                     else:
                         px = x_start
                     py = y_end - (inspect_y / y_limit) * plot_h

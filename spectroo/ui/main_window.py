@@ -89,6 +89,11 @@ class SpectrooMainWindow(QMainWindow):
             "flat_loaded": bool(flat_path and __import__("os").path.exists(flat_path))
         })
 
+        init_flip = bool(self.config.get("optics", {}).get("flip_spectrum", False))
+        if init_flip:
+            self.plot_widget.set_flip_horizontal(True)
+            self.control_panel.flip_btn.setChecked(True)
+
         # Setup CPU temperature monitoring timer
         self.temp_timer = QTimer(self)
         self.temp_timer.timeout.connect(self._update_cpu_temp)
@@ -102,6 +107,7 @@ class SpectrooMainWindow(QMainWindow):
         self.control_panel.exposure_changed.connect(self._on_exposure_changed)
         self.control_panel.plot_mode_changed.connect(self.plot_widget.set_fill_mode)
         self.control_panel.baseline_toggled.connect(self._on_baseline_toggled)
+        self.control_panel.flip_toggled.connect(self._on_flip_toggled)
         self.control_panel.export_requested.connect(self._on_export)
         self.control_panel.save_chart_requested.connect(self._on_save_chart)
         self.control_panel.shutdown_requested.connect(self._on_shutdown)
@@ -109,6 +115,10 @@ class SpectrooMainWindow(QMainWindow):
         if self._dev_mode:
             self.control_panel.show_terminal_requested.connect(self._on_show_terminal)
             self.control_panel.show_logs_requested.connect(self._on_show_logs)
+
+    def _on_flip_toggled(self, enabled: bool) -> None:
+        logger.info("User action: Flip horizontal toggled to %s", enabled)
+        self.plot_widget.set_flip_horizontal(enabled)
 
     def _on_mode_changed(self, mode: str) -> None:
         logger.info("User action: Mode changed to %s", mode)

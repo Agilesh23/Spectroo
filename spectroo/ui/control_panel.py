@@ -17,6 +17,7 @@ class ControlPanel(QWidget):
     exposure_changed    = pyqtSignal(int)
     plot_mode_changed   = pyqtSignal(str)   # "color" | "plain"
     baseline_toggled    = pyqtSignal(bool)
+    flip_toggled        = pyqtSignal(bool)
     export_requested    = pyqtSignal()
     save_chart_requested = pyqtSignal()
     shutdown_requested  = pyqtSignal()      # NEW — not in v1
@@ -125,8 +126,14 @@ class ControlPanel(QWidget):
         self.baseline_btn.setChecked(True)
         self.baseline_btn.clicked.connect(lambda checked: self.baseline_toggled.emit(checked))
         
+        self.flip_btn = QPushButton("Flip Horizontal")
+        self.flip_btn.setCheckable(True)
+        self.flip_btn.setChecked(False)
+        self.flip_btn.clicked.connect(lambda checked: self.flip_toggled.emit(checked))
+
         self.layout.addWidget(self.plot_mode_btn)
         self.layout.addWidget(self.baseline_btn)
+        self.layout.addWidget(self.flip_btn)
 
         # 4. DATA
         self._add_header("DATA")
